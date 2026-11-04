@@ -1,0 +1,45 @@
+Free Distribution Share-Alike License with Commercial Distribution
+Exceptions
+
+Copyright (c) 2026 Christian Cann Schuldt Jensen (CeeJay.dk)
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+“Software”), to use, copy, modify, merge, publish, and distribute the
+Software, subject to the following conditions:
+
+    Attribution: The original author(s) must be credited in all copies or
+    substantial portions of the Software.
+
+    Free Distribution: The Software may be copied and distributed without
+    charge, provided that this license and its terms are included with the
+    distribution. No fee may be charged specifically for providing access to,
+    obtaining a copy of, or downloading the Software.
+
+    Commercial Distribution: Any distribution of the Software, whether
+    modified or unmodified, as part of a product, publication, collection,
+    bundle, installer, or other offering for which payment is required must
+    first be explicitly authorized by the copyright holder under a separate
+    commercial distribution agreement. This includes, but is not limited to,
+    magazine cover discs, paid software compilations, and commercial
+    distribution media. The copyright holder may set the terms and fees for
+    such authorization.
+
+    Share-Alike: Any modified or derivative versions of the Software that are
+    distributed must be distributed under this exact same license agreement
+    and terms, and must include the source code or make it available under
+    the terms of this license.
+
+    No Circumvention: The conditions above apply whether the Software is
+    distributed on its own or bundled with other software, and whether it is
+    modified, renamed, repackaged, or included in an installer or archive.
+    A modification or repackaging does not remove the requirement to obtain
+    authorization for distribution as part of a paid offering.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
