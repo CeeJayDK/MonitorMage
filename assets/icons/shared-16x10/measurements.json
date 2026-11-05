@@ -1,0 +1,570 @@
+{
+  "bodyRatio": "16:10 (excluding stand)",
+  "fullWidth": true,
+  "sizes": [
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    96,
+    128,
+    256
+  ],
+  "states": {
+    "active": {
+      "16": {
+        "visible": [
+          0,
+          2,
+          16,
+          14
+        ],
+        "bodyHeight": 10
+      },
+      "20": {
+        "visible": [
+          0,
+          2,
+          20,
+          18
+        ],
+        "bodyHeight": 12.5
+      },
+      "24": {
+        "visible": [
+          0,
+          3,
+          24,
+          21
+        ],
+        "bodyHeight": 15
+      },
+      "32": {
+        "visible": [
+          0,
+          4,
+          32,
+          28
+        ],
+        "bodyHeight": 20
+      },
+      "40": {
+        "visible": [
+          0,
+          4,
+          40,
+          35
+        ],
+        "bodyHeight": 25
+      },
+      "48": {
+        "visible": [
+          0,
+          5,
+          48,
+          42
+        ],
+        "bodyHeight": 30
+      },
+      "64": {
+        "visible": [
+          0,
+          7,
+          64,
+          57
+        ],
+        "bodyHeight": 40
+      },
+      "96": {
+        "visible": [
+          0,
+          11,
+          96,
+          85
+        ],
+        "bodyHeight": 60
+      },
+      "128": {
+        "visible": [
+          0,
+          14,
+          128,
+          113
+        ],
+        "bodyHeight": 80
+      },
+      "256": {
+        "visible": [
+          0,
+          28,
+          256,
+          227
+        ],
+        "bodyHeight": 160
+      }
+    },
+    "hdr": {
+      "16": {
+        "visible": [
+          0,
+          2,
+          16,
+          14
+        ],
+        "bodyHeight": 10
+      },
+      "20": {
+        "visible": [
+          0,
+          2,
+          20,
+          18
+        ],
+        "bodyHeight": 12.5
+      },
+      "24": {
+        "visible": [
+          0,
+          3,
+          24,
+          21
+        ],
+        "bodyHeight": 15
+      },
+      "32": {
+        "visible": [
+          0,
+          4,
+          32,
+          28
+        ],
+        "bodyHeight": 20
+      },
+      "40": {
+        "visible": [
+          0,
+          4,
+          40,
+          35
+        ],
+        "bodyHeight": 25
+      },
+      "48": {
+        "visible": [
+          0,
+          5,
+          48,
+          42
+        ],
+        "bodyHeight": 30
+      },
+      "64": {
+        "visible": [
+          0,
+          7,
+          64,
+          57
+        ],
+        "bodyHeight": 40
+      },
+      "96": {
+        "visible": [
+          0,
+          11,
+          96,
+          85
+        ],
+        "bodyHeight": 60
+      },
+      "128": {
+        "visible": [
+          0,
+          14,
+          128,
+          113
+        ],
+        "bodyHeight": 80
+      },
+      "256": {
+        "visible": [
+          0,
+          28,
+          256,
+          227
+        ],
+        "bodyHeight": 160
+      }
+    },
+    "disabled": {
+      "16": {
+        "visible": [
+          0,
+          2,
+          16,
+          14
+        ],
+        "bodyHeight": 10
+      },
+      "20": {
+        "visible": [
+          0,
+          2,
+          20,
+          18
+        ],
+        "bodyHeight": 12.5
+      },
+      "24": {
+        "visible": [
+          0,
+          3,
+          24,
+          21
+        ],
+        "bodyHeight": 15
+      },
+      "32": {
+        "visible": [
+          0,
+          4,
+          32,
+          28
+        ],
+        "bodyHeight": 20
+      },
+      "40": {
+        "visible": [
+          0,
+          4,
+          40,
+          35
+        ],
+        "bodyHeight": 25
+      },
+      "48": {
+        "visible": [
+          0,
+          5,
+          48,
+          42
+        ],
+        "bodyHeight": 30
+      },
+      "64": {
+        "visible": [
+          0,
+          7,
+          64,
+          57
+        ],
+        "bodyHeight": 40
+      },
+      "96": {
+        "visible": [
+          0,
+          11,
+          96,
+          85
+        ],
+        "bodyHeight": 60
+      },
+      "128": {
+        "visible": [
+          0,
+          14,
+          128,
+          113
+        ],
+        "bodyHeight": 80
+      },
+      "256": {
+        "visible": [
+          0,
+          28,
+          256,
+          227
+        ],
+        "bodyHeight": 160
+      }
+    },
+    "disabled-hdr": {
+      "16": {
+        "visible": [
+          0,
+          2,
+          16,
+          14
+        ],
+        "bodyHeight": 10
+      },
+      "20": {
+        "visible": [
+          0,
+          2,
+          20,
+          18
+        ],
+        "bodyHeight": 12.5
+      },
+      "24": {
+        "visible": [
+          0,
+          3,
+          24,
+          21
+        ],
+        "bodyHeight": 15
+      },
+      "32": {
+        "visible": [
+          0,
+          4,
+          32,
+          28
+        ],
+        "bodyHeight": 20
+      },
+      "40": {
+        "visible": [
+          0,
+          4,
+          40,
+          35
+        ],
+        "bodyHeight": 25
+      },
+      "48": {
+        "visible": [
+          0,
+          5,
+          48,
+          42
+        ],
+        "bodyHeight": 30
+      },
+      "64": {
+        "visible": [
+          0,
+          7,
+          64,
+          57
+        ],
+        "bodyHeight": 40
+      },
+      "96": {
+        "visible": [
+          0,
+          11,
+          96,
+          85
+        ],
+        "bodyHeight": 60
+      },
+      "128": {
+        "visible": [
+          0,
+          14,
+          128,
+          113
+        ],
+        "bodyHeight": 80
+      },
+      "256": {
+        "visible": [
+          0,
+          28,
+          256,
+          227
+        ],
+        "bodyHeight": 160
+      }
+    },
+    "application": {
+      "16": {
+        "visible": [
+          0,
+          2,
+          16,
+          14
+        ],
+        "bodyHeight": 10
+      },
+      "20": {
+        "visible": [
+          0,
+          2,
+          20,
+          18
+        ],
+        "bodyHeight": 12.5
+      },
+      "24": {
+        "visible": [
+          0,
+          3,
+          24,
+          21
+        ],
+        "bodyHeight": 15
+      },
+      "32": {
+        "visible": [
+          0,
+          4,
+          32,
+          28
+        ],
+        "bodyHeight": 20
+      },
+      "40": {
+        "visible": [
+          0,
+          4,
+          40,
+          35
+        ],
+        "bodyHeight": 25
+      },
+      "48": {
+        "visible": [
+          0,
+          5,
+          48,
+          42
+        ],
+        "bodyHeight": 30
+      },
+      "64": {
+        "visible": [
+          0,
+          7,
+          64,
+          57
+        ],
+        "bodyHeight": 40
+      },
+      "96": {
+        "visible": [
+          0,
+          11,
+          96,
+          85
+        ],
+        "bodyHeight": 60
+      },
+      "128": {
+        "visible": [
+          0,
+          14,
+          128,
+          113
+        ],
+        "bodyHeight": 80
+      },
+      "256": {
+        "visible": [
+          0,
+          28,
+          256,
+          227
+        ],
+        "bodyHeight": 160
+      }
+    },
+    "application-hdr": {
+      "16": {
+        "visible": [
+          0,
+          2,
+          16,
+          14
+        ],
+        "bodyHeight": 10
+      },
+      "20": {
+        "visible": [
+          0,
+          2,
+          20,
+          18
+        ],
+        "bodyHeight": 12.5
+      },
+      "24": {
+        "visible": [
+          0,
+          3,
+          24,
+          21
+        ],
+        "bodyHeight": 15
+      },
+      "32": {
+        "visible": [
+          0,
+          4,
+          32,
+          28
+        ],
+        "bodyHeight": 20
+      },
+      "40": {
+        "visible": [
+          0,
+          4,
+          40,
+          35
+        ],
+        "bodyHeight": 25
+      },
+      "48": {
+        "visible": [
+          0,
+          5,
+          48,
+          42
+        ],
+        "bodyHeight": 30
+      },
+      "64": {
+        "visible": [
+          0,
+          7,
+          64,
+          57
+        ],
+        "bodyHeight": 40
+      },
+      "96": {
+        "visible": [
+          0,
+          11,
+          96,
+          85
+        ],
+        "bodyHeight": 60
+      },
+      "128": {
+        "visible": [
+          0,
+          14,
+          128,
+          113
+        ],
+        "bodyHeight": 80
+      },
+      "256": {
+        "visible": [
+          0,
+          28,
+          256,
+          227
+        ],
+        "bodyHeight": 160
+      }
+    }
+  }
+}

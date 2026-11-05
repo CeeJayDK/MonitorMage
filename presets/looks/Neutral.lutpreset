@@ -1,0 +1,8 @@
+; Creative settings only. Existing monitor calibration is kept separately.
+[LutWorkbench]
+Version=1
+Type=Look
+
+[Look]
+Contrast=0.00
+Pivot=0.50

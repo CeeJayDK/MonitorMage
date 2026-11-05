@@ -1,0 +1,8 @@
+/build/
+/build-*/
+/dist/
+/reports/
+
+/.vs/
+/MonitorMage.ini
+*.user

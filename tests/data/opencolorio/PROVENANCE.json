@@ -1,0 +1,35 @@
+{
+  "project": "AcademySoftwareFoundation/OpenColorIO",
+  "commit": "22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd",
+  "licence": "BSD-3-Clause (LICENSE included)",
+  "files": {
+    "LICENSE": {
+      "sha256": "82a40c52065ee968aa62015735e84378ac11425db7a233e6a2dcd2c83fc24276",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/LICENSE"
+    },
+    "lut1d_1.spi1d": {
+      "sha256": "b5b652fd238b981ed2808ccb772dc6d9e91e05aa831129be805ebd9cb4aab58d",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/lut1d_1.spi1d"
+    },
+    "lut1d_2.spi1d": {
+      "sha256": "9f15007ac2744f3969e30c37c8d79e356f12563ea15f00d04f412b8554b71ac7",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/lut1d_2.spi1d"
+    },
+    "lut1d_3.spi1d": {
+      "sha256": "064eb46d52fa9ff1e6d5c83d65fb85001e798e43d78fa85c65339165bf285e83",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/lut1d_3.spi1d"
+    },
+    "lut1d_4.spi1d": {
+      "sha256": "b497e24e1e645ff62528fe39f031eefa6a6154cf6312cbe4c56615db6373bb49",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/lut1d_4.spi1d"
+    },
+    "lut1d_5.spi1d": {
+      "sha256": "311f1d15fc34b6202c9056e0dc8f9cd8a808636905e271bc01c0a9fb8973a0b7",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/lut1d_5.spi1d"
+    },
+    "sRGB_to_linear.spi1d": {
+      "sha256": "4240e29bd6638d46d68bdcb83ea321428c1a00e4360e44dd84864f78b86ff0e9",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/sRGB_to_linear.spi1d"
+    }
+  }
+}

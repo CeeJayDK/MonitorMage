@@ -1,0 +1,29 @@
+{
+  "licence": "CC0-1.0 applies to the original numeric LUT files only",
+  "files": {
+    "00 - Identity.cal": "d50594dcd45e2535532db85b60124943104d62ac2cfff431d9a2e2f586bf1a85",
+    "00 - Identity.csv": "cb48711eaa306141d2f504098c8ae0ce3e86e0832e9a4cf56a7804d4809295c7",
+    "00 - Identity.cube": "787652b3cfb8f6f4ea5e6b060994ea4838ce8bbc06d9393b3e88d62c6174ab07",
+    "00 - Identity.png": "d7000da7a074b8bfef841bc71d88b0be3079f683e04908fbcbebb1dc5845842b",
+    "00 - Identity.spi1d": "686f2a9e8f77e6cfd15d11275ab326c6aaa074be7be7013303d68e163c0050da",
+    "00 - Identity.tif": "15915247489ef7fa45bb94f181ce5d859aaf1da3b68f3c5b22e5859b930277d5",
+    "01 - Gentle contrast.cal": "a0d0b5d14da714471bc358b6257532b4a8e27c538d609680b503a437cd00c944",
+    "01 - Gentle contrast.csv": "e736dcf351551bc19ed705e77ae3a3600b8efc1155af2e5e69af2a45d8880573",
+    "01 - Gentle contrast.cube": "91d72a9a338f428f1d377015466e7880d7427a1036739cf3380a3109a8917eef",
+    "01 - Gentle contrast.png": "cb185b72968d5395ecf055ff3f8ddefcca043c22b96160cfdd3dcce4f7eaacbe",
+    "01 - Gentle contrast.spi1d": "84f15d86320c341be33e5fa41608a078b77e0082155a87d98d2f0b449ef1856b",
+    "01 - Gentle contrast.tif": "86fb0f9722736996030103a3b2032b5e592a2ec3d12c0ec6ac265112eac39a4a",
+    "02 - Warm balance.cal": "53c2c0305b1b818c06a91e21876b97f12a64aa91757479bc982f423377f34e30",
+    "02 - Warm balance.csv": "573a24245410d0d13856a7b63fa7abfb9b12c766a4f8f4d17ec3715b3eec3f87",
+    "02 - Warm balance.cube": "2a5b9fbe44300a19c98a4aa066abcae00fde59a6ab15f136357f3d4453d84cd0",
+    "02 - Warm balance.png": "878267ff808bfb378e4e3ad4ede0d93214ad9d779a5a1628607477a90090573f",
+    "02 - Warm balance.spi1d": "713409c0dc51bd94bc2dc5c9deb0bf40ee3fc739ecb31aa247e17db0ff95a5eb",
+    "02 - Warm balance.tif": "27eeae73f76ca34c03fe3313e399cfb48640babc652fe9f4f7fed81dc9c979f2",
+    "03 - Faded tone.cal": "acd9674cfccd40d9aff126baf430b5b7684d32280121fe4d13f559a092654e65",
+    "03 - Faded tone.csv": "35d2a0043182f307f3e8d61daaf8f269a0f9ae697e0e12ba239fc1a5ceb273e7",
+    "03 - Faded tone.cube": "50460cc3bb562352f7eba96a9ea28517aa763d2df00cbb2da7d42461043f1ea2",
+    "03 - Faded tone.png": "dcdeef1ac92b9e28a5af76ae1f6676e9e5eff10e03f21e07384ec433e8ef73e7",
+    "03 - Faded tone.spi1d": "2650c59cec6ebd6d3e6b4a27a1c45ed455d9c7474d670f46892cbff82c296aea",
+    "03 - Faded tone.tif": "237a2203f81272fca267b5d1a4c0dde9191cfd32ef70c69b6fa85e21fd380ba3"
+  }
+}

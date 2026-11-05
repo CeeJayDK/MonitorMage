@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs><linearGradient id="curve"><stop stop-color="#00dce9"/><stop offset=".32" stop-color="#168eff"/><stop offset=".62" stop-color="#ed43ef"/><stop offset="1" stop-color="#ffe923"/></linearGradient><linearGradient id="case" x2="0" y2="1"><stop stop-color="#727a83"/><stop offset="1" stop-color="#535b65"/></linearGradient><clipPath id="screen"><rect x="17.92" y="73.92" width="476.15999999999997" height="284.15999999999997" rx="14.079999999999998"/></clipPath></defs>
+<path d="M220.16 358.08 H291.84 L302.08 419.84 H209.92 Z" fill="#616973"/>
+<rect x="153.6" y="414.72" width="204.8" height="38.4" rx="12.8" fill="#69717c"/>
+<rect x="0" y="56" width="512" height="320" rx="23.04" fill="#9299a1"/>
+<rect x="3.072" y="59.072" width="505.856" height="313.856" rx="19.968" fill="url(#case)"/>
+<rect x="17.92" y="73.92" width="476.15999999999997" height="284.15999999999997" rx="14.079999999999998" fill="#090b0e"/>
+<g clip-path="url(#screen)"><path d="M48.870400000000004 312.6144 C246.47679999999997 312.6144 251.23839999999996 127.9104 455.98720000000003 127.9104" fill="none" stroke="url(#curve)" stroke-width="32.768" stroke-linecap="round"/></g>
+</svg>

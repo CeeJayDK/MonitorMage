@@ -1,0 +1,56 @@
+#include "icon_resources.h"
+#include <winver.h>
+#include "app_version.h"
+
+1 VERSIONINFO
+FILEVERSION MONITORMAGE_VERSION_NUM
+PRODUCTVERSION MONITORMAGE_VERSION_NUM
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "MonitorMage"
+            VALUE "CompanyName", "CeeJay.dk"
+            VALUE "Comments", "https://CeeJay.dk"
+            VALUE "FileVersion", MONITORMAGE_VERSION
+            VALUE "InternalName", "MonitorMage"
+            VALUE "OriginalFilename", "MonitorMage.exe"
+            VALUE "ProductName", "MonitorMage"
+            VALUE "ProductVersion", MONITORMAGE_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
+
+#ifdef LUT_USE_SHARED_ICONS
+IDI_LUT_ACTIVE ICON "assets/icons/shared-16x10/active.ico"
+IDI_LUT_HDR ICON "assets/icons/shared-16x10/hdr.ico"
+IDI_LUT_DISABLED ICON "assets/icons/shared-16x10/disabled.ico"
+IDI_LUT_APPLICATION ICON "assets/icons/shared-16x10/application.ico"
+IDI_LUT_APPLICATION_HDR ICON "assets/icons/shared-16x10/application-hdr.ico"
+IDI_LUT_DISABLED_HDR ICON "assets/icons/shared-16x10/disabled-hdr.ico"
+#elif defined(LUT_USE_REGENERATED_ICONS)
+IDI_LUT_ACTIVE ICON "assets/icons/regenerated/active.ico"
+IDI_LUT_HDR ICON "assets/icons/regenerated/hdr.ico"
+IDI_LUT_DISABLED ICON "assets/icons/regenerated/disabled.ico"
+IDI_LUT_APPLICATION ICON "assets/icons/regenerated/application.ico"
+IDI_LUT_APPLICATION_HDR ICON "assets/icons/regenerated/application-hdr.ico"
+IDI_LUT_DISABLED_HDR ICON "assets/icons/regenerated/disabled-hdr.ico"
+#else
+IDI_LUT_ACTIVE ICON "assets/icons/extracted/active.ico"
+IDI_LUT_HDR ICON "assets/icons/extracted/hdr.ico"
+IDI_LUT_DISABLED ICON "assets/icons/extracted/disabled.ico"
+IDI_LUT_APPLICATION ICON "assets/icons/extracted/application.ico"
+IDI_LUT_APPLICATION_HDR ICON "assets/icons/extracted/application-hdr.ico"
+IDI_LUT_DISABLED_HDR ICON "assets/icons/extracted/disabled-hdr.ico"
+#endif
+IDI_PROFILE_DIAMOND ICON "assets/icons/shared-16x10/profile-diamond.ico"

@@ -1,0 +1,8 @@
+; SDR white follows Windows. The captured hardware ramp is never embedded.
+[LutWorkbench]
+Version=1
+Type=Correction
+
+[Correction]
+HDRGammaEnabled=true
+Gamma=2.4

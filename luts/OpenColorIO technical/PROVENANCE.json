@@ -1,0 +1,19 @@
+{
+  "project": "AcademySoftwareFoundation/OpenColorIO",
+  "commit": "22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd",
+  "licence": "BSD-3-Clause (LICENSE included)",
+  "files": {
+    "LICENSE": {
+      "sha256": "82a40c52065ee968aa62015735e84378ac11425db7a233e6a2dcd2c83fc24276",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/LICENSE"
+    },
+    "lut1d_1.spi1d": {
+      "sha256": "b5b652fd238b981ed2808ccb772dc6d9e91e05aa831129be805ebd9cb4aab58d",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/lut1d_1.spi1d"
+    },
+    "sRGB_to_linear.spi1d": {
+      "sha256": "4240e29bd6638d46d68bdcb83ea321428c1a00e4360e44dd84864f78b86ff0e9",
+      "url": "https://raw.githubusercontent.com/AcademySoftwareFoundation/OpenColorIO/22dd9c4faa0d1b7cfb3d64d1a6e9cb454acc6cfd/tests/data/files/sRGB_to_linear.spi1d"
+    }
+  }
+}

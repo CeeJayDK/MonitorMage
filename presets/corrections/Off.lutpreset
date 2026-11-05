@@ -1,0 +1,8 @@
+; First-run monitor correction preset: HDR gamma correction is off.
+[LutWorkbench]
+Version=1
+Type=Correction
+
+[Correction]
+HDRGammaEnabled=false
+Gamma=2.2

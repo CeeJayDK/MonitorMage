@@ -1,0 +1,76 @@
+MonitorMage - beta test steps
+First beta release - package 0.111.2; application version 0.111.0
+
+Try the sections that match how you normally use your computer. You do not
+need a second monitor or an HDR display to help test.
+
+1. TRY A LOOK
+   Open MonitorMage and choose Gentle contrast from the top dropdown.
+   Turn master power off and on to compare. Open another effect and check
+   that its own switch and settings work. Watch for flashing sliders or
+   black/copied areas below the drawn monitor.
+
+2. TRY BLACK AND WHITE
+   Choose Red filter B&W. Open Channel mixer and change Red, Green and Blue.
+   The picture should stay black and white, but colored objects should become
+   lighter or darker. White should stay white. Try Reset, then save your look
+   with Save as. Choose another look, then return to your saved one.
+
+3. TRY A GAME
+   Choose Grayscale, then open a game. After the game changes resolution,
+   wait about three seconds. Is the game still black and white?
+   Press Alt+Tab to return to the desktop, then return to the game.
+   If colors do not return, try Bypass look and then turn bypass off again.
+   If the game offers Fullscreen, Borderless and Windowed, compare the modes
+   you use. Record the exact option name; some fullscreen modes ignore these
+   color effects even when MonitorMage is working on the desktop.
+
+4. CHECK THE WINDOW SIZE
+   At your usual resolution and Windows text/app scaling, open Settings and
+   Application profiles. Check that text fits and buttons remain reachable.
+   If you normally switch resolutions or move windows between monitors, try
+   that too. Small desktops should get scrollbars. Use Tab to reach a control
+   and check that it scrolls into view. Returning to a larger desktop should
+   bring back the normal window size.
+
+5. CHECK PROFILES AND STARTUP
+   Follow Read me.txt to give a program its own saved look. Switch to and
+   away from that program: your previous look should return when you leave.
+   If you use automatic startup, enable Start with Windows and Start minimized.
+   At your next normal sign-in, MonitorMage should run in the tray without opening
+   its editor. Before opening it, check that your saved look and application
+   profiles already work. Left-click the tray icon: the editor should show
+   the current look. Also try exiting directly from the tray without opening it.
+
+6. CHECK THAT COLORS ARE RESTORED
+   With a visible look active, choose Exit from the tray. Your previous colors
+   should return. Open MonitorMage again and check that the saved look returns.
+   If you normally use sleep, try sleeping and waking the PC with a look active.
+   Check that master power still pauses and resumes the adjustments afterward.
+
+7. OTHER DISPLAYS, IF YOU HAVE THEM
+   Try your normal screen arrangement. If you already use both SDR and HDR,
+   compare both. If you duplicate the picture on two screens, check them both.
+   Saturation and Channel mixer should affect all displays; other effects use
+   the selected display. Night light has its own display choices.
+   If you use Extend mode, enable Night light on both screens. Both should get
+   warmer. Exclude one screen: that screen should return to its previous colors.
+   Exit from the tray and check that both screens return to their previous colors.
+   If you switch HDR on and off, repeat the switch with a look active. Ordinary
+   effects should continue; HDR gamma should follow its Also apply in SDR option.
+
+IF YOU FIND A PROBLEM
+
+Please describe:
+- What you clicked or changed, step by step.
+- What you expected and what happened instead.
+- The MonitorMage version, Windows version, graphics card and display.
+- Your screen resolution and Windows scaling percentage, if known.
+- The game/program name and its Fullscreen/Borderless/Windowed option.
+- Whether bypass or master power fixes it; include a screenshot if helpful.
+
+For Saturation or Channel mixer problems, Settings > Color effect report
+saves a report on your computer. Nothing is sent automatically. Read it before
+sharing: it includes display details and running program names.
+
+
