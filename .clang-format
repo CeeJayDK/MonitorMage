@@ -1,0 +1,41 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: c++17
+
+# Layout
+ColumnLimit: 120
+IndentWidth: 4
+TabWidth: 4
+ContinuationIndentWidth: 4
+UseTab: AlignWithSpaces
+AccessModifierOffset: -4
+BreakBeforeBraces: Allman
+IndentCaseLabels: true
+NamespaceIndentation: None
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+PointerAlignment: Left
+DerivePointerAlignment: false
+AlwaysBreakTemplateDeclarations: Yes
+
+# One statement per line; only trivial bodies inside a class may stay short
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+
+# Spacing
+Cpp11BracedListStyle: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeParens: ControlStatements
+
+# Never change meaning or order: windows.h include order matters
+SortIncludes: false
+IncludeBlocks: Preserve
+ReflowComments: false
+BreakStringLiterals: false
+FixNamespaceComments: false
+...
