@@ -701,7 +701,11 @@ int RunEffectUiTest()
 			if (effect == effect::ContrastCurves)
 				sliders = { contrast_slider, pivot_slider };
 			else if (effect == effect::HdrGamma)
-				sliders = { white_slider };
+			{
+				// Windows HDR turns this slider off, so there is nothing to reset.
+				if (IsWindowEnabled(white_slider))
+					sliders = { white_slider };
+			}
 			else
 				for (size_t i = 0; i < fields.size(); ++i)
 					sliders.push_back(adjustment_sliders[i]);

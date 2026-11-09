@@ -1,10 +1,11 @@
 #include "live_lut.h"
+#include "app_settings.h"
 #include "color_math.h"
 #include <algorithm>
+#include <cstddef>
 #include <cmath>
 #include <fstream>
 #include <stdexcept>
-#include <new>
 #include <mutex>
 
 namespace live
@@ -89,24 +90,42 @@ bool LegacyHdrFlagReliable()
 	return query && query(&info) == 0 && info.dwBuildNumber < 22000;
 }
 
+bool diagnostics_enabled = false;
+
 struct Snapshot
 {
-	DWORD magic = 0x3254554c;
 	wchar_t source[32] {}, identity[2048] {};
 	Ramp baseline {};
 };
 
+// How to get back the ramp found on the display. Only a ramp that cannot be rebuilt is stored.
+enum class BaselineKind : LONG
+{
+	Stored,
+	Identity,
+	HdrGamma
+};
+
+struct BaselineRecipe
+{
+	BaselineKind kind = BaselineKind::Stored;
+	double white = 0, gamma = 0;
+};
+
+// Memory shared with the recovery guardian. The guardian keeps its own copy of the recovery data.
 struct Shared
 {
 	volatile LONG applied = 0, pending = 0;
 	Ramp last {}, candidate {};
+	wchar_t source[32] {}, identity[2048] {};
+	BaselineRecipe recipe;
+	Ramp baseline {}; // Must stay last: left out of the shared memory when the recipe can rebuild it.
 };
 
 struct View
 {
 	Shared* shared = nullptr;
-	explicit View(HANDLE mapping)
-		: shared(static_cast<Shared*>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared))))
+	explicit View(HANDLE mapping) : shared(static_cast<Shared*>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, 0)))
 	{
 	}
 	~View()
@@ -116,35 +135,7 @@ struct View
 	}
 };
 
-std::wstring QuoteArgument(const std::wstring& value)
-{
-	if (value.find(L'"') != std::wstring::npos)
-		throw std::runtime_error("Invalid quote in recovery argument");
-	return L"\"" + value + L"\"";
-}
-
-void SaveSnapshot(const std::wstring& file, const Snapshot& snapshot)
-{
-	Handle h(CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
-	DWORD count = 0;
-	if (h.handle == INVALID_HANDLE_VALUE || !WriteFile(h.handle, &snapshot, sizeof(snapshot), &count, nullptr) ||
-	    count != sizeof(snapshot) || !FlushFileBuffers(h.handle))
-		throw std::runtime_error("Cannot save recovery baseline");
-}
-
-Snapshot LoadSnapshot(const wchar_t* file)
-{
-	Snapshot snapshot;
-	DWORD count = 0;
-	LARGE_INTEGER length {};
-	Handle h(CreateFileW(file, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
-	if (h.handle == INVALID_HANDLE_VALUE || !GetFileSizeEx(h.handle, &length) || length.QuadPart != sizeof(snapshot) ||
-	    !ReadFile(h.handle, &snapshot, sizeof(snapshot), &count, nullptr) || count != sizeof(snapshot) ||
-	    snapshot.magic != 0x3254554c || snapshot.source[31] || snapshot.identity[2047] || !snapshot.source[0] ||
-	    !snapshot.identity[0])
-		throw std::runtime_error("Invalid live recovery snapshot");
-	return snapshot;
-}
+using app_settings::QuoteArgument;
 
 Output FindOutputForSnapshot(const Snapshot& snapshot)
 {
@@ -152,32 +143,6 @@ Output FindOutputForSnapshot(const Snapshot& snapshot)
 		if (output.identity == snapshot.identity)
 			return output;
 	return {};
-}
-
-int RestoreSnapshot(const Snapshot& snapshot, Shared* shared)
-{
-	if (shared && InterlockedCompareExchange(&shared->applied, 0, 0) == 0 &&
-	    InterlockedCompareExchange(&shared->pending, 0, 0) == 0)
-		return 0;
-	const auto output = FindOutputForSnapshot(snapshot);
-	if (output.name.empty())
-		return 11;
-	DC dc(output.name);
-	Ramp current {};
-	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &current))
-		return 12;
-	if (shared)
-	{
-		const bool pending = InterlockedCompareExchange(&shared->pending, 0, 0) != 0;
-		const bool applied = InterlockedCompareExchange(&shared->applied, 0, 0) != 0;
-		if (!IsRampOurs(current, snapshot.baseline, shared->last, shared->candidate, applied, pending))
-			return 10;
-	}
-	if (!SetDeviceGammaRamp(dc.handle, const_cast<Ramp*>(&snapshot.baseline)))
-		return 13;
-	if (!GetDeviceGammaRamp(dc.handle, &current) || MaxRampDifference(current, snapshot.baseline) > 2)
-		return 14;
-	return 0;
 }
 
 std::wstring NewTempFilePath()
@@ -188,15 +153,7 @@ std::wstring NewTempFilePath()
 	if (!size || size >= MAX_PATH)
 		throw std::runtime_error("Cannot locate recovery folder");
 	return std::wstring(folder) + L"LutWorkbench-live-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
-	       std::to_wstring(GetTickCount64()) + L"-" + std::to_wstring(InterlockedIncrement(&serial)) + L".bin";
-}
-
-std::wstring ExecutablePath()
-{
-	wchar_t file[32768] {};
-	if (!GetModuleFileNameW(nullptr, file, static_cast<DWORD>(std::size(file))))
-		throw std::runtime_error("Cannot locate recovery executable");
-	return file;
+	       std::to_wstring(GetTickCount64()) + L"-" + std::to_wstring(InterlockedIncrement(&serial));
 }
 
 Ramp IdentityRamp()
@@ -206,6 +163,108 @@ Ramp IdentityRamp()
 		for (size_t i = 0; i < 256; ++i)
 			channel[i] = static_cast<std::uint16_t>(i * 257);
 	return ramp;
+}
+
+// A neutral ramp is sometimes i * 256 rather than i * 257, which is one 8-bit step lower at the top.
+bool IsNeutralRamp(const Ramp& ramp)
+{
+	Ramp shifted {};
+	for (auto& channel : shifted)
+		for (size_t i = 0; i < 256; ++i)
+			channel[i] = static_cast<std::uint16_t>(i * 256);
+	return MaxRampDifference(ramp, IdentityRamp()) <= 2 || MaxRampDifference(ramp, shifted) <= 2;
+}
+
+Ramp HdrGammaBaseline(double white, double gamma)
+{
+	Output output;
+	output.hdr = true;
+	output.white = white;
+	return BuildGammaRamp(IdentityRamp(), output, Settings { 0, 0.5, gamma, true, false });
+}
+
+// Only an exact match counts, so a rebuilt ramp is always the same as the one that was found.
+BaselineRecipe RecipeFor(const Ramp& baseline, const Output& output)
+{
+	if (baseline == IdentityRamp())
+		return { BaselineKind::Identity };
+	if (output.hdr)
+		for (double gamma : { 2.2, 2.4 })
+			if (baseline == HdrGammaBaseline(output.white, gamma))
+				return { BaselineKind::HdrGamma, output.white, gamma };
+	return {};
+}
+
+DWORD MappingSize(const BaselineRecipe& recipe)
+{
+	return static_cast<DWORD>(recipe.kind == BaselineKind::Stored ? sizeof(Shared) : offsetof(Shared, baseline));
+}
+
+void WriteRecoveryData(Shared& shared, const Snapshot& snapshot, const BaselineRecipe& recipe)
+{
+	std::copy(std::begin(snapshot.source), std::end(snapshot.source), shared.source);
+	std::copy(std::begin(snapshot.identity), std::end(snapshot.identity), shared.identity);
+	shared.recipe = recipe;
+	if (recipe.kind == BaselineKind::Stored)
+		shared.baseline = snapshot.baseline;
+}
+
+Snapshot ReadRecoveryData(const Shared& shared)
+{
+	if (shared.source[31] || shared.identity[2047] || !shared.source[0] || !shared.identity[0])
+		throw std::runtime_error("Invalid live recovery data");
+	Snapshot snapshot;
+	std::copy(std::begin(shared.source), std::end(shared.source), snapshot.source);
+	std::copy(std::begin(shared.identity), std::end(shared.identity), snapshot.identity);
+	switch (shared.recipe.kind)
+	{
+		case BaselineKind::Stored:
+			snapshot.baseline = shared.baseline;
+			break;
+		case BaselineKind::Identity:
+			snapshot.baseline = IdentityRamp();
+			break;
+		case BaselineKind::HdrGamma:
+			snapshot.baseline = HdrGammaBaseline(shared.recipe.white, shared.recipe.gamma);
+			break;
+		default:
+			throw std::runtime_error("Invalid live recovery data");
+	}
+	return snapshot;
+}
+
+int RestoreOutput(const Output& output, const Snapshot& snapshot, Shared* shared)
+{
+	DC dc(output.name);
+	Ramp current {};
+	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &current))
+		return 12;
+	const bool pending = InterlockedCompareExchange(&shared->pending, 0, 0) != 0;
+	const bool applied = InterlockedCompareExchange(&shared->applied, 0, 0) != 0;
+	if (!IsRampOurs(current, snapshot.baseline, shared->last, shared->candidate, applied, pending))
+		return 10;
+	if (!SetDeviceGammaRamp(dc.handle, const_cast<Ramp*>(&snapshot.baseline)))
+		return 13;
+	if (!GetDeviceGammaRamp(dc.handle, &current) || MaxRampDifference(current, snapshot.baseline) > 2)
+		return 14;
+	return 0;
+}
+
+int RestoreSnapshot(const Snapshot& snapshot, Shared* shared)
+{
+	if (InterlockedCompareExchange(&shared->applied, 0, 0) == 0 &&
+	    InterlockedCompareExchange(&shared->pending, 0, 0) == 0)
+		return 0;
+	const auto output = FindOutputForSnapshot(snapshot);
+	if (!output.name.empty())
+		return RestoreOutput(output, snapshot, shared);
+	const auto rearranged = OutputsAfterLayoutChange(snapshot.identity, snapshot.baseline, ActiveOutputs());
+	if (rearranged.empty())
+		return 11;
+	int worst = 0; // The result codes rise from success through a kept ramp to errors.
+	for (const auto& moved : rearranged)
+		worst = std::max(worst, RestoreOutput(moved, snapshot, shared));
+	return worst;
 }
 
 std::wstring DisplayTargetsFromIdentity(const std::wstring& mode)
@@ -337,6 +396,33 @@ bool SameDisplays(const Output& a, const Output& b)
 {
 	const auto key = DisplayTargetsFromIdentity(a.identity);
 	return !key.empty() && key == DisplayTargetsFromIdentity(b.identity);
+}
+
+std::vector<Output> OutputsAfterLayoutChange(const std::wstring& session_identity, const Ramp& baseline,
+                                             const std::vector<Output>& outputs)
+{
+	// Only a neutral ramp means the same thing in the new layout, which may be in another SDR/HDR mode.
+	if (!IsNeutralRamp(baseline))
+		return {};
+	const auto monitors = DisplayTargetsFromIdentity(session_identity);
+	std::vector<Output> sharing_a_monitor;
+	for (const auto& output : outputs)
+	{
+		const auto targets = DisplayTargetsFromIdentity(output.identity);
+		if (targets == monitors)
+			return {}; // The same monitors are still together, so this is only a change of mode.
+		for (size_t start = 0; start < monitors.size();)
+		{
+			const auto end = monitors.find(L'\n', start);
+			if (targets.find(monitors.substr(start, end + 1 - start)) != std::wstring::npos)
+			{
+				sharing_a_monitor.push_back(output);
+				break;
+			}
+			start = end + 1;
+		}
+	}
+	return sharing_a_monitor;
 }
 
 double EvaluateOutputCode(double code, int channel, const Output& output, const Settings& settings)
@@ -477,6 +563,17 @@ struct Session::Impl
 	~Impl() { Finish(); }
 };
 
+void SetDiagnosticsEnabled(bool enabled)
+{
+	diagnostics_enabled = enabled;
+}
+
+void RemoveSessionLogs(const std::wstring& log_base)
+{
+	DeleteFileW((log_base + L".session.txt").c_str());
+	DeleteFileW((log_base + L".result.txt").c_str());
+}
+
 Session::Session() = default;
 Session::~Session() = default;
 bool Session::IsActive() const
@@ -535,7 +632,7 @@ void Session::Start(const Output& requested, const Settings& settings, bool rese
 	if (own_carry_over || reset_to_identity)
 		session->snapshot.baseline = session->baseline;
 	session->file = NewTempFilePath();
-	SaveSnapshot(session->file, session->snapshot);
+	const auto recipe = RecipeFor(session->snapshot.baseline, output);
 	static LONG serial = 0;
 	const auto key = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()) + L"-" +
 	                 std::to_wstring(InterlockedIncrement(&serial));
@@ -544,19 +641,19 @@ void Session::Start(const Output& requested, const Settings& settings, bool rese
 	session->ready.handle = CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str());
 	session->done.handle = CreateEventW(nullptr, TRUE, FALSE, done_name.c_str());
 	session->mapping.handle =
-		CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared), map_name.c_str());
+		CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, MappingSize(recipe), map_name.c_str());
 	if (!session->ready.handle || !session->done.handle || !session->mapping.handle)
 		throw std::runtime_error("Cannot initialize recovery helper");
 	session->view = std::make_unique<View>(session->mapping.handle);
 	if (!session->view->shared)
 		throw std::runtime_error("Cannot map recovery state");
-	::new (session->view->shared) Shared {};
+	WriteRecoveryData(*session->view->shared, session->snapshot, recipe);
 	if (own_carry_over || reset_to_identity)
 	{
 		session->view->shared->last = captured;
 		InterlockedExchange(&session->view->shared->applied, 1);
 	}
-	const auto exe = ExecutablePath();
+	const auto exe = app_settings::ExecutablePath();
 	auto command = QuoteArgument(exe) + L" --live-guard " + QuoteArgument(session->file) + L" " +
 	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(ready_name) + L" " +
 	               QuoteArgument(done_name) + L" " + QuoteArgument(map_name);
@@ -621,6 +718,8 @@ void Session::Update(const Output& output, const Settings& settings)
 	MemoryBarrier();
 	InterlockedExchange(&shared->applied, 1);
 	InterlockedExchange(&shared->pending, 0);
+	if (!diagnostics_enabled)
+		return;
 	std::ofstream log(_impl->file + L".session.txt", std::ios::app);
 	log.imbue(std::locale::classic());
 	log << "tick=" << GetTickCount64() << " hdr=" << current_output.hdr << " white_nits=" << current_output.white
@@ -634,6 +733,8 @@ int Session::Stop()
 	if (!_impl)
 		return 0;
 	const int code = _impl->Finish();
+	if ((code == 0 || code == 10) && !diagnostics_enabled)
+		RemoveSessionLogs(_impl->file);
 	if (code == 11 && _impl->view && _impl->view->shared && _impl->view->shared->applied &&
 	    MaxRampDifference(_impl->view->shared->last, _impl->snapshot.baseline) > 2)
 	{
@@ -652,7 +753,6 @@ int RunRecoveryGuardian(const wchar_t* file, DWORD parent_id, const wchar_t* rea
 {
 	try
 	{
-		const auto snapshot = LoadSnapshot(file);
 		Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parent_id));
 		Handle ready(OpenEventW(EVENT_MODIFY_STATE, FALSE, ready_name));
 		Handle done(OpenEventW(SYNCHRONIZE, FALSE, done_name));
@@ -662,6 +762,7 @@ int RunRecoveryGuardian(const wchar_t* file, DWORD parent_id, const wchar_t* rea
 		if (!parent.handle || !ready.handle || !done.handle || !mapping.handle || !view.shared ||
 		    (!probe && !lease.handle))
 			return 16;
+		const auto snapshot = ReadRecoveryData(*view.shared);
 		SetEvent(ready.handle);
 		HANDLE wait[] = { parent.handle, done.handle };
 		if (WaitForMultipleObjects(2, wait, FALSE, INFINITE) == WAIT_FAILED)
@@ -672,18 +773,6 @@ int RunRecoveryGuardian(const wchar_t* file, DWORD parent_id, const wchar_t* rea
 		log << "Live restoration result=" << code
 			<< "\n0=baseline restored; 10=external ramp preserved; 11=display mode changed; other=restoration error\n";
 		return code;
-	}
-	catch (...)
-	{
-		return 18;
-	}
-}
-
-int RecoverFromSnapshotFile(const wchar_t* file)
-{
-	try
-	{
-		return RestoreSnapshot(LoadSnapshot(file), nullptr);
 	}
 	catch (...)
 	{
@@ -737,24 +826,67 @@ int WriterLeaseSelfTest()
 	}
 }
 
+int BaselineStorageSelfTest()
+{
+	try
+	{
+		const auto stores_and_rebuilds = [](const Ramp& ramp, const Output& output, BaselineKind expected)
+		{
+			auto shared = std::make_unique<Shared>();
+			Snapshot snapshot;
+			wcscpy_s(snapshot.source, L"probe-source");
+			wcscpy_s(snapshot.identity, L"probe-identity");
+			snapshot.baseline = ramp;
+			const auto recipe = RecipeFor(ramp, output);
+			WriteRecoveryData(*shared, snapshot, recipe);
+			const bool written = shared->baseline != Ramp {};
+			return recipe.kind == expected && written == (expected == BaselineKind::Stored) &&
+			       ReadRecoveryData(*shared).baseline == ramp;
+		};
+		Output hdr, sdr;
+		hdr.hdr = true;
+		hdr.white = 280;
+		sdr.white = 200;
+		const auto gamma_fix = HdrGammaBaseline(280, 2.4);
+		auto almost_identity = IdentityRamp(), almost_gamma_fix = gamma_fix;
+		almost_identity[0][100] += 1;
+		almost_gamma_fix[2][200] += 1;
+		if (!stores_and_rebuilds(IdentityRamp(), sdr, BaselineKind::Identity) ||
+		    !stores_and_rebuilds(IdentityRamp(), hdr, BaselineKind::Identity) ||
+		    !stores_and_rebuilds(HdrGammaBaseline(280, 2.2), hdr, BaselineKind::HdrGamma) ||
+		    !stores_and_rebuilds(gamma_fix, hdr, BaselineKind::HdrGamma) ||
+		    !stores_and_rebuilds(gamma_fix, sdr, BaselineKind::Stored) ||
+		    !stores_and_rebuilds(almost_identity, sdr, BaselineKind::Stored) ||
+		    !stores_and_rebuilds(almost_gamma_fix, hdr, BaselineKind::Stored))
+			return 1;
+		return offsetof(Shared, baseline) + sizeof(Ramp) == sizeof(Shared) ? 0 : 2;
+	}
+	catch (...)
+	{
+		return 3;
+	}
+}
+
 int RecoverySelfTest(const wchar_t* exe, bool crash_parent)
 {
 	try
 	{
 		const auto file = NewTempFilePath();
-		Snapshot snapshot;
-		wcscpy_s(snapshot.source, L"probe-source");
-		wcscpy_s(snapshot.identity, L"probe-identity");
-		SaveSnapshot(file, snapshot);
 		const auto key = std::to_wstring(GetCurrentProcessId()) + L"-probe-" + std::to_wstring(GetTickCount64());
 		const auto ready_name = L"Local\\" + key + L"-ready", done_name = L"Local\\" + key + L"-done",
 				   mutex_name = L"Local\\" + key + L"-map";
 		Handle ready(CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str())),
 			done(CreateEventW(nullptr, TRUE, FALSE, done_name.c_str()));
-		Handle mapping(
-			CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared), mutex_name.c_str()));
+		Handle mapping(CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0,
+		                                  MappingSize({ BaselineKind::Identity }), mutex_name.c_str()));
 		if (!ready.handle || !done.handle || !mapping.handle)
 			return 1;
+		View view(mapping.handle);
+		if (!view.shared)
+			return 1;
+		wcscpy_s(view.shared->source, L"probe-source");
+		wcscpy_s(view.shared->identity, L"probe-identity");
+		view.shared->recipe.kind = BaselineKind::Identity;
 		Handle owner;
 		DWORD parent_id = GetCurrentProcessId();
 		if (crash_parent)
@@ -800,7 +932,6 @@ int RecoverySelfTest(const wchar_t* exe, bool crash_parent)
 		GetExitCodeProcess(child.handle, &code);
 		if (finished != WAIT_OBJECT_0)
 			SetEvent(done.handle);
-		DeleteFileW(file.c_str());
 		DeleteFileW((file + L".result.txt").c_str());
 		return waiting && finished == WAIT_OBJECT_0 && code == 0 ? 0 : 3;
 	}

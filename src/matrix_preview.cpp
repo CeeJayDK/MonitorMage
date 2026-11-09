@@ -1,4 +1,5 @@
 #include "matrix_preview.h"
+#include "app_settings.h"
 #include "matrix_math.h"
 #include "matrix_api.h"
 #include "ui_theme.h"
@@ -90,14 +91,7 @@ struct Mapping
 	}
 };
 
-std::filesystem::path ExecutablePath()
-{
-	wchar_t path[32768] {};
-	const auto n = GetModuleFileNameW(nullptr, path, 32768);
-	if (!n || n >= 32768)
-		throw std::runtime_error("Cannot locate MonitorMage");
-	return path;
-}
+using app_settings::ExecutablePath;
 
 std::filesystem::path ReportFolder()
 {
@@ -119,12 +113,7 @@ bool IsValidToken(const wchar_t* token)
 	return true;
 }
 
-std::wstring QuoteArgument(const std::wstring& text)
-{
-	if (text.find(L'"') != text.npos)
-		throw std::runtime_error("Invalid preview path");
-	return L"\"" + text + L"\"";
-}
+using app_settings::QuoteArgument;
 
 using Api = matrix_color::WindowsApi;
 struct Fake final : matrix_color::Api

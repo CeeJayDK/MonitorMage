@@ -29,6 +29,10 @@ struct Settings
 
 std::vector<Output> ActiveOutputs();
 bool SameDisplays(const Output&, const Output&);
+// The outputs to reset when a session's monitors were rearranged, such as one display joining a clone group.
+// Empty when the same monitors are still together, or when the original ramp was not neutral.
+std::vector<Output> OutputsAfterLayoutChange(const std::wstring& session_identity, const Ramp& baseline,
+                                             const std::vector<Output>& outputs);
 double EvaluateOutputCode(double code, int channel, const Output&, const Settings&);
 Ramp BuildGammaRamp(const Ramp& baseline, const Output& output, const Settings& settings);
 // Separate the calibration used for composition from the captured ramp that
@@ -61,7 +65,11 @@ public:
 
 int RunRecoveryGuardian(const wchar_t* file, DWORD parent, const wchar_t* ready, const wchar_t* done,
                         const wchar_t* mapping, bool probe = false);
-int RecoverFromSnapshotFile(const wchar_t* file);
+// Whether sessions write a log, and keep their text files after a clean stop. Off until turned on.
+void SetDiagnosticsEnabled(bool enabled);
+// Deletes the log files of a finished session.
+void RemoveSessionLogs(const std::wstring& log_base);
 int WriterLeaseSelfTest();
+int BaselineStorageSelfTest();
 int RecoverySelfTest(const wchar_t* executable, bool crash_parent = false);
 } // namespace live

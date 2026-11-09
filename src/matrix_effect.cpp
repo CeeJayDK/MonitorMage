@@ -1,4 +1,5 @@
 #include "matrix_effect.h"
+#include "app_settings.h"
 #include "matrix_effect_rules.h"
 #include "matrix_recovery.h"
 #include "matrix_api.h"
@@ -53,14 +54,7 @@ struct Mapping
 	}
 };
 
-std::filesystem::path ExecutablePath()
-{
-	wchar_t path[32768] {};
-	const auto n = GetModuleFileNameW(nullptr, path, 32768);
-	if (!n || n >= 32768)
-		throw std::runtime_error("Cannot locate MonitorMage");
-	return path;
-}
+using app_settings::ExecutablePath;
 
 std::wstring SharedObjectName(const wchar_t* token, const wchar_t* suffix)
 {

@@ -24,10 +24,7 @@ struct State
 	int hover = -1;
 };
 
-int ScaleForDpi(HWND window, int n)
-{
-	return MulDiv(n, GetDpiForWindow(window), 96);
-}
+using ui::ScaleForDpi;
 
 int RowAtPoint(HWND list, LPARAM point)
 {

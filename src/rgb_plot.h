@@ -68,6 +68,27 @@ public:
 	size_t ByteCount() const { return static_cast<size_t>(_width) * _height * 4; }
 };
 
+// Draws only the parts of a line that can touch the band from top to bottom. A line is
+// only ever broken at a point outside the band, so the break cannot show inside it.
+inline bool DrawLineInBand(HDC dc, const std::vector<POINT>& line, LONG top, LONG bottom)
+{
+	bool ok = true;
+	size_t run_start = line.size();
+	for (size_t i = 0; i < line.size(); ++i)
+	{
+		const bool segment_in_band = i + 1 < line.size() && std::max(line[i].y, line[i + 1].y) >= top &&
+		                             std::min(line[i].y, line[i + 1].y) <= bottom;
+		if (segment_in_band && run_start == line.size())
+			run_start = i;
+		if (!segment_in_band && run_start != line.size())
+		{
+			ok = Polyline(dc, &line[run_start], static_cast<int>(i - run_start + 1)) && ok;
+			run_start = line.size();
+		}
+	}
+	return ok;
+}
+
 // Additive RGB coverage with unchanged 2x supersampling and no glow. Each
 // tile is downsampled in place, then blended before its storage is reused.
 inline bool DrawRgbCurves(HDC target, int width, int height, const Paths& paths, int stroke,
@@ -139,6 +160,8 @@ inline bool DrawRgbCurves(HDC target, int width, int height, const Paths& paths,
 	for (int start = 0; start < h && ok; start += rows)
 	{
 		const int count = std::min(rows, h - start);
+		const LONG band_margin = stroke * 2 + 2; // Wider than the pen.
+		const LONG band_top = start * 2 - band_margin, band_bottom = (start + count) * 2 + band_margin;
 		SetViewportOrgEx(layer, 0, 0, nullptr);
 		PatBlt(layer, 0, 0, w * 2, count * 2, BLACKNESS);
 		SetViewportOrgEx(layer, 0, -start * 2, nullptr);
@@ -146,7 +169,7 @@ inline bool DrawRgbCurves(HDC target, int width, int height, const Paths& paths,
 			if (scaled[c].size() > 1)
 			{
 				const auto prior = SelectObject(layer, pens[c]);
-				if (!Polyline(layer, scaled[c].data(), static_cast<int>(scaled[c].size())))
+				if (!DrawLineInBand(layer, scaled[c], band_top, band_bottom))
 					ok = false;
 				SelectObject(layer, prior);
 			}
@@ -157,6 +180,14 @@ inline bool DrawRgbCurves(HDC target, int width, int height, const Paths& paths,
 		for (int y = 0; y < count; ++y)
 			for (int x = 0; x < w; ++x)
 			{
+				// Most of the graph is empty, so skip the averaging for blank pixels.
+				const uint32_t* upper = &input[static_cast<size_t>(y * 2) * w * 2 + x * 2];
+				const uint32_t* lower = upper + w * 2;
+				if (!((upper[0] | upper[1] | lower[0] | lower[1]) & 0x00FFFFFF))
+				{
+					output[static_cast<size_t>(y) * w * 2 + x] = 0;
+					continue;
+				}
 				uint32_t value = 0;
 				int alpha = 0;
 				for (int c = 0; c < 3; ++c)

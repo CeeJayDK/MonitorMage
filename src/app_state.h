@@ -82,6 +82,7 @@ constexpr int ID_MONITOR_PROFILE = 138;
 constexpr int ID_WEBSITE_LINK = 153;
 constexpr int ID_START_WITH_WINDOWS = 134;
 constexpr int ID_START_MINIMIZED = 154;
+constexpr int ID_SAVE_DIAGNOSTICS = 155;
 constexpr int ID_CORRECTION_LAYERS = 135;
 constexpr int ID_ORDER_HINT = 136;
 constexpr int ID_SELECTED_EFFECT_TOGGLE = 137;
@@ -115,7 +116,7 @@ inline HWND active_look_label, order_hint;
 inline HWND settings_button, font_choice, font_label, curve_channel, import_button, export_1d_button;
 inline HWND hdr_button, power_button, monitor_tips, info_button;
 inline HWND monitor_settings_button;
-inline HWND version_label, startup_control, start_minimized_control;
+inline HWND version_label, startup_control, start_minimized_control, diagnostics_control;
 inline HWND filter_choice, filter_settings_button, correction_note;
 inline windows_controls::State filter_state;
 inline night::Settings night_config;
@@ -128,6 +129,11 @@ inline bool filter_error = false;
 inline std::wstring filter_message;
 inline bool startup_enabled = false;
 inline bool start_minimized = false;
+#ifdef MONITORMAGE_DEVELOPER_BUILD
+inline bool save_diagnostics = true;
+#else
+inline bool save_diagnostics = false;
+#endif
 inline bool editor_ready = false, runtime_ready = false, defer_editor = false;
 inline unsigned editor_sync_depth = 0;
 struct EditorSync

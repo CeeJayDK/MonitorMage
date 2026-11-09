@@ -35,8 +35,6 @@ inline std::wstring FriendlyError(std::string_view detail)
 		  L"Another MonitorMage session or display test is running. Close it and try again." },
 		{ "The previous correction or its restoration is still running",
 		  L"MonitorMage is still finishing the previous display change. Please try again shortly." },
-		{ "Cannot save recovery baseline",
-		  L"MonitorMage could not save the display colors needed for crash recovery. Check free space and folder permissions." },
 		{ "Settings path unavailable",
 		  L"MonitorMage could not find its settings file. Run it from a folder you can save files in." },
 		{ "Select an active display group", L"Choose a connected display first." },

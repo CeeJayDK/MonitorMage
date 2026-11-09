@@ -288,6 +288,8 @@ void CreateEditorIfNeeded()
 		CreateChildControl(L"BUTTON", L"Start with Windows", WS_TABSTOP | BS_AUTOCHECKBOX, ID_START_WITH_WINDOWS);
 	start_minimized_control =
 		CreateChildControl(L"BUTTON", L"Start minimized", WS_TABSTOP | BS_AUTOCHECKBOX, ID_START_MINIMIZED);
+	diagnostics_control =
+		CreateChildControl(L"BUTTON", L"Save diagnostic logs", WS_TABSTOP | BS_AUTOCHECKBOX, ID_SAVE_DIAGNOSTICS);
 	saturation_report_button =
 		CreateChildControl(L"BUTTON", L"Color effect report...", WS_TABSTOP | BS_PUSHBUTTON, ID_SATURATION_REPORT);
 	ui::SetHelpText(saturation_report_button, L"Color effect report");
@@ -349,6 +351,7 @@ void CreateEditorIfNeeded()
 			                                           { shortcut_button, L"Set shortcut" },
 			                                           { startup_control, L"Start with Windows" },
 			                                           { start_minimized_control, L"Start in the tray" },
+			                                           { diagnostics_control, L"Keep log files in the temp folder" },
 			                                           { open_preset_button, L"Open preset folder" },
 			                                           { bypass_button, L"Pause / resume effects" },
 			                                           { filter_choice, L"Choose color filter" },
@@ -639,6 +642,16 @@ static void ChangeStartMinimized()
 	RefreshInterface();
 }
 
+static void ChangeSaveDiagnostics()
+{
+	const bool previous = save_diagnostics;
+	save_diagnostics = SendMessageW(diagnostics_control, BM_GETCHECK, 0, 0) == BST_CHECKED;
+	if (!PersistPresetChoices())
+		save_diagnostics = previous;
+	live::SetDiagnosticsEnabled(save_diagnostics);
+	RefreshInterface();
+}
+
 static void ChangeFontFamily()
 {
 	wchar_t name[80] {};
@@ -925,6 +938,10 @@ static void OnCommand(HWND hwnd, WPARAM w_param, LPARAM l_param)
 		case ID_START_MINIMIZED:
 			if (notification == BN_CLICKED)
 				ChangeStartMinimized();
+			break;
+		case ID_SAVE_DIAGNOSTICS:
+			if (notification == BN_CLICKED)
+				ChangeSaveDiagnostics();
 			break;
 		case ID_FONT_CHOICE:
 			if (notification == CBN_SELCHANGE)

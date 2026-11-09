@@ -11,8 +11,9 @@ std::vector<HWND> TabStopControls()
 		                      preset_choice,   autosave_control,    save_preset_button,
 		                      save_as_button,  export_button,       revert_preset_button };
 	if (settings_page)
-		order.insert(order.end(), { font_choice, shortcut_control, shortcut_button, startup_control, bypass_button,
-		                            start_minimized_control, open_preset_button, saturation_report_button });
+		order.insert(order.end(),
+		             { font_choice, shortcut_control, shortcut_button, startup_control, bypass_button,
+		               start_minimized_control, diagnostics_control, open_preset_button, saturation_report_button });
 	else
 	{
 		order.insert(order.end(), { selected_effect_toggle, reset_button });
@@ -378,6 +379,7 @@ static void ShowControlsForCurrentPage()
 	SetControlVisible(version_label, settings_page);
 	SetControlVisible(startup_control, settings_page);
 	SetControlVisible(start_minimized_control, settings_page);
+	SetControlVisible(diagnostics_control, settings_page);
 	SetControlVisible(open_preset_button, settings_page);
 	for (HWND control : { filter_choice, filter_settings_button, correction_note })
 		SetControlVisible(control, false);
@@ -443,6 +445,9 @@ static void RefreshFilterAndStartupControls()
 	const auto minimized_check = start_minimized ? BST_CHECKED : BST_UNCHECKED;
 	if (SendMessageW(start_minimized_control, BM_GETCHECK, 0, 0) != minimized_check)
 		SendMessageW(start_minimized_control, BM_SETCHECK, minimized_check, 0);
+	const auto diagnostics_check = save_diagnostics ? BST_CHECKED : BST_UNCHECKED;
+	if (SendMessageW(diagnostics_control, BM_GETCHECK, 0, 0) != diagnostics_check)
+		SendMessageW(diagnostics_control, BM_SETCHECK, diagnostics_check, 0);
 	SetTextIfChanged(settings_button, settings_page ? L"Back to effects" : ui::wording::LABEL_SETTINGS);
 	SetTextIfChanged(amount_label, L"Contrast");
 	SetTextIfChanged(amount_value, FormatDecimal(ContrastAmount()).c_str());
@@ -748,6 +753,7 @@ void LayoutEditorControls()
 	PlaceControl(version_label, 198, 64, 220, 24);
 	PlaceControl(startup_control, 198, 164, 220, 26);
 	PlaceControl(start_minimized_control, 198, 196, 220, 26);
+	PlaceControl(diagnostics_control, 456, 196, 220, 26);
 	PlaceControl(shortcut_label, 456, 98, 300, 20);
 	PlaceControl(shortcut_control, 456, 120, 200, 28);
 	PlaceControl(shortcut_button, 664, 120, 92, 28);
@@ -759,7 +765,7 @@ void LayoutEditorControls()
 	}
 	for (HWND control : { settings_button, font_choice, font_label, curve_channel, import_button, export_1d_button })
 		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
-	for (HWND control : { version_label, startup_control, start_minimized_control })
+	for (HWND control : { version_label, startup_control, start_minimized_control, diagnostics_control })
 		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
 	for (HWND control : { filter_choice, filter_settings_button, correction_note })
 		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);

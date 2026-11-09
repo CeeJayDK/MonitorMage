@@ -239,7 +239,7 @@ These files share everything in [src/app_state.h](src/app_state.h).
 | `lut1d.cpp` | Reading and writing LUT files (see [LUT_FORMATS.md](LUT_FORMATS.md)) |
 | `application_profiles.cpp` | Per-program rules and which rule applies to a program |
 | `programs.cpp` | Lists the running programs |
-| `app_settings.h` | Starting with Windows, and the path of the program file |
+| `app_settings.h` | Starting with Windows, the path of the program file, and quoting command-line arguments |
 
 User settings live in `MonitorMage.ini`, next to the program.
 

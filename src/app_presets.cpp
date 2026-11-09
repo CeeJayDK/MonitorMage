@@ -46,6 +46,7 @@ bool PersistPresetChoices()
 	}
 	text += autosave_enabled ? L"Autosave=1\r\n" : L"Autosave=0\r\n";
 	text += L"\r\n[Startup]\r\nMinimized=" + std::to_wstring(start_minimized) + L"\r\n";
+	text += L"\r\n[Diagnostics]\r\nSaveLogs=" + std::to_wstring(save_diagnostics) + L"\r\n";
 	text += L"\r\n[NightLight]\r\nEnabled=" + std::to_wstring(night_config.Enabled) + L"\r\nScheduled=" +
 	        std::to_wstring(night_config.Scheduled) + L"\r\nStrength=" + std::to_wstring(night_config.Strength) +
 	        L"\r\nStart=" + std::to_wstring(night_config.Start) + L"\r\nEnd=" + std::to_wstring(night_config.End) +
@@ -243,6 +244,10 @@ void InitializePresets()
 		autosave_enabled = GetPrivateProfileIntW(L"Presets", L"Autosave", 0, SettingsFilePath().c_str()) == 1;
 	if (!render_only || preset_ui_test)
 		start_minimized = GetPrivateProfileIntW(L"Startup", L"Minimized", 0, SettingsFilePath().c_str()) == 1;
+	if (!render_only || preset_ui_test)
+		save_diagnostics =
+			GetPrivateProfileIntW(L"Diagnostics", L"SaveLogs", save_diagnostics, SettingsFilePath().c_str()) == 1;
+	live::SetDiagnosticsEnabled(save_diagnostics);
 	if (!render_only || preset_ui_test)
 		correction_first = GetPrivateProfileIntW(L"Effects", L"CorrectionFirst", 0, SettingsFilePath().c_str()) == 1;
 	if (!render_only || preset_ui_test)

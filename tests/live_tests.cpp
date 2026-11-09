@@ -1,6 +1,7 @@
 #include "live_lut.h"
 #include "processing_state.h"
 #include "night_outputs.h"
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -99,6 +100,68 @@ void NightTests()
 	sessions.Update({ a, b }, b, config, .5);
 	Check(!sessions.IsActive(), "Excluding a display restores its captured ramp");
 }
+
+void LayoutChangeTests()
+{
+	const std::wstring lg = L"\\\\?\\DISPLAY#GSM#1", samsung = L"\\\\?\\DISPLAY#SAM#2", other = L"\\\\?\\DISPLAY#DEL#3";
+	const std::wstring lg_hdr = lg + L":3:2\n", lg_sdr = lg + L":0:0\n";
+	const std::wstring clone = lg + L":0:0\n" + samsung + L":0:0\n";
+	const auto outputs_named = [](std::initializer_list<std::wstring> identities)
+	{
+		std::vector<live::Output> outputs;
+		for (const auto& identity : identities)
+		{
+			live::Output output;
+			output.identity = identity;
+			outputs.push_back(output);
+		}
+		return outputs;
+	};
+	live::Ramp neutral {};
+	for (auto& channel : neutral)
+		for (size_t i = 0; i < 256; ++i)
+			channel[i] = static_cast<std::uint16_t>(i * 257);
+	live::Ramp neutral_256 {};
+	for (auto& channel : neutral_256)
+		for (size_t i = 0; i < 256; ++i)
+			channel[i] = static_cast<std::uint16_t>(i * 256);
+	auto changed = neutral;
+	changed[1][128] -= 3000;
+	const auto found =
+		[&](const std::wstring& session, const live::Ramp& baseline, std::initializer_list<std::wstring> identities)
+	{
+		return live::OutputsAfterLayoutChange(session, baseline, outputs_named(identities));
+	};
+	Check(found(lg_hdr, neutral_256, { clone }).size() == 1, "A neutral ramp written as i * 256 is also reset");
+	const auto joined = found(lg_hdr, neutral, { clone });
+	Check(joined.size() == 1 && joined[0].identity == clone, "A display that joins a clone group is reset");
+	Check(found(clone, neutral, { lg_hdr }).size() == 1, "A clone group that loses a monitor is reset");
+	Check(found(clone, neutral, { lg_sdr, samsung + L":0:0\n" }).size() == 2,
+	      "Every part of a split clone group is reset");
+	Check(found(lg_hdr, neutral, { lg_sdr }).empty(), "An HDR change on the same monitors keeps its own path");
+	Check(found(lg_hdr, neutral, { lg_sdr, samsung + L":0:0\n" }).empty(),
+	      "An added separate monitor is only a mode change");
+	Check(found(lg_hdr, neutral, { other + L":0:0\n" }).empty(), "Unrelated monitors are left alone");
+	Check(found(lg_hdr, changed, { clone }).empty(), "A non-neutral original is not carried to a new layout");
+}
+
+void SessionFileTests()
+{
+	wchar_t folder[MAX_PATH] {};
+	Check(GetTempPathW(MAX_PATH, folder) != 0, "The temp folder is available");
+	const std::wstring base = std::wstring(folder) + L"MonitorMageFileTest-" + std::to_wstring(GetCurrentProcessId());
+	const std::wstring session = base + L".session.txt", result = base + L".result.txt";
+	for (const auto& path : { session, result })
+		std::ofstream(path) << "x";
+	const auto exists = [](const std::wstring& path)
+	{
+		return GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+	};
+	Check(exists(session) && exists(result), "The test log files were created");
+	live::RemoveSessionLogs(base);
+	Check(!exists(session) && !exists(result), "A clean stop removes the session logs");
+	live::RemoveSessionLogs(base); // Files that are already gone are not an error.
+}
 }
 
 int main()
@@ -108,6 +171,10 @@ int main()
 		Check(live::WriterLeaseSelfTest() == 0,
 		      "Independent output sessions share writer ownership and preserve recovery exclusion");
 		NightTests();
+		SessionFileTests();
+		LayoutChangeTests();
+		Check(live::BaselineStorageSelfTest() == 0,
+		      "Only ramps that can be rebuilt exactly are left out of recovery data");
 		live::Ramp baseline {}, identity {};
 		for (size_t i = 0; i < 256; ++i)
 		{

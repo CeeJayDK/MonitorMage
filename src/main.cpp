@@ -13,6 +13,7 @@
 #include <vector>
 #include <sstream>
 #include <locale>
+#include "app_settings.h"
 #include "color_math.h"
 
 namespace
@@ -522,13 +523,7 @@ int RestoreSnapshot(const Snapshot& value)
 	return 0;
 }
 
-std::wstring QuoteArgument(const std::wstring& value)
-{
-	// These arguments are generated paths/names; none may contain a literal quote.
-	if (value.find(L'"') != std::wstring::npos)
-		throw std::runtime_error("Unexpected quote in generated argument");
-	return L"\"" + value + L"\"";
-}
+using app_settings::QuoteArgument;
 
 HANDLE cancel_event = nullptr;
 BOOL WINAPI ConsoleCtrlHandler(DWORD kind)

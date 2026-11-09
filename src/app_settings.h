@@ -1,18 +1,27 @@
 #pragma once
 #include <windows.h>
+#include <filesystem>
 #include <string>
 #include <stdexcept>
 #include <vector>
 
 namespace app_settings
 {
-inline std::wstring ExecutablePath()
+inline std::filesystem::path ExecutablePath()
 {
 	wchar_t path[32768] {};
 	const auto length = GetModuleFileNameW(nullptr, path, 32768);
 	if (!length || length >= 32768)
 		throw std::runtime_error("Cannot locate MonitorMage.exe");
 	return std::wstring(path, length);
+}
+
+// Quotes a generated path or name for a command line. None of them may contain a literal quote.
+inline std::wstring QuoteArgument(const std::wstring& value)
+{
+	if (value.find(L'"') != std::wstring::npos)
+		throw std::runtime_error("Unexpected quote in generated argument");
+	return L"\"" + value + L"\"";
 }
 
 inline constexpr const wchar_t* RUN_REGISTRY_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";

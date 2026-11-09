@@ -263,11 +263,6 @@ struct Brush
 
 Brush bg(THEME_BACKGROUND), surface(THEME_SURFACE);
 std::wstring family = L"Bahnschrift";
-int ScaleForDpi(HWND window, int n)
-{
-	return MulDiv(n, GetDpiForWindow(window), 96);
-}
-
 void FillRoundedRect(HDC dc, RECT rect, COLORREF fill, COLORREF border, int radius)
 {
 	HBRUSH brush = CreateSolidBrush(fill);

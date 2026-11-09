@@ -31,6 +31,10 @@ The main CMake target is internally named `LutWorkbench`; its output is
 `MonitorMage.exe`. The other executables are development tools and tests,
 not required by users of the app. The app uses the static MSVC runtime.
 
+`build.cmd` makes a release build. `build.cmd developer` makes a developer build,
+where **Save diagnostic logs** on the Settings page starts turned on. With that
+setting on, each correction session writes a log to the temp folder and keeps it.
+
 The supplied ICO files are build inputs. Node.js and Python are not needed for
 a normal build. `tools/build_shared_icons.cjs` can regenerate the current icons
 with Node.js and the optional `sharp` package. `tools/make_lut_fixtures.py` can

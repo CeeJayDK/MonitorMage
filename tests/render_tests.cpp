@@ -147,6 +147,28 @@ int main()
 		DeleteObject(tall);
 		DeleteDC(tall_dc);
 	}
+	// Drawing only the segments near a band must not change any pixel inside it, even
+	// when the line doubles back and leaves the band more than once.
+	{
+		const std::vector<POINT> zigzag { { 4, 2 },   { 20, 6 },  { 36, 2 },  { 60, 40 }, { 8, 20 },
+			                              { 56, 62 }, { 40, 58 }, { 20, 62 }, { 30, 2 } };
+		const int strip_top = 24, strip_bottom = 36, margin = 8;
+		HPEN pen = CreatePen(PS_SOLID, 6, RGB(255, 255, 255));
+		const auto prior_pen = SelectObject(dc, pen);
+		PatBlt(dc, 0, 0, 64, 64, BLACKNESS);
+		ok = Polyline(dc, zigzag.data(), static_cast<int>(zigzag.size())) && ok;
+		GdiFlush();
+		const std::vector<uint32_t> whole_line(pixels, pixels + 64 * 64);
+		PatBlt(dc, 0, 0, 64, 64, BLACKNESS);
+		ok = plot::DrawLineInBand(dc, zigzag, strip_top - margin, strip_bottom + margin) && ok;
+		GdiFlush();
+		for (int y = strip_top; y < strip_bottom; ++y)
+			for (int x = 0; x < 64; ++x)
+				if ((pixels[y * 64 + x] & 0xffffff) != (whole_line[y * 64 + x] & 0xffffff))
+					ok = false;
+		SelectObject(dc, prior_pen);
+		DeleteObject(pen);
+	}
 	SelectObject(dc, old);
 	DeleteObject(bitmap);
 	DeleteDC(dc);

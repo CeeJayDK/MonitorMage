@@ -152,12 +152,6 @@ static std::optional<int> RunCommandLineTool(int argument_count, LPWSTR* argumen
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argument_count == 3 && std::wstring(arguments[1]) == L"--recover-live")
-	{
-		const int result = live::RecoverFromSnapshotFile(arguments[2]);
-		LocalFree(arguments);
-		return result;
-	}
 	return std::nullopt;
 }
 

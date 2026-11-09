@@ -47,6 +47,11 @@ inline constexpr Toggle EFFECT_TOGGLE { 26,
 	                                    THEME_FOCUS_BORDER };
 }
 
+inline int ScaleForDpi(HWND window, int value)
+{
+	return MulDiv(value, GetDpiForWindow(window), 96);
+}
+
 HBRUSH BackgroundBrush();
 void SetFontFamily(const wchar_t*);
 const wchar_t* FontFamily();
