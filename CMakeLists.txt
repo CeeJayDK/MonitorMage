@@ -12,7 +12,7 @@ if(MSVC)
   target_compile_options(LutIconPreview PRIVATE /W4 /permissive- /utf-8)
   set_property(TARGET LutIconPreview PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
-add_executable(LutWorkbench WIN32 src/workbench.cpp src/live_lut.cpp src/presets.cpp src/application_profiles.cpp src/profile_editor.cpp src/programs.cpp src/ui_theme.cpp src/effect_list.cpp src/tray_popup.cpp src/lut1d.cpp src/unsaved_dialog.cpp src/hdr_control.cpp src/windows_controls.cpp src/matrix_preview.cpp src/matrix_effect.cpp src/workbench.rc)
+add_executable(LutWorkbench WIN32 src/workbench.cpp src/app_state.cpp src/app_presets.cpp src/app_hotkey.cpp src/app_corrections.cpp src/app_profiles.cpp src/app_effects.cpp src/app_tray.cpp src/app_interface.cpp src/app_curve_view.cpp src/app_main_window.cpp src/app_self_tests.cpp src/live_lut.cpp src/presets.cpp src/application_profiles.cpp src/profile_editor.cpp src/programs.cpp src/ui_theme.cpp src/effect_list.cpp src/tray_popup.cpp src/lut1d.cpp src/unsaved_dialog.cpp src/hdr_control.cpp src/windows_controls.cpp src/matrix_preview.cpp src/matrix_effect.cpp src/workbench.rc)
 set_target_properties(LutWorkbench PROPERTIES OUTPUT_NAME MonitorMage)
 
 target_include_directories(LutWorkbench PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
