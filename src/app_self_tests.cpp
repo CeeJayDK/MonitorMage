@@ -1025,12 +1025,10 @@ static bool ClippedListMatchesFull()
 	return same;
 }
 
-int RunSurfaceUiTest()
+// ---- The checks run by RunSurfaceUiTest. Each returns 0 on success, or a number saying which step failed. ----
+
+static int TestHelpTexts()
 {
-	if (!ClippedListMatchesFull())
-		return 255;
-	if (!PartialGraphMatchesFull())
-		return 260;
 	for (HWND control : { preset_choice,    autosave_control, source_choice,          font_choice,
 	                      shortcut_control, shortcut_button,  startup_control,        open_preset_button,
 	                      bypass_button,    filter_choice,    filter_settings_button, saturation_report_button,
@@ -1044,6 +1042,11 @@ int RunSurfaceUiTest()
 		    wcslen(ui::HelpTextForRegion(EffectListForRole(effect), effect + 1)) > 48 ||
 		    !*ui::HelpTextForRegion(EffectListForRole(effect), 100 + effect))
 			return 234;
+	return 0;
+}
+
+static int TestWindowsEffectsAndNightLight()
+{
 	const int saved_selected = selected_effect;
 	const auto saved_look = CurrentPreset(preset_role::Look).current,
 			   saved_correction = CurrentPreset(preset_role::Correction).current;
@@ -1121,6 +1124,12 @@ int RunSurfaceUiTest()
 	RefreshInterface();
 	selected_effect = saved_selected;
 	RefreshInterface();
+	return 0;
+}
+
+static int TestMatrixEffects()
+{
+	const int saved_selected = selected_effect;
 	// New global effect uses the same preset and keyboard/UI contracts, but
 	// hidden UI tests must never start a hardware worker.
 	selected_effect = effect::Saturation;
@@ -1167,6 +1176,11 @@ int RunSurfaceUiTest()
 	CurrentPreset(preset_role::Look).current = before_matrix;
 	selected_effect = saved_selected;
 	RefreshInterface();
+	return 0;
+}
+
+static int TestProfileEditorHelpTexts()
+{
 	ShowProfiles(true);
 	const auto help_editor = profile_editor::ProfileEditorHandle();
 	if (!help_editor)
@@ -1176,6 +1190,11 @@ int RunSurfaceUiTest()
 		    wcslen(ui::HelpTextForRegion(GetDlgItem(help_editor, id))) > 48)
 			return 241;
 	DestroyWindow(help_editor);
+	return 0;
+}
+
+static int TestWindowSizeRepair()
+{
 	// Simulate Windows shrinking our fixed layout without changing the real
 	// display mode. A mode-change notification must restore the intended size.
 	RECT before {};
@@ -1227,6 +1246,12 @@ int RunSurfaceUiTest()
 	const auto normal_size = ui::FitWindowRect(small, preferred, high);
 	if (normal_size.right - normal_size.left != 1200 || normal_size.bottom - normal_size.top != 900)
 		return 246;
+	return 0;
+}
+
+static int TestEffectPageLayout()
+{
+	const int saved_selected = selected_effect;
 	// Verify real page/font clearance, including dropdown and button pages.
 	for (int effect : { effect::ContrastCurves, effect::HdrGamma, effect::ColorBalance, effect::MidtoneGamma,
 	                    effect::Levels, effect::ShadowsHighlights, effect::CustomCurves, effect::Imported1dLut,
@@ -1260,9 +1285,12 @@ int RunSurfaceUiTest()
 	}
 	selected_effect = saved_selected;
 	RefreshInterface();
-	const auto tab_result = RunTabUiTest();
-	if (tab_result)
-		return tab_result;
+	return 0;
+}
+
+static int TestColorFilterPage()
+{
+	const int saved_selected = selected_effect;
 	const bool prior_power = corrections_requested;
 	selected_effect = effect::ColorFilters;
 	RefreshInterface();
@@ -1279,6 +1307,11 @@ int RunSurfaceUiTest()
 	SendMessageW(main_window, WM_COMMAND, ID_SETTINGS_PAGE, 0);
 	selected_effect = saved_selected;
 	RefreshInterface();
+	return 0;
+}
+
+static int TestPowerAndDisplayRetries()
+{
 	// Exercise master startup in the read-only harness, including both power
 	// indicators. Test mode cannot begin a hardware session.
 	TurnOnCorrections();
@@ -1306,6 +1339,11 @@ int RunSurfaceUiTest()
 	DisableLiveCorrections();
 	if (corrections_requested || display_retry_pending || mode_reset_pending || display_attempts)
 		return 211;
+	return 0;
+}
+
+static int TestCaptionTooltips()
+{
 	for (int hit : { 100, 101, 102, HTHELP, HTMINBUTTON, HTCLOSE, HTSYSMENU })
 		if (!ui::CaptionTooltip(main_window, hit) || !*ui::CaptionTooltip(main_window, hit))
 			return 196;
@@ -1351,36 +1389,44 @@ int RunSurfaceUiTest()
 		if (!ui::TooltipEdgeSelfTest(tip))
 			return 278;
 	}
+	return 0;
+}
+
+static int TestOwnerDrawIsolation()
+{
 	// Owner-drawn links and status labels may share a DC during native painting.
 	// Neither their colors nor their pixels may escape the supplied item bounds.
+	HDC screen = GetDC(curve_canvas), dc = CreateCompatibleDC(screen);
+	HBITMAP bitmap = CreateCompatibleBitmap(screen, 64, 32);
+	const auto old = SelectObject(dc, bitmap);
+	RECT all { 0, 0, 64, 32 };
+	FillRect(dc, &all, reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+	const COLORREF sentinel = RGB(19, 71, 123);
+	SetTextColor(dc, sentinel);
+	SetBkMode(dc, OPAQUE);
+	bool isolated = true;
+	for (HWND control : { website_link, monitor_mode, monitor_profile })
 	{
-		HDC screen = GetDC(curve_canvas), dc = CreateCompatibleDC(screen);
-		HBITMAP bitmap = CreateCompatibleBitmap(screen, 64, 32);
-		const auto old = SelectObject(dc, bitmap);
-		RECT all { 0, 0, 64, 32 };
-		FillRect(dc, &all, reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
-		const COLORREF sentinel = RGB(19, 71, 123);
-		SetTextColor(dc, sentinel);
-		SetBkMode(dc, OPAQUE);
-		bool isolated = true;
-		for (HWND control : { website_link, monitor_mode, monitor_profile })
-		{
-			DRAWITEMSTRUCT item {};
-			item.CtlType = ODT_STATIC;
-			item.hwndItem = control;
-			item.hDC = dc;
-			item.rcItem = { 8, 8, 56, 24 };
-			SendMessageW(curve_canvas, WM_DRAWITEM, GetDlgCtrlID(control), reinterpret_cast<LPARAM>(&item));
-			isolated = isolated && GetTextColor(dc) == sentinel && GetBkMode(dc) == OPAQUE &&
-			           GetPixel(dc, 0, 0) == RGB(255, 255, 255);
-		}
-		SelectObject(dc, old);
-		DeleteObject(bitmap);
-		DeleteDC(dc);
-		ReleaseDC(curve_canvas, screen);
-		if (!isolated)
-			return 281;
+		DRAWITEMSTRUCT item {};
+		item.CtlType = ODT_STATIC;
+		item.hwndItem = control;
+		item.hDC = dc;
+		item.rcItem = { 8, 8, 56, 24 };
+		SendMessageW(curve_canvas, WM_DRAWITEM, GetDlgCtrlID(control), reinterpret_cast<LPARAM>(&item));
+		isolated = isolated && GetTextColor(dc) == sentinel && GetBkMode(dc) == OPAQUE &&
+		           GetPixel(dc, 0, 0) == RGB(255, 255, 255);
 	}
+	SelectObject(dc, old);
+	DeleteObject(bitmap);
+	DeleteDC(dc);
+	ReleaseDC(curve_canvas, screen);
+	if (!isolated)
+		return 281;
+	return 0;
+}
+
+static int TestStatusMessages()
+{
 	SendMessageW(main_window, WM_NCMOUSELEAVE, 0, 0);
 	if (GetPropW(main_window, L"LutCaptionTipHit"))
 		return 198;
@@ -1427,6 +1473,11 @@ int RunSurfaceUiTest()
 	RefreshInterface();
 	if (status_error)
 		return 200;
+	return 0;
+}
+
+static int TestCaptionButtons()
+{
 	RECT client {}, outer {};
 	GetClientRect(main_window, &client);
 	GetWindowRect(main_window, &outer);
@@ -1492,6 +1543,11 @@ int RunSurfaceUiTest()
 			return 171;
 	}
 	RefreshInterface();
+	return 0;
+}
+
+static int TestShortcutCapture()
+{
 	BYTE previous_keys[256] {}, keys[256] {};
 	GetKeyboardState(previous_keys);
 	keys[VK_SHIFT] = keys[VK_LSHIFT] = 0x80;
@@ -1507,6 +1563,11 @@ int RunSurfaceUiTest()
 	SendMessageW(shortcut_control, HKM_SETHOTKEY, active_shortcut, 0);
 	if (captured != MAKEWORD(VK_F20, HOTKEYF_SHIFT))
 		return 172;
+	return 0;
+}
+
+static int TestHdrControls()
+{
 	// Render-only input must never reach a real Windows HDR or LUT write.
 	SendMessageW(curve_canvas, WM_COMMAND, ID_TOGGLE_WINDOWS_HDR, 0);
 	if (hdr_pending || live_session.IsActive())
@@ -1552,6 +1613,11 @@ int RunSurfaceUiTest()
 	}
 	if (!unavailable_rejected)
 		return 169;
+	return 0;
+}
+
+static int TestMonitorAndSidebarLayout()
+{
 	RECT preview {}, text {};
 	GetWindowRect(curve_canvas, &preview);
 	GetWindowRect(status_label, &text);
@@ -1608,6 +1674,11 @@ int RunSurfaceUiTest()
 	    (GetWindowLongPtrW(open_preset_button, GWL_STYLE) & WS_VISIBLE) ||
 	    (GetWindowLongPtrW(settings_button, GWL_STYLE) & WS_VISIBLE))
 		return 167;
+	return 0;
+}
+
+static int TestSliderRowLayout()
+{
 	// Updating or focusing any balance slider must not erase an adjacent
 	// slider's thumb. Check actual HWND bounds, including each value label.
 	const auto aligned_row = [&](HWND label, HWND value, HWND slider)
@@ -1643,6 +1714,11 @@ int RunSurfaceUiTest()
 			}
 		}
 	}
+	return 0;
+}
+
+static int TestSliderInputStability()
+{
 	// First input changes the clean/dirty indicator. Subsequent slider input must
 	// not reset unrelated controls or rebuild the preset dropdown.
 	selected_effect = effect::ContrastCurves;
@@ -1702,29 +1778,11 @@ int RunSurfaceUiTest()
 		return 145;
 	autosave_enabled = false;
 	KillTimer(main_window, TIMER_PRESET);
-	// Exercise the synchronous native-button custom-draw route as well as WM_PAINT.
-	HDC screen = GetDC(main_window), buffer = CreateCompatibleDC(screen);
-	HBITMAP bitmap = CreateCompatibleBitmap(screen, ScaleForDpi(125), ScaleForDpi(30));
-	const auto old = SelectObject(buffer, bitmap);
-	NMCUSTOMDRAW draw {};
-	draw.hdr.hwndFrom = reset_button;
-	draw.hdr.code = NM_CUSTOMDRAW;
-	draw.dwDrawStage = CDDS_PREPAINT;
-	draw.hdc = buffer;
-	LRESULT result = 0;
-	const bool handled = ui::HandleThemeMessage(main_window, WM_NOTIFY, 0, reinterpret_cast<LPARAM>(&draw), result);
-	const auto pixel = GetPixel(buffer, ScaleForDpi(3), ScaleForDpi(14));
-	DRAWITEMSTRUCT item {};
-	item.CtlType = ODT_COMBOBOX;
-	item.hwndItem = curve_channel;
-	item.itemID = 0;
-	item.itemState = ODS_SELECTED;
-	item.hDC = buffer;
-	item.rcItem = { 0, 0, ScaleForDpi(125), ScaleForDpi(30) };
-	LRESULT combo_result = 0;
-	if (!ui::HandleThemeMessage(main_window, WM_DRAWITEM, 0, reinterpret_cast<LPARAM>(&item), combo_result) ||
-	    GetPixel(buffer, ScaleForDpi(124), ScaleForDpi(14)) != RGB(66, 71, 79))
-		return 201;
+	return 0;
+}
+
+static int TestComboPopupPainting(HDC screen, HDC buffer)
+{
 	COMBOBOXINFO combo_info { sizeof(combo_info) };
 	if (!GetComboBoxInfo(curve_channel, &combo_info))
 		return 202;
@@ -1765,6 +1823,11 @@ int RunSurfaceUiTest()
 		return 224;
 	if (!rounded_popup)
 		return 210;
+	return 0;
+}
+
+static int TestToggleAndInputPainting(HDC buffer)
+{
 	// Rendering power state must not alter the stored enabled flag.
 	const bool checked = SendMessageW(selected_effect_toggle, BM_GETCHECK, 0, 0) == BST_CHECKED;
 	const bool powered = GetPropW(selected_effect_toggle, L"LutToggleUnpowered") == nullptr;
@@ -1792,7 +1855,11 @@ int RunSurfaceUiTest()
 	DeleteObject(input_shape);
 	if (!rounded_shortcut)
 		return 213;
-	bool rgb_ok = true;
+	return 0;
+}
+
+static int TestRgbCurveDrawing(HDC buffer, bool& rgb_ok)
+{
 	for (int mask = 1; mask < 8; ++mask)
 	{
 		RECT area { 0, 0, ScaleForDpi(125), ScaleForDpi(30) };
@@ -1833,6 +1900,41 @@ int RunSurfaceUiTest()
 	SendMessageW(main_window, WM_SIZE, SIZE_MINIMIZED, 0);
 	if (curve_scratch.ByteCount())
 		return 259;
+	return 0;
+}
+
+static int TestNativeControlPainting()
+{
+	// Exercise the synchronous native-button custom-draw route as well as WM_PAINT.
+	HDC screen = GetDC(main_window), buffer = CreateCompatibleDC(screen);
+	HBITMAP bitmap = CreateCompatibleBitmap(screen, ScaleForDpi(125), ScaleForDpi(30));
+	const auto old = SelectObject(buffer, bitmap);
+	NMCUSTOMDRAW draw {};
+	draw.hdr.hwndFrom = reset_button;
+	draw.hdr.code = NM_CUSTOMDRAW;
+	draw.dwDrawStage = CDDS_PREPAINT;
+	draw.hdc = buffer;
+	LRESULT result = 0;
+	const bool handled = ui::HandleThemeMessage(main_window, WM_NOTIFY, 0, reinterpret_cast<LPARAM>(&draw), result);
+	const auto pixel = GetPixel(buffer, ScaleForDpi(3), ScaleForDpi(14));
+	DRAWITEMSTRUCT item {};
+	item.CtlType = ODT_COMBOBOX;
+	item.hwndItem = curve_channel;
+	item.itemID = 0;
+	item.itemState = ODS_SELECTED;
+	item.hDC = buffer;
+	item.rcItem = { 0, 0, ScaleForDpi(125), ScaleForDpi(30) };
+	LRESULT combo_result = 0;
+	if (!ui::HandleThemeMessage(main_window, WM_DRAWITEM, 0, reinterpret_cast<LPARAM>(&item), combo_result) ||
+	    GetPixel(buffer, ScaleForDpi(124), ScaleForDpi(14)) != RGB(66, 71, 79))
+		return 201;
+	if (const int failure = TestComboPopupPainting(screen, buffer))
+		return failure;
+	if (const int failure = TestToggleAndInputPainting(buffer))
+		return failure;
+	bool rgb_ok = true;
+	if (const int failure = TestRgbCurveDrawing(buffer, rgb_ok))
+		return failure;
 	SelectObject(buffer, old);
 	DeleteObject(bitmap);
 	DeleteDC(buffer);
@@ -1841,6 +1943,11 @@ int RunSurfaceUiTest()
 		return 99;
 	if (!rgb_ok)
 		return 162;
+	return 0;
+}
+
+static int TestPopupsAndCaptionMenu()
+{
 	const int popup = ui::PopupSelfTest(main_window);
 	if (popup)
 		return 100 + popup;
@@ -1872,6 +1979,12 @@ int RunSurfaceUiTest()
 	const int unsaved_result = unsaved::SelfTest(main_window);
 	if (unsaved_result)
 		return unsaved_result;
+	return 0;
+}
+
+static int TestProfileEditorWindow()
+{
+	RECT client {}, outer {};
 	SendMessageW(curve_canvas, WM_COMMAND, MAKEWPARAM(ID_MONITOR_PROFILE, STN_CLICKED),
 	             reinterpret_cast<LPARAM>(monitor_profile));
 	HWND editor = profile_editor::ProfileEditorHandle();
@@ -1930,6 +2043,11 @@ int RunSurfaceUiTest()
 		DispatchMessageW(&message);
 	if (profile_editor::ProfileEditorHandle())
 		return 95;
+	return 0;
+}
+
+static int TestFontChange()
+{
 	const std::wstring previous_family = ui::FontFamily();
 	SendMessageW(font_choice, CB_SETCURSEL, 1, 0);
 	SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(ID_FONT_CHOICE, CBN_SELCHANGE), 0);
@@ -1942,6 +2060,41 @@ int RunSurfaceUiTest()
 	}
 	ui::SetFontFamily(previous_family.c_str());
 	LayoutEditorControls();
+	return 0;
+}
+
+int RunSurfaceUiTest()
+{
+	if (!ClippedListMatchesFull())
+		return 255;
+	if (!PartialGraphMatchesFull())
+		return 260;
+	using Check = int (*)();
+	const Check checks[] { TestHelpTexts,
+		                   TestWindowsEffectsAndNightLight,
+		                   TestMatrixEffects,
+		                   TestProfileEditorHelpTexts,
+		                   TestWindowSizeRepair,
+		                   TestEffectPageLayout,
+		                   RunTabUiTest,
+		                   TestColorFilterPage,
+		                   TestPowerAndDisplayRetries,
+		                   TestCaptionTooltips,
+		                   TestOwnerDrawIsolation,
+		                   TestStatusMessages,
+		                   TestCaptionButtons,
+		                   TestShortcutCapture,
+		                   TestHdrControls,
+		                   TestMonitorAndSidebarLayout,
+		                   TestSliderRowLayout,
+		                   TestSliderInputStability,
+		                   TestNativeControlPainting,
+		                   TestPopupsAndCaptionMenu,
+		                   TestProfileEditorWindow,
+		                   TestFontChange };
+	for (const Check check : checks)
+		if (const int failure = check())
+			return failure;
 	return live_session.IsActive() || corrections_requested ? 96 : 0;
 }
 

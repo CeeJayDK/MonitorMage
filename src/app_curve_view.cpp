@@ -235,263 +235,198 @@ static void ChangeCurvePoint(HWND hwnd, LPARAM point)
 		SetTimer(main_window, TIMER_APPLY, 100, nullptr);
 }
 
-LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
+static void DrawWebsiteLink(const DRAWITEMSTRUCT& item)
 {
-	if (message == WM_DRAWITEM && reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == website_link)
-	{
-		const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
-		const int saved = SaveDC(item.hDC);
-		IntersectClipRect(item.hDC, item.rcItem.left, item.rcItem.top, item.rcItem.right, item.rcItem.bottom);
-		HBRUSH back = CreateSolidBrush(RGB(80, 87, 96));
-		FillRect(item.hDC, &item.rcItem, back);
+	const int saved = SaveDC(item.hDC);
+	IntersectClipRect(item.hDC, item.rcItem.left, item.rcItem.top, item.rcItem.right, item.rcItem.bottom);
+	HBRUSH back = CreateSolidBrush(RGB(80, 87, 96));
+	FillRect(item.hDC, &item.rcItem, back);
+	DeleteObject(back);
+	LOGFONTW style {};
+	GetObjectW(ui_font, sizeof(style), &style);
+	style.lfHeight = -ScaleForDpi(8);
+	style.lfUnderline = GetPropW(website_link, L"LutProfileHover") != nullptr;
+	HFONT small = CreateFontIndirectW(&style);
+	const auto old = SelectObject(item.hDC, small ? small : ui_font);
+	SetBkMode(item.hDC, TRANSPARENT);
+	SetTextColor(item.hDC, RGB(0, 0, 0));
+	RECT area = item.rcItem;
+	DrawTextW(item.hDC, L"CeeJay.dk", -1, &area, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
+	if (GetFocus() == website_link)
+		DrawFocusRect(item.hDC, &area);
+	SelectObject(item.hDC, old);
+	if (small)
+		DeleteObject(small);
+	if (saved)
+		RestoreDC(item.hDC, saved);
+}
+
+static void DrawMonitorLabel(const DRAWITEMSTRUCT& item)
+{
+	const bool profile = item.hwndItem == monitor_profile;
+	const int saved = SaveDC(item.hDC);
+	IntersectClipRect(item.hDC, item.rcItem.left, item.rcItem.top, item.rcItem.right, item.rcItem.bottom);
+	HBRUSH back = profile ? ui::BackgroundBrush() : CreateSolidBrush(RGB(7, 9, 12));
+	FillRect(item.hDC, &item.rcItem, back);
+	if (!profile)
 		DeleteObject(back);
-		LOGFONTW style {};
-		GetObjectW(ui_font, sizeof(style), &style);
-		style.lfHeight = -ScaleForDpi(8);
-		style.lfUnderline = GetPropW(website_link, L"LutProfileHover") != nullptr;
-		HFONT small = CreateFontIndirectW(&style);
-		const auto old = SelectObject(item.hDC, small ? small : ui_font);
-		SetBkMode(item.hDC, TRANSPARENT);
-		SetTextColor(item.hDC, RGB(0, 0, 0));
-		RECT area = item.rcItem;
-		DrawTextW(item.hDC, L"CeeJay.dk", -1, &area, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
-		if (GetFocus() == website_link)
+	const auto old = SelectObject(item.hDC, reinterpret_cast<HFONT>(SendMessageW(item.hwndItem, WM_GETFONT, 0, 0)));
+	SetBkMode(item.hDC, TRANSPARENT);
+	SetTextColor(item.hDC, ui::THEME_MUTED);
+	wchar_t text[2048] {};
+	GetWindowTextW(item.hwndItem, text, 2048);
+	RECT area = item.rcItem;
+	if (profile)
+	{
+		const bool hover = GetPropW(monitor_profile, L"LutProfileHover") != nullptr;
+		SetTextColor(item.hDC, hover || GetFocus() == monitor_profile ? ui::THEME_TEXT : ui::THEME_MUTED);
+		RECT measured {};
+		DrawTextW(item.hDC, text, -1, &measured, DT_SINGLELINE | DT_CALCRECT | DT_NOPREFIX);
+		const int icon = ScaleForDpi(12), gap = ScaleForDpi(5),
+				  width = std::min(static_cast<int>(measured.right - measured.left) + ScaleForDpi(4),
+		                           static_cast<int>(area.right - area.left) - icon - gap);
+		const int start = area.right - width - icon - gap, mid = (area.top + area.bottom) / 2;
+		ui::PaintMenuGlyph(monitor_profile, item.hDC, { start, mid - icon / 2, start + icon, mid + (icon + 1) / 2 },
+		                   ui::Glyph::Diamond, application_context_active && !foreground_program.IsManualOverride(),
+		                   true, ui::THEME_BACKGROUND);
+		area.left = start + icon + gap;
+		area.right = area.left + width;
+		DrawTextW(item.hDC, text, -1, &area, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+		if (hover)
+		{
+			HPEN pen = CreatePen(PS_SOLID, 1, ui::THEME_FOCUS_BORDER);
+			const auto previous = SelectObject(item.hDC, pen);
+			const int y = mid + ScaleForDpi(8);
+			MoveToEx(item.hDC, area.left, y, nullptr);
+			LineTo(item.hDC, area.right, y);
+			SelectObject(item.hDC, previous);
+			DeleteObject(pen);
+		}
+		if (GetFocus() == monitor_profile)
 			DrawFocusRect(item.hDC, &area);
-		SelectObject(item.hDC, old);
-		if (small)
-			DeleteObject(small);
-		if (saved)
-			RestoreDC(item.hDC, saved);
-		return TRUE;
 	}
-	if (message == WM_SETCURSOR && reinterpret_cast<HWND>(w_param) == hwnd && LOWORD(l_param) == HTCLIENT &&
-	    selected_effect == effect::CustomCurves && !settings_page)
+	else
+		DrawTextW(item.hDC, text, -1, &area, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX | DT_CENTER);
+	SelectObject(item.hDC, old);
+	if (saved)
+		RestoreDC(item.hDC, saved);
+}
+
+// ---- Editing the curve with the mouse and keyboard ----
+
+static void OnCurveDoubleClick(HWND hwnd, LPARAM l_param)
+{
+	const auto plot = CurvePlotRect(hwnd);
+	POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
+	auto hit = plot;
+	InflateRect(&hit, ScaleForDpi(6), ScaleForDpi(6));
+	if (PtInRect(&hit, point))
 	{
-		POINT point {};
-		GetCursorPos(&point);
-		ScreenToClient(hwnd, &point);
-		const auto plot = CurvePlotRect(hwnd);
-		if (PtInRect(&plot, point) || dragged_point >= 0)
+		auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
+		if (!curve.empty())
 		{
-			SetCursor(LoadCursorW(nullptr, IDC_CROSS));
-			return TRUE;
-		}
-	}
-	if (message == WM_DRAWITEM && (reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == monitor_mode ||
-	                               reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == monitor_profile))
-	{
-		const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
-		const bool profile = item.hwndItem == monitor_profile;
-		const int saved = SaveDC(item.hDC);
-		IntersectClipRect(item.hDC, item.rcItem.left, item.rcItem.top, item.rcItem.right, item.rcItem.bottom);
-		HBRUSH back = profile ? ui::BackgroundBrush() : CreateSolidBrush(RGB(7, 9, 12));
-		FillRect(item.hDC, &item.rcItem, back);
-		if (!profile)
-			DeleteObject(back);
-		const auto old = SelectObject(item.hDC, reinterpret_cast<HFONT>(SendMessageW(item.hwndItem, WM_GETFONT, 0, 0)));
-		SetBkMode(item.hDC, TRANSPARENT);
-		SetTextColor(item.hDC, ui::THEME_MUTED);
-		wchar_t text[2048] {};
-		GetWindowTextW(item.hwndItem, text, 2048);
-		RECT area = item.rcItem;
-		if (profile)
-		{
-			const bool hover = GetPropW(monitor_profile, L"LutProfileHover") != nullptr;
-			SetTextColor(item.hDC, hover || GetFocus() == monitor_profile ? ui::THEME_TEXT : ui::THEME_MUTED);
-			RECT measured {};
-			DrawTextW(item.hDC, text, -1, &measured, DT_SINGLELINE | DT_CALCRECT | DT_NOPREFIX);
-			const int icon = ScaleForDpi(12), gap = ScaleForDpi(5),
-					  width = std::min(static_cast<int>(measured.right - measured.left) + ScaleForDpi(4),
-			                           static_cast<int>(area.right - area.left) - icon - gap);
-			const int start = area.right - width - icon - gap, mid = (area.top + area.bottom) / 2;
-			ui::PaintMenuGlyph(monitor_profile, item.hDC, { start, mid - icon / 2, start + icon, mid + (icon + 1) / 2 },
-			                   ui::Glyph::Diamond, application_context_active && !foreground_program.IsManualOverride(),
-			                   true, ui::THEME_BACKGROUND);
-			area.left = start + icon + gap;
-			area.right = area.left + width;
-			DrawTextW(item.hDC, text, -1, &area, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
-			if (hover)
-			{
-				HPEN pen = CreatePen(PS_SOLID, 1, ui::THEME_FOCUS_BORDER);
-				const auto previous = SelectObject(item.hDC, pen);
-				const int y = mid + ScaleForDpi(8);
-				MoveToEx(item.hDC, area.left, y, nullptr);
-				LineTo(item.hDC, area.right, y);
-				SelectObject(item.hDC, previous);
-				DeleteObject(pen);
-			}
-			if (GetFocus() == monitor_profile)
-				DrawFocusRect(item.hDC, &area);
-		}
-		else
-			DrawTextW(item.hDC, text, -1, &area,
-			          DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX | DT_CENTER);
-		SelectObject(item.hDC, old);
-		if (saved)
-			RestoreDC(item.hDC, saved);
-		return TRUE;
-	}
-	LRESULT themed = 0;
-	if ((message == WM_NOTIFY || message == WM_DRAWITEM || message == WM_MEASUREITEM ||
-	     (message >= WM_CTLCOLORMSGBOX && message <= WM_CTLCOLORSTATIC)) &&
-	    ui::HandleThemeMessage(hwnd, message, w_param, l_param, themed))
-		return themed;
-	if (message == WM_COMMAND)
-		return SendMessageW(GetParent(hwnd), message, w_param, l_param);
-	if (message == WM_NOTIFY)
-		return SendMessageW(GetParent(hwnd), message, w_param, l_param);
-	if (message == WM_SIZE)
-	{
-		LayoutMonitorControls();
-		InvalidateRect(hwnd, nullptr, FALSE);
-		return 0;
-	}
-	if (message == WM_SETFOCUS || message == WM_KILLFOCUS)
-	{
-		InvalidateGraph();
-		return 0;
-	}
-	if (selected_effect == effect::CustomCurves)
-	{
-		if (message == WM_GETDLGCODE)
-			return DLGC_WANTARROWS;
-		if (message == WM_LBUTTONDBLCLK)
-		{
-			const auto plot = CurvePlotRect(hwnd);
-			POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
-			auto hit = plot;
-			InflateRect(&hit, ScaleForDpi(6), ScaleForDpi(6));
-			if (PtInRect(&hit, point))
-			{
-				auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
-				if (!curve.empty())
-				{
-					const auto i = static_cast<size_t>(std::clamp(
-						static_cast<int>(std::lround((point.x - plot.left) * 8.0 / (plot.right - plot.left))), 0, 8));
-					curve[i] = std::clamp(i / 8.0, i ? curve[i - 1] : 0, i + 1 < curve.size() ? curve[i + 1] : 1);
-					keyboard_point = static_cast<int>(i);
-					dragged_point = -1;
-					slider_dragging = false;
-					if (GetCapture() == hwnd)
-						ReleaseCapture();
-					OnPresetEdited(preset_role::Look);
-					ApplyLiveCorrections();
-					RefreshInterface();
-				}
-			}
-			return 0;
-		}
-		if (message == WM_LBUTTONDOWN)
-		{
-			const auto plot = CurvePlotRect(hwnd);
-			POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
-			if (PtInRect(&plot, point))
-			{
-				SetFocus(hwnd);
-				look_dirty_before_drag = CurrentPreset(preset_role::Look).IsDirty();
-				slider_dragging = true;
-				KillTimer(main_window, TIMER_PRESET);
-				dragged_point = -1;
-				SetCapture(hwnd);
-				ChangeCurvePoint(hwnd, l_param);
-			}
-			return 0;
-		}
-		if (message == WM_MOUSEMOVE && GetCapture() == hwnd)
-		{
-			ChangeCurvePoint(hwnd, l_param);
-			return 0;
-		}
-		if (message == WM_LBUTTONUP || message == WM_CAPTURECHANGED || message == WM_CANCELMODE)
-		{
-			if (dragged_point >= 0)
-			{
-				dragged_point = -1;
-				slider_dragging = false;
-				if (GetCapture() == hwnd)
-					ReleaseCapture();
-				OnPresetEdited(preset_role::Look);
-				RefreshInterface();
-			}
-			return 0;
-		}
-		if (message == WM_RBUTTONUP)
-		{
-			CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel].clear();
+			const auto i = static_cast<size_t>(std::clamp(
+				static_cast<int>(std::lround((point.x - plot.left) * 8.0 / (plot.right - plot.left))), 0, 8));
+			curve[i] = std::clamp(i / 8.0, i ? curve[i - 1] : 0, i + 1 < curve.size() ? curve[i + 1] : 1);
+			keyboard_point = static_cast<int>(i);
+			dragged_point = -1;
+			slider_dragging = false;
+			if (GetCapture() == hwnd)
+				ReleaseCapture();
 			OnPresetEdited(preset_role::Look);
 			ApplyLiveCorrections();
 			RefreshInterface();
-			return 0;
-		}
-		if (message == WM_KEYDOWN &&
-		    (w_param == VK_UP || w_param == VK_DOWN || w_param == VK_LEFT || w_param == VK_RIGHT))
-		{
-			auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
-			if (curve.empty())
-				for (int i = 0; i < 9; ++i)
-					curve.push_back(i / 8.0);
-			if (w_param == VK_LEFT || w_param == VK_RIGHT)
-				keyboard_point = std::clamp(keyboard_point + (w_param == VK_RIGHT ? 1 : -1), 0, 8);
-			else
-			{
-				const size_t i = static_cast<size_t>(keyboard_point);
-				curve[i] = std::clamp(curve[i] + (w_param == VK_UP ? .01 : -.01), i ? curve[i - 1] : 0,
-				                      i + 1 < curve.size() ? curve[i + 1] : 1);
-				OnPresetEdited(preset_role::Look);
-				if (corrections_requested)
-					SetTimer(main_window, TIMER_APPLY, 100, nullptr);
-			}
-			RefreshInterface();
-			return 0;
 		}
 	}
-	if (message == WM_ERASEBKGND)
-		return 1;
-	if (message != WM_PAINT && message != WM_PRINTCLIENT)
-		return DefWindowProcW(hwnd, message, w_param, l_param);
-	PAINTSTRUCT paint {};
-	HDC dc = message == WM_PAINT ? BeginPaint(hwnd, &paint) : reinterpret_cast<HDC>(w_param);
-	RECT client {};
-	GetClientRect(hwnd, &client);
-	// Buffer only while painting; no persistent frame loop or render resources.
-	paint::Buffer frame(dc, client);
-	// Keep the previous image if off-screen allocation fails; never fall
-	// back to drawing the graph directly into the visible window.
-	if (!frame || !frame.IsBuffered())
+}
+
+static void StartCurveDrag(HWND hwnd, LPARAM l_param)
+{
+	const auto plot = CurvePlotRect(hwnd);
+	POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
+	if (PtInRect(&plot, point))
 	{
-		frame.Finish();
-		if (message == WM_PAINT)
-			EndPaint(hwnd, &paint);
-		return 0;
+		SetFocus(hwnd);
+		look_dirty_before_drag = CurrentPreset(preset_role::Look).IsDirty();
+		slider_dragging = true;
+		KillTimer(main_window, TIMER_PRESET);
+		dragged_point = -1;
+		SetCapture(hwnd);
+		ChangeCurvePoint(hwnd, l_param);
 	}
-	if (render_only)
-		last_graph_paint_bytes = frame.ByteCount();
-	HDC buffer = frame.DeviceContext();
-	FillRect(buffer, &client, ui::BackgroundBrush());
-	const auto geometry = CalculateMonitorGeometry(hwnd);
+}
+
+static void FinishCurveDrag(HWND hwnd)
+{
+	if (dragged_point >= 0)
+	{
+		dragged_point = -1;
+		slider_dragging = false;
+		if (GetCapture() == hwnd)
+			ReleaseCapture();
+		OnPresetEdited(preset_role::Look);
+		RefreshInterface();
+	}
+}
+
+static void ResetEditedCurve()
+{
+	CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel].clear();
+	OnPresetEdited(preset_role::Look);
+	ApplyLiveCorrections();
+	RefreshInterface();
+}
+
+static void MoveCurvePointWithKey(WPARAM w_param)
+{
+	auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
+	if (curve.empty())
+		for (int i = 0; i < 9; ++i)
+			curve.push_back(i / 8.0);
+	if (w_param == VK_LEFT || w_param == VK_RIGHT)
+		keyboard_point = std::clamp(keyboard_point + (w_param == VK_RIGHT ? 1 : -1), 0, 8);
+	else
+	{
+		const size_t i = static_cast<size_t>(keyboard_point);
+		curve[i] = std::clamp(curve[i] + (w_param == VK_UP ? .01 : -.01), i ? curve[i - 1] : 0,
+		                      i + 1 < curve.size() ? curve[i + 1] : 1);
+		OnPresetEdited(preset_role::Look);
+		if (corrections_requested)
+			SetTimer(main_window, TIMER_APPLY, 100, nullptr);
+	}
+	RefreshInterface();
+}
+
+// ---- Painting the graph, back to front ----
+
+static void DrawRoundedShape(HDC buffer, RECT rect, COLORREF fill, COLORREF outline, int radius)
+{
+	HBRUSH brush = CreateSolidBrush(fill);
+	HPEN pen = CreatePen(PS_SOLID, 1, outline);
+	auto old_brush = SelectObject(buffer, brush), old_pen = SelectObject(buffer, pen);
+	RoundRect(buffer, rect.left, rect.top, rect.right, rect.bottom, ScaleForDpi(radius * 2), ScaleForDpi(radius * 2));
+	SelectObject(buffer, old_brush);
+	SelectObject(buffer, old_pen);
+	DeleteObject(brush);
+	DeleteObject(pen);
+}
+
+static void DrawMonitorFrame(HDC buffer, const RECT& client, const MonitorGeometry& geometry)
+{
 	const RECT body = geometry.body;
-	auto rounded = [&](RECT rect, COLORREF fill, COLORREF outline, int radius)
-	{
-		HBRUSH brush = CreateSolidBrush(fill);
-		HPEN pen = CreatePen(PS_SOLID, 1, outline);
-		auto old_brush = SelectObject(buffer, brush), old_pen = SelectObject(buffer, pen);
-		RoundRect(buffer, rect.left, rect.top, rect.right, rect.bottom, ScaleForDpi(radius * 2),
-		          ScaleForDpi(radius * 2));
-		SelectObject(buffer, old_brush);
-		SelectObject(buffer, old_pen);
-		DeleteObject(brush);
-		DeleteObject(pen);
-	};
 	const int center = client.right / 2;
 	RECT neck { center - ScaleForDpi(17), body.bottom - ScaleForDpi(2), center + ScaleForDpi(17),
 		        client.bottom - ScaleForDpi(7) };
 	const RECT foot = geometry.foot;
-	rounded(neck, RGB(65, 70, 77), RGB(86, 92, 100), 2);
-	rounded(foot, RGB(80, 87, 96), RGB(112, 120, 130), 3);
-	rounded(body, RGB(82, 89, 98), RGB(120, 128, 138), 7);
+	DrawRoundedShape(buffer, neck, RGB(65, 70, 77), RGB(86, 92, 100), 2);
+	DrawRoundedShape(buffer, foot, RGB(80, 87, 96), RGB(112, 120, 130), 3);
+	DrawRoundedShape(buffer, body, RGB(82, 89, 98), RGB(120, 128, 138), 7);
 	const RECT screen = geometry.screen;
-	rounded(screen, RGB(7, 9, 12), RGB(32, 36, 42), 3);
-	const auto plot_rect = CurvePlotRect(hwnd);
+	DrawRoundedShape(buffer, screen, RGB(7, 9, 12), RGB(32, 36, 42), 3);
+}
+
+static void DrawGraphGrid(HDC buffer, const RECT& plot_rect)
+{
 	const int left = plot_rect.left, right = plot_rect.right, top = plot_rect.top, bottom = plot_rect.bottom;
 	HPEN grid = CreatePen(PS_SOLID, 1, RGB(58, 62, 69));
 	HGDIOBJ old_pen = SelectObject(buffer, grid);
@@ -507,9 +442,46 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM
 	SelectObject(buffer, identity);
 	MoveToEx(buffer, left, bottom, nullptr);
 	LineTo(buffer, right, top);
+	SelectObject(buffer, old_pen);
+	DeleteObject(grid);
+	DeleteObject(identity);
+}
+
+// Converts a graph position, from 0 to 1 on each axis, to pixels.
+static POINT GraphPoint(const RECT& plot_rect, double x, double y)
+{
+	return POINT { plot_rect.left + static_cast<int>(std::lround((plot_rect.right - plot_rect.left) * x)),
+		           plot_rect.bottom - static_cast<int>(std::lround((plot_rect.bottom - plot_rect.top) * y)) };
+}
+
+static void DrawEditableCurveHandles(HWND hwnd, HDC buffer, const RECT& plot_rect, const live::Settings& settings)
+{
+	const COLORREF inks[] { RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255) };
+	const auto& editable = settings.Adjustments.Curves[editing_channel];
+	HPEN handles =
+		CreatePen(PS_SOLID, ScaleForDpi(2), editing_channel ? inks[editing_channel - 1] : RGB(255, 255, 255));
+	const auto old_pen = SelectObject(buffer, handles);
+	const auto previous_brush = SelectObject(buffer, GetStockObject(BLACK_BRUSH));
+	for (int i = 0; i < 9; ++i)
+	{
+		const auto at = GraphPoint(plot_rect, i / 8.0, color::SampleSpline(editable, i / 8.0));
+		const int x = at.x, y = at.y;
+		Ellipse(buffer, x - ScaleForDpi(3), y - ScaleForDpi(3), x + ScaleForDpi(4), y + ScaleForDpi(4));
+		if (GetFocus() == hwnd && i == keyboard_point)
+		{
+			RECT focus { x - ScaleForDpi(6), y - ScaleForDpi(6), x + ScaleForDpi(7), y + ScaleForDpi(7) };
+			DrawFocusRect(buffer, &focus);
+		}
+	}
+	SelectObject(buffer, previous_brush);
+	SelectObject(buffer, old_pen);
+	DeleteObject(handles);
+}
+
+static void DrawGraphCurves(HWND hwnd, HDC buffer, const RECT& client, const RECT& plot_rect)
+{
 	const auto settings = CurrentSettings();
 	const auto output = OutputForPreview();
-	const COLORREF inks[] { RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255) };
 	plot::Paths paths;
 	std::vector<POINT> editable_path;
 	bool needs_guide = false;
@@ -517,18 +489,13 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM
 		path.reserve(513);
 	if (selected_effect == effect::CustomCurves)
 		editable_path.reserve(513);
-	const auto position = [&](double x, double y)
-	{
-		return POINT { left + static_cast<int>(std::lround((right - left) * x)),
-			           bottom - static_cast<int>(std::lround((bottom - top) * y)) };
-	};
 	for (int i = 0; i <= 512; ++i)
 	{
 		const double x = i / 512.0;
 		POINT editable {};
 		if (selected_effect == effect::CustomCurves)
 		{
-			editable = position(x, color::SampleSpline(settings.Adjustments.Curves[editing_channel], x));
+			editable = GraphPoint(plot_rect, x, color::SampleSpline(settings.Adjustments.Curves[editing_channel], x));
 			editable_path.push_back(editable);
 		}
 		for (int c = 0; c < 3; ++c)
@@ -539,7 +506,7 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM
 			                     ? color::SampleSpline(settings.Adjustments.Curves[c + 1],
 			                                           color::SampleSpline(settings.Adjustments.Curves[0], x))
 			                     : live::EvaluateOutputCode(x, c, output, settings);
-			paths[c].push_back(position(x, y));
+			paths[c].push_back(GraphPoint(plot_rect, x, y));
 			if (selected_effect == effect::CustomCurves && (editing_channel == 0 || editing_channel == c + 1) &&
 			    std::abs(paths[c].back().y - editable.y) > 1)
 				needs_guide = true;
@@ -548,37 +515,19 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM
 	if (selected_effect == effect::CustomCurves && needs_guide)
 	{
 		HPEN guide = CreatePen(PS_DOT, 1, ui::THEME_MUTED);
-		SelectObject(buffer, guide);
+		const auto old_pen = SelectObject(buffer, guide);
 		Polyline(buffer, editable_path.data(), static_cast<int>(editable_path.size()));
 		SelectObject(buffer, old_pen);
 		DeleteObject(guide);
 	}
 	plot::DrawRgbCurves(buffer, client.right, client.bottom, paths, ScaleForDpi(2), &curve_scratch);
 	if (selected_effect == effect::CustomCurves)
-	{
-		const auto& editable = settings.Adjustments.Curves[editing_channel];
-		HPEN handles =
-			CreatePen(PS_SOLID, ScaleForDpi(2), editing_channel ? inks[editing_channel - 1] : RGB(255, 255, 255));
-		SelectObject(buffer, handles);
-		const auto previous_brush = SelectObject(buffer, GetStockObject(BLACK_BRUSH));
-		for (int i = 0; i < 9; ++i)
-		{
-			const auto at = position(i / 8.0, color::SampleSpline(editable, i / 8.0));
-			const int x = at.x, y = at.y;
-			Ellipse(buffer, x - ScaleForDpi(3), y - ScaleForDpi(3), x + ScaleForDpi(4), y + ScaleForDpi(4));
-			if (GetFocus() == hwnd && i == keyboard_point)
-			{
-				RECT focus { x - ScaleForDpi(6), y - ScaleForDpi(6), x + ScaleForDpi(7), y + ScaleForDpi(7) };
-				DrawFocusRect(buffer, &focus);
-			}
-		}
-		SelectObject(buffer, previous_brush);
-		SelectObject(buffer, old_pen);
-		DeleteObject(handles);
-	}
-	SelectObject(buffer, old_pen);
-	DeleteObject(grid);
-	DeleteObject(identity);
+		DrawEditableCurveHandles(hwnd, buffer, plot_rect, settings);
+}
+
+static void DrawGraphAxisLabels(HDC buffer, const RECT& plot_rect, const MonitorGeometry& geometry)
+{
+	const int left = plot_rect.left, right = plot_rect.right, top = plot_rect.top, bottom = plot_rect.bottom;
 	LOGFONTW axis_style {};
 	GetObjectW(ui_font, sizeof(axis_style), &axis_style);
 	axis_style.lfHeight = -ScaleForDpi(ui::style::SECONDARY_TEXT_SIZE);
@@ -616,6 +565,10 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM
 		DeleteObject(tone_font);
 	if (axis_font)
 		DeleteObject(axis_font);
+}
+
+static void DrawGraphStatus(HDC buffer, const MonitorGeometry& geometry)
+{
 	// Paint last, over the graph itself: long warnings may wrap below the
 	// header row without a child window clipping their second line.
 	wchar_t status_text[2048] {};
@@ -631,9 +584,128 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM
 	if (graph_status_visible)
 		DrawTextW(buffer, status_text, -1, &status_area, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX);
 	SelectObject(buffer, status_font);
+}
+
+static void PaintCurveGraph(HWND hwnd, UINT message, WPARAM w_param)
+{
+	PAINTSTRUCT paint {};
+	HDC dc = message == WM_PAINT ? BeginPaint(hwnd, &paint) : reinterpret_cast<HDC>(w_param);
+	RECT client {};
+	GetClientRect(hwnd, &client);
+	// Buffer only while painting; no persistent frame loop or render resources.
+	paint::Buffer frame(dc, client);
+	// Keep the previous image if off-screen allocation fails; never fall
+	// back to drawing the graph directly into the visible window.
+	if (!frame || !frame.IsBuffered())
+	{
+		frame.Finish();
+		if (message == WM_PAINT)
+			EndPaint(hwnd, &paint);
+		return;
+	}
+	if (render_only)
+		last_graph_paint_bytes = frame.ByteCount();
+	HDC buffer = frame.DeviceContext();
+	FillRect(buffer, &client, ui::BackgroundBrush());
+	const auto geometry = CalculateMonitorGeometry(hwnd);
+	DrawMonitorFrame(buffer, client, geometry);
+	const auto plot_rect = CurvePlotRect(hwnd);
+	DrawGraphGrid(buffer, plot_rect);
+	DrawGraphCurves(hwnd, buffer, client, plot_rect);
+	DrawGraphAxisLabels(buffer, plot_rect, geometry);
+	DrawGraphStatus(buffer, geometry);
 	frame.Finish();
 	if (message == WM_PAINT)
 		EndPaint(hwnd, &paint);
+}
+
+LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
+{
+	if (message == WM_DRAWITEM && reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == website_link)
+	{
+		DrawWebsiteLink(*reinterpret_cast<DRAWITEMSTRUCT*>(l_param));
+		return TRUE;
+	}
+	if (message == WM_SETCURSOR && reinterpret_cast<HWND>(w_param) == hwnd && LOWORD(l_param) == HTCLIENT &&
+	    selected_effect == effect::CustomCurves && !settings_page)
+	{
+		POINT point {};
+		GetCursorPos(&point);
+		ScreenToClient(hwnd, &point);
+		const auto plot = CurvePlotRect(hwnd);
+		if (PtInRect(&plot, point) || dragged_point >= 0)
+		{
+			SetCursor(LoadCursorW(nullptr, IDC_CROSS));
+			return TRUE;
+		}
+	}
+	if (message == WM_DRAWITEM && (reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == monitor_mode ||
+	                               reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == monitor_profile))
+	{
+		DrawMonitorLabel(*reinterpret_cast<DRAWITEMSTRUCT*>(l_param));
+		return TRUE;
+	}
+	LRESULT themed = 0;
+	if ((message == WM_NOTIFY || message == WM_DRAWITEM || message == WM_MEASUREITEM ||
+	     (message >= WM_CTLCOLORMSGBOX && message <= WM_CTLCOLORSTATIC)) &&
+	    ui::HandleThemeMessage(hwnd, message, w_param, l_param, themed))
+		return themed;
+	if (message == WM_COMMAND)
+		return SendMessageW(GetParent(hwnd), message, w_param, l_param);
+	if (message == WM_NOTIFY)
+		return SendMessageW(GetParent(hwnd), message, w_param, l_param);
+	if (message == WM_SIZE)
+	{
+		LayoutMonitorControls();
+		InvalidateRect(hwnd, nullptr, FALSE);
+		return 0;
+	}
+	if (message == WM_SETFOCUS || message == WM_KILLFOCUS)
+	{
+		InvalidateGraph();
+		return 0;
+	}
+	if (selected_effect == effect::CustomCurves)
+	{
+		if (message == WM_GETDLGCODE)
+			return DLGC_WANTARROWS;
+		if (message == WM_LBUTTONDBLCLK)
+		{
+			OnCurveDoubleClick(hwnd, l_param);
+			return 0;
+		}
+		if (message == WM_LBUTTONDOWN)
+		{
+			StartCurveDrag(hwnd, l_param);
+			return 0;
+		}
+		if (message == WM_MOUSEMOVE && GetCapture() == hwnd)
+		{
+			ChangeCurvePoint(hwnd, l_param);
+			return 0;
+		}
+		if (message == WM_LBUTTONUP || message == WM_CAPTURECHANGED || message == WM_CANCELMODE)
+		{
+			FinishCurveDrag(hwnd);
+			return 0;
+		}
+		if (message == WM_RBUTTONUP)
+		{
+			ResetEditedCurve();
+			return 0;
+		}
+		if (message == WM_KEYDOWN &&
+		    (w_param == VK_UP || w_param == VK_DOWN || w_param == VK_LEFT || w_param == VK_RIGHT))
+		{
+			MoveCurvePointWithKey(w_param);
+			return 0;
+		}
+	}
+	if (message == WM_ERASEBKGND)
+		return 1;
+	if (message != WM_PAINT && message != WM_PRINTCLIENT)
+		return DefWindowProcW(hwnd, message, w_param, l_param);
+	PaintCurveGraph(hwnd, message, w_param);
 	return 0;
 }
 }

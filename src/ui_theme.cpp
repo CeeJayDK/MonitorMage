@@ -2129,6 +2129,323 @@ void ApplyWindowFrameTheme(HWND window)
 		DeleteObject(shape); // Windows owns a successful region.
 }
 
+static bool ShowCaptionContextMenu(HWND window, WPARAM w_param, LPARAM l_param, LRESULT& result)
+{
+	if (reinterpret_cast<HWND>(w_param) == window)
+	{
+		POINT at { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
+		if (at.x == -1 && at.y == -1)
+		{
+			RECT bounds {};
+			GetWindowRect(window, &bounds);
+			at = { bounds.left + ScaleForDpi(window, 8), bounds.top + ScaleForDpi(window, 36) };
+		}
+		else if (CaptionHitTest(window, at) != HTCAPTION && CaptionHitTest(window, at) != HTSYSMENU)
+			return false;
+		HideCaptionTip(window);
+		ShowCaptionMenu(window, at);
+		result = 0;
+		return true;
+	}
+	return false;
+}
+
+static bool SetThemedCursor(HWND window, WPARAM w_param, LPARAM l_param, LRESULT& result)
+{
+	const int hit = LOWORD(l_param);
+	auto entry = CaptionActionAtHit(window, hit);
+	if (IsWindowEnabled(window) && ((entry && entry->enabled) || hit == HTCLOSE || hit == HTMINBUTTON ||
+	                                hit == HTSYSMENU || (hit == HTHELP && GetPropW(window, L"LutPowerCommand"))))
+	{
+		SetCursor(LoadCursorW(nullptr, IDC_HAND));
+		result = TRUE;
+		return true;
+	}
+	if (hit == HTCLIENT)
+	{
+		wchar_t class_name[40] {};
+		auto target = reinterpret_cast<HWND>(w_param);
+		GetClassNameW(target, class_name, 40);
+		if (IsWindowEnabled(target) && wcscmp(class_name, TRACKBAR_CLASSW) == 0)
+		{
+			SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
+			result = TRUE;
+			return true;
+		}
+	}
+	return false;
+}
+
+static void DrawThemedComboItem(HWND window, const DRAWITEMSTRUCT* item)
+{
+	const auto combo = item->hwndItem;
+	HDC dc = item->hDC;
+	const bool selected = (item->itemState & ODS_SELECTED) != 0;
+	HBRUSH fill = CreateSolidBrush(selected ? RGB(66, 71, 79) : THEME_SURFACE);
+	FillRect(dc, &item->rcItem, fill);
+	DeleteObject(fill);
+	const auto old = SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(combo, WM_GETFONT, 0, 0)));
+	SetBkMode(dc, TRANSPARENT);
+	SetTextColor(dc, IsWindowEnabled(combo) ? THEME_TEXT : THEME_MUTED);
+	if (item->itemID != static_cast<UINT>(-1))
+	{
+		const auto length = SendMessageW(combo, CB_GETLBTEXTLEN, item->itemID, 0);
+		if (length >= 0)
+		{
+			std::wstring text(static_cast<size_t>(length) + 1, L'\0');
+			SendMessageW(combo, CB_GETLBTEXT, item->itemID, reinterpret_cast<LPARAM>(text.data()));
+			RECT area = item->rcItem;
+			area.left += ScaleForDpi(window, 5);
+			area.right -= ScaleForDpi(window, 5);
+			DrawTextW(dc, text.c_str(), -1, &area, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+		}
+	}
+	if ((item->itemState & ODS_FOCUS) && !(SendMessageW(combo, WM_QUERYUISTATE, 0, 0) & UISF_HIDEFOCUS))
+	{
+		RECT focus = item->rcItem;
+		InflateRect(&focus, -1, -1);
+		DrawFocusRect(dc, &focus);
+	}
+	SelectObject(dc, old);
+}
+
+static bool PressCaptionButton(HWND window, WPARAM w_param, LRESULT& result)
+{
+	HideCaptionTip(window);
+	if (w_param == HTSYSMENU)
+	{
+		RECT bounds {};
+		GetWindowRect(window, &bounds);
+		ShowCaptionMenu(window, { bounds.left + ScaleForDpi(window, 8), bounds.top + ScaleForDpi(window, 36) });
+		result = 0;
+		return true;
+	}
+	if (auto entry = CaptionActionAtHit(window, static_cast<int>(w_param)))
+	{
+		if (entry->enabled)
+		{
+			SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
+			SetCapture(window);
+			RepaintCaption(window);
+		}
+		result = 0;
+		return true;
+	}
+	if (w_param == HTHELP && GetPropW(window, L"LutPowerCommand"))
+	{
+		if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
+		{
+			SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
+			SetCapture(window);
+			RepaintCaption(window);
+		}
+		result = 0;
+		return true;
+	}
+	if (w_param == HTCLOSE || w_param == HTMINBUTTON)
+	{
+		SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
+		SetCapture(window);
+		result = 0;
+		return true;
+	}
+	return false;
+}
+
+static bool ReleaseCaptionButton(HWND window, LPARAM l_param, LRESULT& result)
+{
+	if (const auto hit = reinterpret_cast<INT_PTR>(RemovePropW(window, L"LutCaptionPressed")))
+	{
+		POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
+		ClientToScreen(window, &point);
+		ReleaseCapture();
+		if (CaptionHitTest(window, point) == hit)
+		{
+			if (auto entry = CaptionActionAtHit(window, static_cast<int>(hit)))
+			{
+				if (entry->enabled)
+					PostMessageW(window, WM_COMMAND, entry->command, 0);
+			}
+			else if (hit == HTHELP)
+			{
+				if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
+					PostMessageW(window, WM_COMMAND, reinterpret_cast<WPARAM>(GetPropW(window, L"LutPowerCommand")), 0);
+			}
+			else
+				PostMessageW(window, WM_SYSCOMMAND, hit == HTCLOSE ? SC_CLOSE : SC_MINIMIZE, 0);
+		}
+		result = 0;
+		return true;
+	}
+	return false;
+}
+
+static bool HandleCaptionSystemCommand(HWND window, UINT message, WPARAM w_param, LPARAM l_param, LRESULT& result)
+{
+	if (message == WM_SYSCOMMAND && (w_param & 0xFFF0) == SC_RESTORE && GetPropW(window, L"MonitorMagePreferredSize"))
+	{
+		DefWindowProcW(window, message, w_param, l_param);
+		RepairWindowSize(window);
+		result = 0;
+		return true;
+	}
+	if (message == WM_SYSCOMMAND && ((w_param & 0xFFF0) == SC_KEYMENU || (w_param & 0xFFF0) == SC_MOUSEMENU))
+	{
+		// Alt+Space and the window icon use the same menu as caption right-click.
+		if ((w_param & 0xFFF0) == SC_MOUSEMENU || l_param == VK_SPACE || l_param == 0)
+		{
+			RECT bounds {};
+			GetWindowRect(window, &bounds);
+			HideCaptionTip(window);
+			ShowCaptionMenu(window, { bounds.left + ScaleForDpi(window, 8), bounds.top + ScaleForDpi(window, 36) });
+			result = 0;
+			return true;
+		}
+	}
+	if (message == WM_SYSCOMMAND && (w_param & 0xFFF0) >= 0x1F10 && (w_param & 0xFFF0) <= 0x1F30)
+	{
+		if (auto entry = CaptionActionAtHit(window, 100 + static_cast<int>(((w_param & 0xFFF0) - 0x1F10) / 16)))
+		{
+			if (entry->enabled)
+				PostMessageW(window, WM_COMMAND, entry->command, 0);
+			result = 0;
+			return true;
+		}
+	}
+	if (GetPropW(window, L"LutPowerCommand") &&
+	    ((message == WM_SYSCOMMAND && (w_param & 0xFFF0) == 0x1F00) ||
+	     (message == WM_SYSCHAR && (GetPropW(window, L"LutCaptionSettings") ? (w_param == L's' || w_param == L'S')
+	                                                                        : (w_param == L'p' || w_param == L'P')))))
+	{
+		if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
+			PostMessageW(window, WM_COMMAND, reinterpret_cast<WPARAM>(GetPropW(window, L"LutPowerCommand")), 0);
+		result = 0;
+		return true;
+	}
+	return false;
+}
+
+static void ReleaseCaptionResources(HWND window)
+{
+	KillTimer(window, TIMER_GEOMETRY);
+	delete reinterpret_cast<SIZE*>(RemovePropW(window, L"MonitorMagePreferredSize"));
+	HideCaptionTip(window);
+	if (auto tip = reinterpret_cast<HWND>(RemovePropW(window, L"LutCaptionTooltip")))
+		DestroyWindow(tip);
+	auto font = reinterpret_cast<HFONT>(RemovePropW(window, L"LutCaptionFont"));
+	if (font)
+		DeleteObject(font);
+	RemovePropW(window, L"LutCaptionHover");
+	RemovePropW(window, L"LutCaptionPressed");
+	RemovePropW(window, L"LutPowerCommand");
+	RemovePropW(window, L"LutPowerState");
+	RemovePropW(window, L"LutCaptionSettings");
+	delete reinterpret_cast<Actions*>(RemovePropW(window, L"LutCaptionActions"));
+}
+
+static void ColorThemedControl(UINT message, WPARAM w_param, LPARAM l_param, LRESULT& result)
+{
+	auto dc = reinterpret_cast<HDC>(w_param);
+	const auto child = reinterpret_cast<HWND>(l_param);
+	wchar_t class_name[40] {};
+	GetClassNameW(child, class_name, 40);
+	const bool field = message == WM_CTLCOLOREDIT || message == WM_CTLCOLORLISTBOX || wcscmp(class_name, L"Edit") == 0;
+	SetTextColor(dc, IsWindowEnabled(child) ? THEME_TEXT : THEME_MUTED);
+	SetBkColor(dc, field ? THEME_SURFACE : THEME_BACKGROUND);
+	result = reinterpret_cast<LRESULT>(field ? surface.value : bg.value);
+}
+
+static void DrawSliderChannel(HWND window, const NMCUSTOMDRAW* draw, COLORREF colour, bool tinted)
+{
+	RECT rect = draw->rc;
+	const int mid = (rect.top + rect.bottom) / 2;
+	rect.top = mid - ScaleForDpi(window, 2);
+	rect.bottom = mid + ScaleForDpi(window, 2);
+	FillRoundedRect(draw->hdc, rect, THEME_BORDER, THEME_BORDER, ScaleForDpi(window, 2));
+	if (tinted)
+	{
+		const auto muted = RGB((GetRValue(colour) + 2 * GetRValue(THEME_BACKGROUND)) / 3,
+		                       (GetGValue(colour) + 2 * ((THEME_BACKGROUND >> 8) & 255)) / 3,
+		                       (GetBValue(colour) + 2 * GetBValue(THEME_BACKGROUND)) / 3);
+		FillRoundedRect(draw->hdc, rect, muted, muted, ScaleForDpi(window, 2));
+	}
+	if (const auto value = reinterpret_cast<INT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderDefault")))
+	{
+		const int low = static_cast<int>(SendMessageW(draw->hdr.hwndFrom, TBM_GETRANGEMIN, 0, 0)),
+				  high = static_cast<int>(SendMessageW(draw->hdr.hwndFrom, TBM_GETRANGEMAX, 0, 0));
+		if (high > low)
+		{
+			const int x = draw->rc.left +
+			              MulDiv(static_cast<int>(value - 32769) - low, draw->rc.right - draw->rc.left - 1, high - low);
+			HPEN tick = CreatePen(PS_SOLID, 1, THEME_MUTED);
+			const auto old = SelectObject(draw->hdc, tick);
+			MoveToEx(draw->hdc, x, mid - ScaleForDpi(window, 5), nullptr);
+			LineTo(draw->hdc, x, mid + ScaleForDpi(window, 5) + 1);
+			SelectObject(draw->hdc, old);
+			DeleteObject(tick);
+		}
+	}
+}
+
+static void DrawSliderThumb(HWND window, const NMCUSTOMDRAW* draw, COLORREF colour)
+{
+	FillRoundedRect(draw->hdc, draw->rc, IsWindowEnabled(draw->hdr.hwndFrom) ? colour : THEME_MUTED, THEME_BORDER,
+	                ScaleForDpi(window, 3));
+	if (const wchar_t letter =
+	        static_cast<wchar_t>(reinterpret_cast<INT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderLetter"))))
+	{
+		LOGFONTW label_style {};
+		GetObjectW(reinterpret_cast<HFONT>(SendMessageW(draw->hdr.hwndFrom, WM_GETFONT, 0, 0)), sizeof(label_style),
+		           &label_style);
+		label_style.lfHeight = -ScaleForDpi(window, style::CAPTION_TEXT_SIZE);
+		HFONT label_font = CreateFontIndirectW(&label_style);
+		const auto old = SelectObject(draw->hdc, label_font);
+		SetBkMode(draw->hdc, TRANSPARENT);
+		SetTextColor(draw->hdc, THEME_BACKGROUND);
+		RECT label = draw->rc;
+		DrawTextW(draw->hdc, &letter, 1, &label, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+		SelectObject(draw->hdc, old);
+		DeleteObject(label_font);
+	}
+}
+
+// Windows lets a window draw parts of its native buttons and sliders itself.
+static bool HandleCustomDraw(HWND window, const NMCUSTOMDRAW* draw, LRESULT& result)
+{
+	if (draw->hdr.code != NM_CUSTOMDRAW)
+		return false;
+	wchar_t class_name[40] {};
+	GetClassNameW(draw->hdr.hwndFrom, class_name, static_cast<int>(std::size(class_name)));
+	// Native buttons also draw synchronously for text, enabled and pressed
+	// state changes. Route that path through the same dark painter.
+	if (wcscmp(class_name, L"Button") == 0 && draw->dwDrawStage == CDDS_PREPAINT)
+	{
+		PaintControl(draw->hdr.hwndFrom, draw->hdc);
+		result = CDRF_SKIPDEFAULT;
+		return true;
+	}
+	if (wcscmp(class_name, TRACKBAR_CLASSW) != 0)
+		return false;
+	if (draw->dwDrawStage == CDDS_PREPAINT)
+	{
+		FillRect(draw->hdc, &draw->rc, bg.value);
+		result = CDRF_NOTIFYITEMDRAW;
+		return true;
+	}
+	if (draw->dwDrawStage == CDDS_ITEMPREPAINT)
+	{
+		const auto stored = reinterpret_cast<UINT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderColour"));
+		const COLORREF colour = stored ? static_cast<COLORREF>(stored - 1) : THEME_ACCENT;
+		if (draw->dwItemSpec == TBCD_CHANNEL)
+			DrawSliderChannel(window, draw, colour, stored != 0);
+		if (draw->dwItemSpec == TBCD_THUMB)
+			DrawSliderThumb(window, draw, colour);
+		result = CDRF_SKIPDEFAULT;
+		return true;
+	}
+	return false;
+}
+
 bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_param, LRESULT& result)
 {
 	switch (message)
@@ -2143,49 +2460,9 @@ bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_para
 			}
 			break;
 		case WM_CONTEXTMENU:
-			if (reinterpret_cast<HWND>(w_param) == window)
-			{
-				POINT at { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
-				if (at.x == -1 && at.y == -1)
-				{
-					RECT bounds {};
-					GetWindowRect(window, &bounds);
-					at = { bounds.left + ScaleForDpi(window, 8), bounds.top + ScaleForDpi(window, 36) };
-				}
-				else if (CaptionHitTest(window, at) != HTCAPTION && CaptionHitTest(window, at) != HTSYSMENU)
-					break;
-				HideCaptionTip(window);
-				ShowCaptionMenu(window, at);
-				result = 0;
-				return true;
-			}
-			break;
+			return ShowCaptionContextMenu(window, w_param, l_param, result);
 		case WM_SETCURSOR:
-		{
-			const int hit = LOWORD(l_param);
-			auto entry = CaptionActionAtHit(window, hit);
-			if (IsWindowEnabled(window) &&
-			    ((entry && entry->enabled) || hit == HTCLOSE || hit == HTMINBUTTON || hit == HTSYSMENU ||
-			     (hit == HTHELP && GetPropW(window, L"LutPowerCommand"))))
-			{
-				SetCursor(LoadCursorW(nullptr, IDC_HAND));
-				result = TRUE;
-				return true;
-			}
-			if (hit == HTCLIENT)
-			{
-				wchar_t class_name[40] {};
-				auto target = reinterpret_cast<HWND>(w_param);
-				GetClassNameW(target, class_name, 40);
-				if (IsWindowEnabled(target) && wcscmp(class_name, TRACKBAR_CLASSW) == 0)
-				{
-					SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
-					result = TRUE;
-					return true;
-				}
-			}
-			break;
-		}
+			return SetThemedCursor(window, w_param, l_param, result);
 		case WM_MEASUREITEM:
 			if (auto item = reinterpret_cast<MEASUREITEMSTRUCT*>(l_param); item->CtlType == ODT_COMBOBOX)
 			{
@@ -2197,36 +2474,7 @@ bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_para
 		case WM_DRAWITEM:
 			if (auto item = reinterpret_cast<DRAWITEMSTRUCT*>(l_param); item->CtlType == ODT_COMBOBOX)
 			{
-				const auto combo = item->hwndItem;
-				HDC dc = item->hDC;
-				const bool selected = (item->itemState & ODS_SELECTED) != 0;
-				HBRUSH fill = CreateSolidBrush(selected ? RGB(66, 71, 79) : THEME_SURFACE);
-				FillRect(dc, &item->rcItem, fill);
-				DeleteObject(fill);
-				const auto old = SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(combo, WM_GETFONT, 0, 0)));
-				SetBkMode(dc, TRANSPARENT);
-				SetTextColor(dc, IsWindowEnabled(combo) ? THEME_TEXT : THEME_MUTED);
-				if (item->itemID != static_cast<UINT>(-1))
-				{
-					const auto length = SendMessageW(combo, CB_GETLBTEXTLEN, item->itemID, 0);
-					if (length >= 0)
-					{
-						std::wstring text(static_cast<size_t>(length) + 1, L'\0');
-						SendMessageW(combo, CB_GETLBTEXT, item->itemID, reinterpret_cast<LPARAM>(text.data()));
-						RECT area = item->rcItem;
-						area.left += ScaleForDpi(window, 5);
-						area.right -= ScaleForDpi(window, 5);
-						DrawTextW(dc, text.c_str(), -1, &area,
-						          DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
-					}
-				}
-				if ((item->itemState & ODS_FOCUS) && !(SendMessageW(combo, WM_QUERYUISTATE, 0, 0) & UISF_HIDEFOCUS))
-				{
-					RECT focus = item->rcItem;
-					InflateRect(&focus, -1, -1);
-					DrawFocusRect(dc, &focus);
-				}
-				SelectObject(dc, old);
+				DrawThemedComboItem(window, item);
 				result = TRUE;
 				return true;
 			}
@@ -2335,117 +2583,12 @@ bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_para
 				break;
 			[[fallthrough]];
 		case WM_NCLBUTTONDOWN:
-			HideCaptionTip(window);
-			if (w_param == HTSYSMENU)
-			{
-				RECT bounds {};
-				GetWindowRect(window, &bounds);
-				ShowCaptionMenu(window, { bounds.left + ScaleForDpi(window, 8), bounds.top + ScaleForDpi(window, 36) });
-				result = 0;
-				return true;
-			}
-			if (auto entry = CaptionActionAtHit(window, static_cast<int>(w_param)))
-			{
-				if (entry->enabled)
-				{
-					SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
-					SetCapture(window);
-					RepaintCaption(window);
-				}
-				result = 0;
-				return true;
-			}
-			if (w_param == HTHELP && GetPropW(window, L"LutPowerCommand"))
-			{
-				if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
-				{
-					SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
-					SetCapture(window);
-					RepaintCaption(window);
-				}
-				result = 0;
-				return true;
-			}
-			if (w_param == HTCLOSE || w_param == HTMINBUTTON)
-			{
-				SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
-				SetCapture(window);
-				result = 0;
-				return true;
-			}
-			break;
+			return PressCaptionButton(window, w_param, result);
 		case WM_LBUTTONUP:
-			if (const auto hit = reinterpret_cast<INT_PTR>(RemovePropW(window, L"LutCaptionPressed")))
-			{
-				POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
-				ClientToScreen(window, &point);
-				ReleaseCapture();
-				if (CaptionHitTest(window, point) == hit)
-				{
-					if (auto entry = CaptionActionAtHit(window, static_cast<int>(hit)))
-					{
-						if (entry->enabled)
-							PostMessageW(window, WM_COMMAND, entry->command, 0);
-					}
-					else if (hit == HTHELP)
-					{
-						if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
-							PostMessageW(window, WM_COMMAND,
-							             reinterpret_cast<WPARAM>(GetPropW(window, L"LutPowerCommand")), 0);
-					}
-					else
-						PostMessageW(window, WM_SYSCOMMAND, hit == HTCLOSE ? SC_CLOSE : SC_MINIMIZE, 0);
-				}
-				result = 0;
-				return true;
-			}
-			break;
+			return ReleaseCaptionButton(window, l_param, result);
 		case WM_SYSCOMMAND:
 		case WM_SYSCHAR:
-			if (message == WM_SYSCOMMAND && (w_param & 0xFFF0) == SC_RESTORE &&
-			    GetPropW(window, L"MonitorMagePreferredSize"))
-			{
-				DefWindowProcW(window, message, w_param, l_param);
-				RepairWindowSize(window);
-				result = 0;
-				return true;
-			}
-			if (message == WM_SYSCOMMAND && ((w_param & 0xFFF0) == SC_KEYMENU || (w_param & 0xFFF0) == SC_MOUSEMENU))
-			{
-				// Alt+Space and the window icon use the same menu as caption right-click.
-				if ((w_param & 0xFFF0) == SC_MOUSEMENU || l_param == VK_SPACE || l_param == 0)
-				{
-					RECT bounds {};
-					GetWindowRect(window, &bounds);
-					HideCaptionTip(window);
-					ShowCaptionMenu(window,
-					                { bounds.left + ScaleForDpi(window, 8), bounds.top + ScaleForDpi(window, 36) });
-					result = 0;
-					return true;
-				}
-			}
-			if (message == WM_SYSCOMMAND && (w_param & 0xFFF0) >= 0x1F10 && (w_param & 0xFFF0) <= 0x1F30)
-			{
-				if (auto entry = CaptionActionAtHit(window, 100 + static_cast<int>(((w_param & 0xFFF0) - 0x1F10) / 16)))
-				{
-					if (entry->enabled)
-						PostMessageW(window, WM_COMMAND, entry->command, 0);
-					result = 0;
-					return true;
-				}
-			}
-			if (GetPropW(window, L"LutPowerCommand") &&
-			    ((message == WM_SYSCOMMAND && (w_param & 0xFFF0) == 0x1F00) ||
-			     (message == WM_SYSCHAR &&
-			      (GetPropW(window, L"LutCaptionSettings") ? (w_param == L's' || w_param == L'S')
-			                                               : (w_param == L'p' || w_param == L'P')))))
-			{
-				if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
-					PostMessageW(window, WM_COMMAND, reinterpret_cast<WPARAM>(GetPropW(window, L"LutPowerCommand")), 0);
-				result = 0;
-				return true;
-			}
-			break;
+			return HandleCaptionSystemCommand(window, message, w_param, l_param, result);
 		case WM_CAPTURECHANGED:
 			RemovePropW(window, L"LutCaptionPressed");
 			RemovePropW(window, L"LutCaptionHover");
@@ -2483,35 +2626,12 @@ bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_para
 			break;
 		}
 		case WM_NCDESTROY:
-		{
-			KillTimer(window, TIMER_GEOMETRY);
-			delete reinterpret_cast<SIZE*>(RemovePropW(window, L"MonitorMagePreferredSize"));
-			HideCaptionTip(window);
-			if (auto tip = reinterpret_cast<HWND>(RemovePropW(window, L"LutCaptionTooltip")))
-				DestroyWindow(tip);
-			auto font = reinterpret_cast<HFONT>(RemovePropW(window, L"LutCaptionFont"));
-			if (font)
-				DeleteObject(font);
-			RemovePropW(window, L"LutCaptionHover");
-			RemovePropW(window, L"LutCaptionPressed");
-			RemovePropW(window, L"LutPowerCommand");
-			RemovePropW(window, L"LutPowerState");
-			RemovePropW(window, L"LutCaptionSettings");
-			delete reinterpret_cast<Actions*>(RemovePropW(window, L"LutCaptionActions"));
+			ReleaseCaptionResources(window);
 			break;
-		}
 	}
 	if (message >= WM_CTLCOLORMSGBOX && message <= WM_CTLCOLORSTATIC)
 	{
-		auto dc = reinterpret_cast<HDC>(w_param);
-		const auto child = reinterpret_cast<HWND>(l_param);
-		wchar_t class_name[40] {};
-		GetClassNameW(child, class_name, 40);
-		const bool field =
-			message == WM_CTLCOLOREDIT || message == WM_CTLCOLORLISTBOX || wcscmp(class_name, L"Edit") == 0;
-		SetTextColor(dc, IsWindowEnabled(child) ? THEME_TEXT : THEME_MUTED);
-		SetBkColor(dc, field ? THEME_SURFACE : THEME_BACKGROUND);
-		result = reinterpret_cast<LRESULT>(field ? surface.value : bg.value);
+		ColorThemedControl(message, w_param, l_param, result);
 		return true;
 	}
 	if (message == WM_ERASEBKGND)
@@ -2523,94 +2643,7 @@ bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_para
 		return true;
 	}
 	if (message == WM_NOTIFY)
-	{
-		auto draw = reinterpret_cast<NMCUSTOMDRAW*>(l_param);
-		if (draw->hdr.code != NM_CUSTOMDRAW)
-			return false;
-		wchar_t class_name[40] {};
-		GetClassNameW(draw->hdr.hwndFrom, class_name, static_cast<int>(std::size(class_name)));
-		// Native buttons also draw synchronously for text, enabled and pressed
-		// state changes. Route that path through the same dark painter.
-		if (wcscmp(class_name, L"Button") == 0 && draw->dwDrawStage == CDDS_PREPAINT)
-		{
-			PaintControl(draw->hdr.hwndFrom, draw->hdc);
-			result = CDRF_SKIPDEFAULT;
-			return true;
-		}
-		if (wcscmp(class_name, TRACKBAR_CLASSW) != 0)
-			return false;
-		if (draw->dwDrawStage == CDDS_PREPAINT)
-		{
-			FillRect(draw->hdc, &draw->rc, bg.value);
-			result = CDRF_NOTIFYITEMDRAW;
-			return true;
-		}
-		if (draw->dwDrawStage == CDDS_ITEMPREPAINT)
-		{
-			const auto stored = reinterpret_cast<UINT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderColour"));
-			const COLORREF colour = stored ? static_cast<COLORREF>(stored - 1) : THEME_ACCENT;
-			if (draw->dwItemSpec == TBCD_CHANNEL)
-			{
-				RECT rect = draw->rc;
-				const int mid = (rect.top + rect.bottom) / 2;
-				rect.top = mid - ScaleForDpi(window, 2);
-				rect.bottom = mid + ScaleForDpi(window, 2);
-				FillRoundedRect(draw->hdc, rect, THEME_BORDER, THEME_BORDER, ScaleForDpi(window, 2));
-			}
-			if (draw->dwItemSpec == TBCD_CHANNEL && stored)
-			{
-				RECT rect = draw->rc;
-				const int mid = (rect.top + rect.bottom) / 2;
-				rect.top = mid - ScaleForDpi(window, 2);
-				rect.bottom = mid + ScaleForDpi(window, 2);
-				const auto muted = RGB((GetRValue(colour) + 2 * GetRValue(THEME_BACKGROUND)) / 3,
-				                       (GetGValue(colour) + 2 * ((THEME_BACKGROUND >> 8) & 255)) / 3,
-				                       (GetBValue(colour) + 2 * GetBValue(THEME_BACKGROUND)) / 3);
-				FillRoundedRect(draw->hdc, rect, muted, muted, ScaleForDpi(window, 2));
-			}
-			if (draw->dwItemSpec == TBCD_CHANNEL)
-				if (const auto value = reinterpret_cast<INT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderDefault")))
-				{
-					const int low = static_cast<int>(SendMessageW(draw->hdr.hwndFrom, TBM_GETRANGEMIN, 0, 0)),
-							  high = static_cast<int>(SendMessageW(draw->hdr.hwndFrom, TBM_GETRANGEMAX, 0, 0));
-					if (high > low)
-					{
-						const int x = draw->rc.left + MulDiv(static_cast<int>(value - 32769) - low,
-						                                     draw->rc.right - draw->rc.left - 1, high - low),
-								  mid = (draw->rc.top + draw->rc.bottom) / 2;
-						HPEN tick = CreatePen(PS_SOLID, 1, THEME_MUTED);
-						const auto old = SelectObject(draw->hdc, tick);
-						MoveToEx(draw->hdc, x, mid - ScaleForDpi(window, 5), nullptr);
-						LineTo(draw->hdc, x, mid + ScaleForDpi(window, 5) + 1);
-						SelectObject(draw->hdc, old);
-						DeleteObject(tick);
-					}
-				}
-			if (draw->dwItemSpec == TBCD_THUMB)
-			{
-				FillRoundedRect(draw->hdc, draw->rc, IsWindowEnabled(draw->hdr.hwndFrom) ? colour : THEME_MUTED,
-				                THEME_BORDER, ScaleForDpi(window, 3));
-				if (const wchar_t letter = static_cast<wchar_t>(
-						reinterpret_cast<INT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderLetter"))))
-				{
-					LOGFONTW label_style {};
-					GetObjectW(reinterpret_cast<HFONT>(SendMessageW(draw->hdr.hwndFrom, WM_GETFONT, 0, 0)),
-					           sizeof(label_style), &label_style);
-					label_style.lfHeight = -ScaleForDpi(window, style::CAPTION_TEXT_SIZE);
-					HFONT label_font = CreateFontIndirectW(&label_style);
-					const auto old = SelectObject(draw->hdc, label_font);
-					SetBkMode(draw->hdc, TRANSPARENT);
-					SetTextColor(draw->hdc, THEME_BACKGROUND);
-					RECT label = draw->rc;
-					DrawTextW(draw->hdc, &letter, 1, &label, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-					SelectObject(draw->hdc, old);
-					DeleteObject(label_font);
-				}
-			}
-			result = CDRF_SKIPDEFAULT;
-			return true;
-		}
-	}
+		return HandleCustomDraw(window, reinterpret_cast<NMCUSTOMDRAW*>(l_param), result);
 	return false;
 }
 }

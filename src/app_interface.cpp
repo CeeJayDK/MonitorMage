@@ -182,16 +182,8 @@ static void LayoutEffectControls()
 	InvalidateRect(curve_canvas, nullptr, FALSE);
 }
 
-void RefreshInterface()
+static void RefreshEffectLists(int source_index, bool valid)
 {
-	if (!editor_ready || (!render_only && !editor_sync_depth && !IsWindowVisible(main_window)))
-	{
-		if (runtime_ready)
-			UpdateTray();
-		return;
-	}
-	const auto source_index = SelectedSourceIndex();
-	const bool valid = source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size();
 	const bool correction_powered =
 		corrections_requested && !power_suspended && !hdr_pending && profile_action != applications::Action::Disable &&
 		profile_action != applications::Action::PauseHdr && valid && display_sources[source_index].supported &&
@@ -229,6 +221,10 @@ void RefreshInterface()
 	SetControlEnabled(selected_effect_toggle,
 	                  selected_effect != effect::ColorFilters ||
 	                      (filter_state.available && !filter_controller.IsBusy() && !render_only));
+}
+
+static void RefreshEffectDescription()
+{
 	if (selected_effect < effect::FirstCreative)
 		SetTextIfChanged(
 			effect_description,
@@ -261,8 +257,44 @@ void RefreshInterface()
 		SetTextIfChanged(
 			effect_description,
 			L"Warmer colors in the evening. Applies to all included displays, independently of your look. Linked displays change together.");
-	const auto controls = SliderParameters();
-	const bool changing_adjustment_page = adjustment_page != (settings_page ? -1 : selected_effect);
+}
+
+static COLORREF AdjustmentSliderColor(size_t i, const Parameter& p)
+{
+	COLORREF colour = ui::THEME_ACCENT;
+	if (selected_effect == effect::NightLight && i == 0)
+		colour = RGB(255, 165, 82);
+	if (selected_effect == effect::ChannelMixer)
+	{
+		constexpr COLORREF CHANNEL_COLORS[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
+		colour = CHANNEL_COLORS[i];
+	}
+	if (selected_effect == effect::ColorBalance)
+	{
+		constexpr COLORREF CHANNEL_COLORS[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
+		if (i < 3)
+			colour = CHANNEL_COLORS[i];
+		else if (*p.value)
+		{
+			const auto target = i == 3 ? (*p.value > 0 ? RGB(255, 165, 82) : RGB(113, 173, 255))
+			                           : (*p.value > 0 ? RGB(228, 112, 220) : RGB(104, 215, 139));
+			const double mix = .45 + .55 * std::abs(*p.value) / 50.0;
+			const auto blend = [&](int a, int b)
+			{
+				return static_cast<BYTE>(std::lround(a + (b - a) * mix));
+			};
+			colour = RGB(blend(GetRValue(ui::THEME_MUTED), GetRValue(target)),
+			             blend(((ui::THEME_MUTED >> 8) & 255), GetGValue(target)),
+			             blend(GetBValue(ui::THEME_MUTED), GetBValue(target)));
+		}
+		else
+			colour = ui::THEME_MUTED;
+	}
+	return colour;
+}
+
+static void RefreshAdjustmentSliders(const std::vector<Parameter>& controls, bool changing_adjustment_page)
+{
 	for (size_t i = 0; i < adjustment_sliders.size(); ++i)
 	{
 		const bool visible = i < controls.size() && !settings_page;
@@ -272,35 +304,7 @@ void RefreshInterface()
 		if (visible)
 		{
 			const auto& p = controls[i];
-			COLORREF colour = ui::THEME_ACCENT;
-			if (selected_effect == effect::NightLight && i == 0)
-				colour = RGB(255, 165, 82);
-			if (selected_effect == effect::ChannelMixer)
-			{
-				constexpr COLORREF CHANNEL_COLORS[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
-				colour = CHANNEL_COLORS[i];
-			}
-			if (selected_effect == effect::ColorBalance)
-			{
-				constexpr COLORREF CHANNEL_COLORS[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
-				if (i < 3)
-					colour = CHANNEL_COLORS[i];
-				else if (*p.value)
-				{
-					const auto target = i == 3 ? (*p.value > 0 ? RGB(255, 165, 82) : RGB(113, 173, 255))
-					                           : (*p.value > 0 ? RGB(228, 112, 220) : RGB(104, 215, 139));
-					const double mix = .45 + .55 * std::abs(*p.value) / 50.0;
-					const auto blend = [&](int a, int b)
-					{
-						return static_cast<BYTE>(std::lround(a + (b - a) * mix));
-					};
-					colour = RGB(blend(GetRValue(ui::THEME_MUTED), GetRValue(target)),
-					             blend(((ui::THEME_MUTED >> 8) & 255), GetGValue(target)),
-					             blend(GetBValue(ui::THEME_MUTED), GetBValue(target)));
-				}
-				else
-					colour = ui::THEME_MUTED;
-			}
+			const COLORREF colour = AdjustmentSliderColor(i, p);
 			ui::SliderColour(adjustment_sliders[i], colour);
 			ui::ConfigureSlider(adjustment_sliders[i], p.default_value,
 			                    (selected_effect == effect::ColorBalance || selected_effect == effect::ChannelMixer) &&
@@ -320,6 +324,10 @@ void RefreshInterface()
 			                     .c_str());
 		}
 	}
+}
+
+static void RefreshAdjustmentHelp(const std::vector<Parameter>& controls)
+{
 	static constexpr const wchar_t* PARAMETER_HELP[][5] {
 		{ L"Red balance", L"Green balance", L"Blue balance", L"Warmth", L"Tint" },
 		{ L"Midtone brightness" },
@@ -342,7 +350,11 @@ void RefreshInterface()
 		ui::SetHelpText(adjustment_sliders[0], L"Night light warmth");
 		ui::SetHelpText(adjustment_sliders[1], L"Fade duration");
 	}
-	adjustment_page = settings_page ? -1 : selected_effect;
+}
+
+// Shows only the controls that belong on the current page.
+static void ShowControlsForCurrentPage()
+{
 	SetControlVisible(saturation_report_button, settings_page);
 	SetControlVisible(curve_channel, selected_effect == effect::CustomCurves && !settings_page);
 	SetControlVisible(import_button, selected_effect == effect::Imported1dLut && !settings_page);
@@ -372,37 +384,42 @@ void RefreshInterface()
 	for (HWND control :
 	     { night_schedule, night_start, night_end, night_start_label, night_end_label, night_include, night_display })
 		SetControlVisible(control, !settings_page && selected_effect == effect::NightLight);
-	if (!settings_page && selected_effect == effect::NightLight)
+}
+
+static void RefreshNightLightControls(int source_index, bool valid)
+{
+	if (SendMessageW(night_display, CB_GETCOUNT, 0, 0) != static_cast<LRESULT>(display_sources.size()))
 	{
-		if (SendMessageW(night_display, CB_GETCOUNT, 0, 0) != static_cast<LRESULT>(display_sources.size()))
-		{
-			SendMessageW(night_display, CB_RESETCONTENT, 0, 0);
-			for (const auto& output : display_sources)
-				SendMessageW(night_display, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(output.label.c_str()));
-			SendMessageW(night_display, CB_SETCURSEL, valid ? source_index : 0, 0);
-		}
-		const auto night_index = SendMessageW(night_display, CB_GETCURSEL, 0, 0);
-		const bool night_valid = night_index >= 0 && static_cast<size_t>(night_index) < display_sources.size();
-		SetControlVisible(correction_note, true);
-		SetTextIfChanged(correction_note, night_message.empty() ? (night_config.Scheduled
-		                                                               ? (night_level > 0 ? L"Schedule active"
-		                                                                                  : L"Waiting for the schedule")
-		                                                               : L"Manual mode")
-		                                                        : night_message.c_str());
-		for (const auto& entry :
-		     { std::pair<HWND, bool> { night_schedule, night_config.Scheduled },
-		       { night_include,
-		         night_valid && night::IsDisplayIncluded(night_config, display_sources[night_index].identity) } })
-			if (SendMessageW(entry.first, BM_GETCHECK, 0, 0) != (entry.second ? BST_CHECKED : BST_UNCHECKED))
-				SendMessageW(entry.first, BM_SETCHECK, entry.second ? BST_CHECKED : BST_UNCHECKED, 0);
-		if (GetFocus() != night_start)
-			SetTextIfChanged(night_start, night::FormatTime(night_config.Start).c_str());
-		if (GetFocus() != night_end)
-			SetTextIfChanged(night_end, night::FormatTime(night_config.End).c_str());
-		SetControlEnabled(night_start, night_config.Scheduled);
-		SetControlEnabled(night_end, night_config.Scheduled);
-		SetControlEnabled(night_include, night_valid && display_sources[night_index].supported);
+		SendMessageW(night_display, CB_RESETCONTENT, 0, 0);
+		for (const auto& output : display_sources)
+			SendMessageW(night_display, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(output.label.c_str()));
+		SendMessageW(night_display, CB_SETCURSEL, valid ? source_index : 0, 0);
 	}
+	const auto night_index = SendMessageW(night_display, CB_GETCURSEL, 0, 0);
+	const bool night_valid = night_index >= 0 && static_cast<size_t>(night_index) < display_sources.size();
+	SetControlVisible(correction_note, true);
+	SetTextIfChanged(correction_note, night_message.empty()
+	                                      ? (night_config.Scheduled
+	                                             ? (night_level > 0 ? L"Schedule active" : L"Waiting for the schedule")
+	                                             : L"Manual mode")
+	                                      : night_message.c_str());
+	for (const auto& entry :
+	     { std::pair<HWND, bool> { night_schedule, night_config.Scheduled },
+	       { night_include,
+	         night_valid && night::IsDisplayIncluded(night_config, display_sources[night_index].identity) } })
+		if (SendMessageW(entry.first, BM_GETCHECK, 0, 0) != (entry.second ? BST_CHECKED : BST_UNCHECKED))
+			SendMessageW(entry.first, BM_SETCHECK, entry.second ? BST_CHECKED : BST_UNCHECKED, 0);
+	if (GetFocus() != night_start)
+		SetTextIfChanged(night_start, night::FormatTime(night_config.Start).c_str());
+	if (GetFocus() != night_end)
+		SetTextIfChanged(night_end, night::FormatTime(night_config.End).c_str());
+	SetControlEnabled(night_start, night_config.Scheduled);
+	SetControlEnabled(night_end, night_config.Scheduled);
+	SetControlEnabled(night_include, night_valid && display_sources[night_index].supported);
+}
+
+static void RefreshFilterAndStartupControls()
+{
 	if (!settings_page && selected_effect == effect::ColorFilters)
 	{
 		SetControlVisible(filter_choice, true);
@@ -431,10 +448,13 @@ void RefreshInterface()
 	SetTextIfChanged(amount_value, FormatDecimal(ContrastAmount()).c_str());
 	SetTextIfChanged(pivot_label, L"Pivot");
 	SetTextIfChanged(pivot_value, FormatDecimal(ContrastPivot()).c_str());
+}
+
+// Chooses the one message to show. Later checks are more important and replace earlier ones.
+static std::wstring BuildStatusText(bool applying)
+{
 	std::wstring status_text = live_message;
 	status_error = live_error;
-	const bool applying = ProcessingActive(),
-			   profile_active = application_context_active && !foreground_program.IsManualOverride();
 	if (!live_error && live_session.IsActive() && !applying)
 		status_text = L"Ready. No adjustments are changing the picture.";
 	if (!render_only && !hotkey_message.empty())
@@ -495,6 +515,11 @@ void RefreshInterface()
 		status_text = night_message;
 		status_error = true;
 	}
+	return status_text;
+}
+
+static void RefreshLookLabels(bool profile_active)
+{
 	const auto& look = CurrentPreset(preset_role::Look);
 	std::wstring profile_text = L"Desktop profile";
 	if (profile_active)
@@ -529,12 +554,20 @@ void RefreshInterface()
 	SetTextIfChanged(active_look_label, active_text.c_str());
 	const auto caption = L"MonitorMage - " + active_text;
 	SetTextIfChanged(main_window, caption.c_str());
+}
+
+static void RefreshWindowIcons(bool applying)
+{
 	const auto state = CurrentIconState(applying);
 	const HICON small_icon = IconForState(SM_CXSMICON, state), large_icon = IconForState(SM_CXICON, state);
 	if (small_icon && reinterpret_cast<HICON>(SendMessageW(main_window, WM_GETICON, ICON_SMALL, 0)) != small_icon)
 		SendMessageW(main_window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(small_icon));
 	if (large_icon && reinterpret_cast<HICON>(SendMessageW(main_window, WM_GETICON, ICON_BIG, 0)) != large_icon)
 		SendMessageW(main_window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(large_icon));
+}
+
+static void ShowStatusText(const std::wstring& status_text)
+{
 	const auto shortcut_text =
 		hotkey_registered ? L"Bypass: " + HotkeyName(active_shortcut) : std::wstring(L"Bypass shortcut");
 	SetTextIfChanged(shortcut_label, shortcut_text.c_str());
@@ -544,11 +577,19 @@ void RefreshInterface()
 	SetTextIfChanged(info_button, status_text.c_str());
 	// Expose the painted status as the keyboard-focusable graph's accessible name.
 	SetTextIfChanged(curve_canvas, status_text.c_str());
+}
+
+static void ShowContrastAndHdrControls()
+{
 	for (HWND control : { amount_label, amount_value, contrast_slider, pivot_label, pivot_value, pivot_slider })
 		SetControlVisible(control, selected_effect == effect::ContrastCurves && !settings_page);
 	for (HWND control :
 	     { white_label, white_value, white_slider, gamma_label, gamma_choice, gamma_other, hdr_fix_control })
 		SetControlVisible(control, selected_effect == effect::HdrGamma && !settings_page);
+}
+
+static void RefreshToolbarButtons(int source_index, bool valid, bool profile_active)
+{
 	ui::SetCaptionSettingsButton(main_window, ID_SETTINGS_PAGE, settings_page);
 	const bool can_power =
 		!hdr_pending && !render_only && (corrections_requested || (valid && display_sources[source_index].supported));
@@ -562,6 +603,10 @@ void RefreshInterface()
 	                                      !render_only && !hdr_pending && hdr_state.available },
 	                                    { ID_APPLICATION_PROFILES, profile_active, true },
 	                                    { ID_TEST_CONTRAST, corrections_requested, can_power } } });
+}
+
+static void RefreshDisplayControls(int source_index, bool valid)
+{
 	SetControlEnabled(source_choice, !live_session.IsActive() && !hdr_pending);
 	SetControlEnabled(white_slider, !(valid && display_sources[source_index].hdr));
 	SetTextIfChanged(bypass_button, IsLookBypassed() ? L"Resume look" : L"Bypass look");
@@ -594,6 +639,39 @@ void RefreshInterface()
 		const auto text = std::to_wstring(white_position) + L" nits";
 		SetTextIfChanged(white_value, text.c_str());
 	}
+}
+
+// Makes every control match the program's current state. Called after anything changes.
+void RefreshInterface()
+{
+	if (!editor_ready || (!render_only && !editor_sync_depth && !IsWindowVisible(main_window)))
+	{
+		if (runtime_ready)
+			UpdateTray();
+		return;
+	}
+	const auto source_index = SelectedSourceIndex();
+	const bool valid = source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size();
+	RefreshEffectLists(source_index, valid);
+	RefreshEffectDescription();
+	const auto controls = SliderParameters();
+	const bool changing_adjustment_page = adjustment_page != (settings_page ? -1 : selected_effect);
+	RefreshAdjustmentSliders(controls, changing_adjustment_page);
+	RefreshAdjustmentHelp(controls);
+	adjustment_page = settings_page ? -1 : selected_effect;
+	ShowControlsForCurrentPage();
+	if (!settings_page && selected_effect == effect::NightLight)
+		RefreshNightLightControls(source_index, valid);
+	RefreshFilterAndStartupControls();
+	const bool applying = ProcessingActive(),
+			   profile_active = application_context_active && !foreground_program.IsManualOverride();
+	const auto status_text = BuildStatusText(applying);
+	RefreshLookLabels(profile_active);
+	RefreshWindowIcons(applying);
+	ShowStatusText(status_text);
+	ShowContrastAndHdrControls();
+	RefreshToolbarButtons(source_index, valid, profile_active);
+	RefreshDisplayControls(source_index, valid);
 	UpdateTray();
 	LayoutEffectControls();
 	if (changing_adjustment_page)
