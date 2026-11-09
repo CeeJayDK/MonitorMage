@@ -35,14 +35,14 @@ int ParseHundredths(const std::string& text, int minimum, int maximum)
 
 void Validate(const Data& data)
 {
-	color::Validate(data.adjustments);
-	if (data.saturation < 0 || data.saturation > color::SaturationMaximum)
+	color::Validate(data.Adjustments);
+	if (data.Saturation < 0 || data.Saturation > color::SATURATION_MAXIMUM)
 		throw std::runtime_error("Unsupported saturation");
-	for (int value : data.monochrome)
+	for (int value : data.Monochrome)
 		if (value < 0 || value > 200)
 			throw std::runtime_error("Unsupported channel mix");
-	if ((data.kind != Kind::Look && data.kind != Kind::Correction) || data.contrast < -25 || data.contrast > 25 ||
-	    data.pivot < 20 || data.pivot > 80 || (data.gamma != 22 && data.gamma != 24))
+	if ((data.kind != Kind::Look && data.kind != Kind::Correction) || data.Contrast < -25 || data.Contrast > 25 ||
+	    data.Pivot < 20 || data.Pivot > 80 || (data.Gamma != 22 && data.Gamma != 24))
 		throw std::runtime_error("Unsupported preset settings");
 }
 
@@ -74,17 +74,17 @@ struct File
 bool operator==(const Data& a, const Data& b)
 {
 	return a.kind == b.kind &&
-	       (a.kind == Kind::Look ? a.contrast == b.contrast && a.pivot == b.pivot &&
-	                                   a.contrastEnabled == b.contrastEnabled && a.adjustments == b.adjustments &&
-	                                   a.saturation == b.saturation && a.saturationEnabled == b.saturationEnabled &&
-	                                   a.monochrome == b.monochrome && a.monochromeEnabled == b.monochromeEnabled
-	                             : a.gamma == b.gamma && a.hdrFix == b.hdrFix && a.applyInSdr == b.applyInSdr);
+	       (a.kind == Kind::Look ? a.Contrast == b.Contrast && a.Pivot == b.Pivot &&
+	                                   a.ContrastEnabled == b.ContrastEnabled && a.Adjustments == b.Adjustments &&
+	                                   a.Saturation == b.Saturation && a.SaturationEnabled == b.SaturationEnabled &&
+	                                   a.Monochrome == b.Monochrome && a.MonochromeEnabled == b.MonochromeEnabled
+	                             : a.Gamma == b.Gamma && a.HdrFix == b.HdrFix && a.ApplyInSdr == b.ApplyInSdr);
 }
 
 std::string Encode(const Data& data)
 {
 	Validate(data);
-	const bool mixer = data.monochromeEnabled || data.monochrome != std::array<int, 3> { 21, 72, 7 };
+	const bool mixer = data.MonochromeEnabled || data.Monochrome != std::array<int, 3> { 21, 72, 7 };
 	std::ostringstream out;
 	out.imbue(std::locale::classic());
 	out << std::fixed << std::setprecision(2);
@@ -92,39 +92,40 @@ std::string Encode(const Data& data)
 		   "[LutWorkbench]\r\nVersion="
 		<< (data.kind == Kind::Look
 	            ? (mixer                                              ? 7
-	               : data.saturationEnabled || data.saturation != 100 ? (data.saturation > 120 ? 6 : 5)
-	               : data.adjustments != color::Adjustments {} ? (data.adjustments.imported[0].size() > 1024 ? 4 : 3)
+	               : data.SaturationEnabled || data.Saturation != 100 ? (data.Saturation > 120 ? 6 : 5)
+	               : data.Adjustments != color::Adjustments {} ? (data.Adjustments.Imported[0].size() > 1024 ? 4 : 3)
 	                                                           : 2)
-	        : data.applyInSdr ? 2
+	        : data.ApplyInSdr ? 2
 	                          : 1)
 		<< "\r\nType=";
 	if (data.kind == Kind::Look)
-		out << "Look\r\n\r\n[Look]\r\nEnabled=" << (data.contrastEnabled ? "true" : "false")
-			<< "\r\nContrast=" << data.contrast / 100.0 << "\r\nPivot=" << data.pivot / 100.0 << "\r\n";
+		out << "Look\r\n\r\n[Look]\r\nEnabled=" << (data.ContrastEnabled ? "true" : "false")
+			<< "\r\nContrast=" << data.Contrast / 100.0 << "\r\nPivot=" << data.Pivot / 100.0 << "\r\n";
 	else
-		out << "Correction\r\n\r\n[Correction]\r\nHDRGammaEnabled=" << (data.hdrFix ? "true" : "false")
-			<< "\r\nGamma=" << (data.gamma == 22 ? "2.2" : "2.4") << "\r\n";
-	if (data.kind == Kind::Correction && data.applyInSdr)
+		out << "Correction\r\n\r\n[Correction]\r\nHDRGammaEnabled=" << (data.HdrFix ? "true" : "false")
+			<< "\r\nGamma=" << (data.Gamma == 22 ? "2.2" : "2.4") << "\r\n";
+	if (data.kind == Kind::Correction && data.ApplyInSdr)
 		out << "AlsoApplyInSDR=true\r\n";
 	if (data.kind == Kind::Look &&
-	    (data.adjustments != color::Adjustments {} || data.saturationEnabled || data.saturation != 100 || mixer))
+	    (data.Adjustments != color::Adjustments {} || data.SaturationEnabled || data.Saturation != 100 || mixer))
 	{
-		const auto& a = data.adjustments;
+		const auto& adjustments = data.Adjustments;
 		out << "\r\n[Adjustments]\r\n";
 		const char* balance[] { "Red", "Green", "Blue", "Warmth", "Tint" };
 		for (int i = 0; i < 5; ++i)
-			out << balance[i] << '=' << a.balance[i] / 100.0 << "\r\n";
-		out << "Midtone=" << a.midtone / 100.0 << "\r\n";
+			out << balance[i] << '=' << adjustments.Balance[i] / 100.0 << "\r\n";
+		out << "Midtone=" << adjustments.Midtone / 100.0 << "\r\n";
 		const char* levels[] { "InputBlack", "InputWhite", "OutputBlack", "OutputWhite" };
 		for (int i = 0; i < 4; ++i)
-			out << levels[i] << '=' << a.levels[i] / 100.0 << "\r\n";
-		out << "Shadows=" << a.shadows / 100.0 << "\r\nHighlights=" << a.highlights / 100.0 << "\r\n";
-		out << "BalanceEnabled=" << (a.balanceEnabled ? "true" : "false")
-			<< "\r\nGammaEnabled=" << (a.gammaEnabled ? "true" : "false")
-			<< "\r\nLevelsEnabled=" << (a.levelsEnabled ? "true" : "false")
-			<< "\r\nToneEnabled=" << (a.toneEnabled ? "true" : "false") << "\r\n";
-		out << "CurvesEnabled=" << (a.curvesEnabled ? "true" : "false")
-			<< "\r\nImportEnabled=" << (a.importEnabled ? "true" : "false") << "\r\n";
+			out << levels[i] << '=' << adjustments.Levels[i] / 100.0 << "\r\n";
+		out << "Shadows=" << adjustments.Shadows / 100.0 << "\r\nHighlights=" << adjustments.Highlights / 100.0
+			<< "\r\n";
+		out << "BalanceEnabled=" << (adjustments.BalanceEnabled ? "true" : "false")
+			<< "\r\nGammaEnabled=" << (adjustments.GammaEnabled ? "true" : "false")
+			<< "\r\nLevelsEnabled=" << (adjustments.LevelsEnabled ? "true" : "false")
+			<< "\r\nToneEnabled=" << (adjustments.ToneEnabled ? "true" : "false") << "\r\n";
+		out << "CurvesEnabled=" << (adjustments.CurvesEnabled ? "true" : "false")
+			<< "\r\nImportEnabled=" << (adjustments.ImportEnabled ? "true" : "false") << "\r\n";
 		const auto samples = [&](const std::string& key, const std::vector<double>& values)
 		{
 			out << key << '=' << std::defaultfloat << std::setprecision(17);
@@ -137,19 +138,19 @@ std::string Encode(const Data& data)
 			out << "\r\n" << std::fixed << std::setprecision(2);
 		};
 		for (int i = 0; i < 4; ++i)
-			samples("Curve" + std::to_string(i), a.curves[i]);
+			samples("Curve" + std::to_string(i), adjustments.Curves[i]);
 		for (int i = 0; i < 3; ++i)
-			samples("Imported" + std::to_string(i), a.imported[i]);
+			samples("Imported" + std::to_string(i), adjustments.Imported[i]);
 	}
-	if (data.kind == Kind::Look && (data.saturationEnabled || data.saturation != 100 || mixer))
-		out << "\r\n[Matrix]\r\nEnabled=" << (data.saturationEnabled ? "true" : "false")
-			<< "\r\nSaturation=" << data.saturation / 100.0 << "\r\n";
+	if (data.kind == Kind::Look && (data.SaturationEnabled || data.Saturation != 100 || mixer))
+		out << "\r\n[Matrix]\r\nEnabled=" << (data.SaturationEnabled ? "true" : "false")
+			<< "\r\nSaturation=" << data.Saturation / 100.0 << "\r\n";
 	if (data.kind == Kind::Look && mixer)
 	{
-		out << "MonochromeEnabled=" << (data.monochromeEnabled ? "true" : "false") << "\r\n";
+		out << "MonochromeEnabled=" << (data.MonochromeEnabled ? "true" : "false") << "\r\n";
 		const char* channels[] { "Red", "Green", "Blue" };
 		for (int i = 0; i < 3; ++i)
-			out << "Mix" << channels[i] << '=' << data.monochrome[i] / 100.0 << "\r\n";
+			out << "Mix" << channels[i] << '=' << data.Monochrome[i] / 100.0 << "\r\n";
 	}
 	return out.str();
 }
@@ -203,24 +204,24 @@ Data Decode(const std::string& text)
 			const auto enabled = take("Look.Enabled");
 			if (enabled != "true" && enabled != "false")
 				throw std::runtime_error("Invalid contrast enabled flag");
-			result.contrastEnabled = enabled == "true";
+			result.ContrastEnabled = enabled == "true";
 		}
-		result.contrast = ParseHundredths(take("Look.Contrast"), -25, 25);
-		result.pivot = ParseHundredths(take("Look.Pivot"), 20, 80);
+		result.Contrast = ParseHundredths(take("Look.Contrast"), -25, 25);
+		result.Pivot = ParseHundredths(take("Look.Pivot"), 20, 80);
 		if (version == "3" || version == "4" || version == "5" || version == "6" || version == "7")
 		{
-			auto& a = result.adjustments;
+			auto& adjustments = result.Adjustments;
 			const char* balance[] { "Adjustments.Red", "Adjustments.Green", "Adjustments.Blue", "Adjustments.Warmth",
 				                    "Adjustments.Tint" };
 			for (int i = 0; i < 5; ++i)
-				a.balance[i] = ParseHundredths(take(balance[i]), i < 3 ? 50 : -50, i < 3 ? 150 : 50);
-			a.midtone = ParseHundredths(take("Adjustments.Midtone"), 50, 200);
+				adjustments.Balance[i] = ParseHundredths(take(balance[i]), i < 3 ? 50 : -50, i < 3 ? 150 : 50);
+			adjustments.Midtone = ParseHundredths(take("Adjustments.Midtone"), 50, 200);
 			const char* levels[] { "Adjustments.InputBlack", "Adjustments.InputWhite", "Adjustments.OutputBlack",
 				                   "Adjustments.OutputWhite" };
 			for (int i = 0; i < 4; ++i)
-				a.levels[i] = ParseHundredths(take(levels[i]), 0, 100);
-			a.shadows = ParseHundredths(take("Adjustments.Shadows"), -50, 50);
-			a.highlights = ParseHundredths(take("Adjustments.Highlights"), -50, 50);
+				adjustments.Levels[i] = ParseHundredths(take(levels[i]), 0, 100);
+			adjustments.Shadows = ParseHundredths(take("Adjustments.Shadows"), -50, 50);
+			adjustments.Highlights = ParseHundredths(take("Adjustments.Highlights"), -50, 50);
 			const auto flag = [&](const char* key)
 			{
 				const auto value = take(key);
@@ -228,12 +229,12 @@ Data Decode(const std::string& text)
 					throw std::runtime_error("Invalid adjustment enabled flag");
 				return value == "true";
 			};
-			a.balanceEnabled = flag("Adjustments.BalanceEnabled");
-			a.gammaEnabled = flag("Adjustments.GammaEnabled");
-			a.levelsEnabled = flag("Adjustments.LevelsEnabled");
-			a.toneEnabled = flag("Adjustments.ToneEnabled");
-			a.curvesEnabled = flag("Adjustments.CurvesEnabled");
-			a.importEnabled = flag("Adjustments.ImportEnabled");
+			adjustments.BalanceEnabled = flag("Adjustments.BalanceEnabled");
+			adjustments.GammaEnabled = flag("Adjustments.GammaEnabled");
+			adjustments.LevelsEnabled = flag("Adjustments.LevelsEnabled");
+			adjustments.ToneEnabled = flag("Adjustments.ToneEnabled");
+			adjustments.CurvesEnabled = flag("Adjustments.CurvesEnabled");
+			adjustments.ImportEnabled = flag("Adjustments.ImportEnabled");
 			const auto samples = [&](const std::string& key)
 			{
 				const auto text = take(key.c_str());
@@ -260,27 +261,27 @@ Data Decode(const std::string& text)
 				return values;
 			};
 			for (int i = 0; i < 4; ++i)
-				a.curves[i] = samples("Adjustments.Curve" + std::to_string(i));
+				adjustments.Curves[i] = samples("Adjustments.Curve" + std::to_string(i));
 			for (int i = 0; i < 3; ++i)
-				a.imported[i] = samples("Adjustments.Imported" + std::to_string(i));
+				adjustments.Imported[i] = samples("Adjustments.Imported" + std::to_string(i));
 		}
 		if (version == "5" || version == "6" || version == "7")
 		{
 			const auto enabled = take("Matrix.Enabled");
 			if (enabled != "true" && enabled != "false")
 				throw std::runtime_error("Invalid saturation enabled flag");
-			result.saturationEnabled = enabled == "true";
-			result.saturation =
-				ParseHundredths(take("Matrix.Saturation"), 0, version != "5" ? color::SaturationMaximum : 120);
+			result.SaturationEnabled = enabled == "true";
+			result.Saturation =
+				ParseHundredths(take("Matrix.Saturation"), 0, version != "5" ? color::SATURATION_MAXIMUM : 120);
 			if (version == "7")
 			{
 				const auto mono = take("Matrix.MonochromeEnabled");
 				if (mono != "true" && mono != "false")
 					throw std::runtime_error("Invalid channel mixer enabled flag");
-				result.monochromeEnabled = mono == "true";
+				result.MonochromeEnabled = mono == "true";
 				const char* keys[] { "Matrix.MixRed", "Matrix.MixGreen", "Matrix.MixBlue" };
 				for (int i = 0; i < 3; ++i)
-					result.monochrome[i] = ParseHundredths(take(keys[i]), 0, 200);
+					result.Monochrome[i] = ParseHundredths(take(keys[i]), 0, 200);
 			}
 		}
 	}
@@ -292,17 +293,17 @@ Data Decode(const std::string& text)
 		const auto gamma = take("Correction.Gamma");
 		if (gamma != "2.2" && gamma != "2.4")
 			throw std::runtime_error("Unsupported HDR gamma");
-		result.gamma = gamma == "2.2" ? 22 : 24;
+		result.Gamma = gamma == "2.2" ? 22 : 24;
 		const auto enabled = take("Correction.HDRGammaEnabled");
 		if (enabled != "true" && enabled != "false")
 			throw std::runtime_error("Invalid HDR correction flag");
-		result.hdrFix = enabled == "true";
+		result.HdrFix = enabled == "true";
 		if (version == "2")
 		{
 			const auto sdr = take("Correction.AlsoApplyInSDR");
 			if (sdr != "true" && sdr != "false")
 				throw std::runtime_error("Invalid SDR correction flag");
-			result.applyInSdr = sdr == "true";
+			result.ApplyInSdr = sdr == "true";
 		}
 	}
 	else

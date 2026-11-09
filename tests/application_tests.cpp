@@ -45,14 +45,14 @@ int main()
 	{
 		using namespace applications;
 		Configuration config;
-		config.enabled = true;
-		config.rules = { { L"C:\\Games\\Game.exe", L"C:\\LUT\\presets\\Film.lutpreset", Action::Look },
+		config.Enabled = true;
+		config.Rules = { { L"C:\\Games\\Game.exe", L"C:\\LUT\\presets\\Film.lutpreset", Action::Look },
 			             { L"C:\\Movie\\Player.exe", {}, Action::Bypass },
 			             { L"C:\\HDR\\Player.exe", {}, Action::Disable },
 			             { L"C:\\HDR\\Game.exe", {}, Action::PauseHdr } };
 		Validate(config);
 		const auto game = ResolveForProgram(config, L"c:/games/./GAME.EXE");
-		Check(game.matched && game.look == config.rules[0].look, "Full paths must match without case sensitivity");
+		Check(game.matched && game.look == config.Rules[0].Look, "Full paths must match without case sensitivity");
 		Check(!ResolveForProgram(config, L"C:\\Elsewhere\\Game.exe").matched,
 		      "Same filename in another directory must not match");
 		Check(ResolveForProgram(config, L"C:\\Movie\\Player.exe").action == Action::Bypass,
@@ -73,23 +73,23 @@ int main()
 		focus.ClearManualOverride();
 		Check(!focus.IsManualOverride(), "Explicit configuration change must reset override");
 		Configuration empty;
-		empty.enabled = true;
+		empty.Enabled = true;
 		Validate(empty); // No default preset is required.
 		auto bad = config;
-		bad.rules.push_back({ L"c:\\GAMES\\game.exe", {}, Action::Bypass });
+		bad.Rules.push_back({ L"c:\\GAMES\\game.exe", {}, Action::Bypass });
 		Rejects([&] { Validate(bad); }, "Duplicate path rules must be rejected");
 		bad = config;
-		bad.rules[0].executable = L"Game.exe";
+		bad.Rules[0].Executable = L"Game.exe";
 		Rejects([&] { Validate(bad); }, "Filename-only rules must be rejected");
 		bad = config;
-		bad.rules[0].look.clear();
+		bad.Rules[0].Look.clear();
 		Rejects([&] { Validate(bad); }, "Look action requires a named look");
 		bad = config;
-		bad.rules[1].look = config.rules[0].look;
+		bad.Rules[1].Look = config.Rules[0].Look;
 		Rejects([&] { Validate(bad); }, "Non-look action must not smuggle in a look");
-		config.enabled = false;
-		Check(!ResolveForProgram(config, config.rules[0].executable).matched, "Disabled rules must not match");
-		config.enabled = true;
+		config.Enabled = false;
+		Check(!ResolveForProgram(config, config.Rules[0].Executable).matched, "Disabled rules must not match");
+		config.Enabled = true;
 		wchar_t temp[32768] {};
 		Check(GetTempPathW(static_cast<DWORD>(std::size(temp)), temp) != 0, "No temporary path");
 		const auto folder =
@@ -97,14 +97,14 @@ int main()
 		                                   std::to_wstring(GetTickCount64()));
 		Check(std::filesystem::create_directory(folder), "Temporary test directory must be new");
 		const auto settings = folder / L"LutWorkbench.ini";
-		config.rules[0].look = folder / L"presets\\Farver-\u00e6\u00f8\u00e5.lutpreset";
+		config.Rules[0].Look = folder / L"presets\\Farver-\u00e6\u00f8\u00e5.lutpreset";
 		WriteConfig(settings, Encode(config, settings));
 		const auto loaded = Read(settings);
-		Check(loaded.enabled && loaded.rules.size() == 4 && loaded.rules[0].look == config.rules[0].look,
+		Check(loaded.Enabled && loaded.Rules.size() == 4 && loaded.Rules[0].Look == config.Rules[0].Look,
 		      "Unicode preset paths and complete configuration must round-trip");
-		Check(loaded.rules[1].action == Action::Bypass && loaded.rules[2].action == Action::Disable,
+		Check(loaded.Rules[1].Action == Action::Bypass && loaded.Rules[2].Action == Action::Disable,
 		      "Actions must survive restart");
-		Check(loaded.rules[3].action == Action::PauseHdr &&
+		Check(loaded.Rules[3].Action == Action::PauseHdr &&
 		          ResolveForProgram(loaded, L"C:\\HDR\\Game.exe").action == Action::PauseHdr,
 		      "HDR-only pause must survive restart and match its program");
 		WriteConfig(settings, L"[Applications]\r\nVersion=99\r\n");
@@ -112,12 +112,12 @@ int main()
 		WriteConfig(
 			settings,
 			L"[Applications]\r\nVersion=1\r\nEnabled=1\r\nDesktopLook=missing-default.lutpreset\r\nRuleCount=0\r\n");
-		Check(Read(settings).enabled && !ResolveForProgram(Read(settings), L"C:\\Other.exe").matched,
+		Check(Read(settings).Enabled && !ResolveForProgram(Read(settings), L"C:\\Other.exe").matched,
 		      "Old configuration must migrate without requiring its former desktop default");
 		WriteConfig(settings, L"[Applications]\r\nVersion=1\r\nRuleCount=999\r\n");
 		Rejects([&] { Read(settings); }, "Oversized rule count must be refused");
 		WriteConfig(settings, L"[Hotkey]\r\nBypass=123\r\n");
-		Check(!Read(settings).enabled, "Older settings must start with application profiles disabled");
+		Check(!Read(settings).Enabled, "Older settings must start with application profiles disabled");
 		std::filesystem::remove(settings);
 		std::filesystem::remove(folder);
 		std::cout

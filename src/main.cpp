@@ -21,12 +21,12 @@ using Ramp = std::array<std::array<WORD, 256>, 3>;
 static_assert(sizeof(Ramp) == 1536);
 struct Handle
 {
-	HANDLE h = nullptr;
-	explicit Handle(HANDLE value = nullptr) : h(value) {}
+	HANDLE handle = nullptr;
+	explicit Handle(HANDLE value = nullptr) : handle(value) {}
 	~Handle()
 	{
-		if (h && h != INVALID_HANDLE_VALUE)
-			CloseHandle(h);
+		if (handle && handle != INVALID_HANDLE_VALUE)
+			CloseHandle(handle);
 	}
 	Handle(const Handle&) = delete;
 	Handle& operator=(const Handle&) = delete;
@@ -34,12 +34,12 @@ struct Handle
 
 struct DC
 {
-	HDC h;
-	explicit DC(const std::wstring& name) : h(CreateDCW(L"DISPLAY", name.c_str(), nullptr, nullptr)) {}
+	HDC handle;
+	explicit DC(const std::wstring& name) : handle(CreateDCW(L"DISPLAY", name.c_str(), nullptr, nullptr)) {}
 	~DC()
 	{
-		if (h)
-			DeleteDC(h);
+		if (handle)
+			DeleteDC(handle);
 	}
 };
 
@@ -48,7 +48,7 @@ struct Path
 	DISPLAYCONFIG_PATH_INFO info {};
 	std::wstring source, name, identity;
 	DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color {};
-	LONG colorResult = ERROR_NOT_SUPPORTED;
+	LONG color_result = ERROR_NOT_SUPPORTED;
 };
 
 template <class T>
@@ -61,39 +61,39 @@ std::vector<Path> ActiveDisplayPaths()
 {
 	for (int attempt = 0; attempt < 5; ++attempt)
 	{
-		UINT32 pc = 0, mc = 0;
-		LONG result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pc, &mc);
+		UINT32 path_count = 0, mode_count = 0;
+		LONG result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count, &mode_count);
 		if (result != ERROR_SUCCESS)
 			throw std::runtime_error("Cannot enumerate display configuration: " + std::to_string(result));
-		std::vector<DISPLAYCONFIG_PATH_INFO> raw(pc);
-		std::vector<DISPLAYCONFIG_MODE_INFO> modes(mc);
-		result = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pc, raw.data(), &mc, modes.data(), nullptr);
+		std::vector<DISPLAYCONFIG_PATH_INFO> raw(path_count);
+		std::vector<DISPLAYCONFIG_MODE_INFO> modes(mode_count);
+		result = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &path_count, raw.data(), &mode_count, modes.data(), nullptr);
 		if (result == ERROR_INSUFFICIENT_BUFFER)
 			continue;
 		if (result != ERROR_SUCCESS)
 			throw std::runtime_error("QueryDisplayConfig failed: " + std::to_string(result));
 		std::vector<Path> out;
-		for (UINT32 i = 0; i < pc; ++i)
+		for (UINT32 i = 0; i < path_count; ++i)
 		{
-			Path p;
-			p.info = raw[i];
+			Path path;
+			path.info = raw[i];
 			DISPLAYCONFIG_SOURCE_DEVICE_NAME source {};
-			InitDeviceInfoHeader(source, DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, p.info.sourceInfo.adapterId,
-			                     p.info.sourceInfo.id);
+			InitDeviceInfoHeader(source, DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, path.info.sourceInfo.adapterId,
+			                     path.info.sourceInfo.id);
 			if (DisplayConfigGetDeviceInfo(&source.header) != ERROR_SUCCESS)
 				throw std::runtime_error("Cannot resolve active source name");
-			p.source = source.viewGdiDeviceName;
+			path.source = source.viewGdiDeviceName;
 			DISPLAYCONFIG_TARGET_DEVICE_NAME target {};
-			InitDeviceInfoHeader(target, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, p.info.targetInfo.adapterId,
-			                     p.info.targetInfo.id);
+			InitDeviceInfoHeader(target, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, path.info.targetInfo.adapterId,
+			                     path.info.targetInfo.id);
 			if (DisplayConfigGetDeviceInfo(&target.header) != ERROR_SUCCESS)
 				throw std::runtime_error("Cannot resolve physical output identity");
-			p.name = target.monitorFriendlyDeviceName;
-			p.identity = target.monitorDevicePath;
-			InitDeviceInfoHeader(p.color, DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
-			                     p.info.targetInfo.adapterId, p.info.targetInfo.id);
-			p.colorResult = DisplayConfigGetDeviceInfo(&p.color.header);
-			out.push_back(std::move(p));
+			path.name = target.monitorFriendlyDeviceName;
+			path.identity = target.monitorDevicePath;
+			InitDeviceInfoHeader(path.color, DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
+			                     path.info.targetInfo.adapterId, path.info.targetInfo.id);
+			path.color_result = DisplayConfigGetDeviceInfo(&path.color.header);
+			out.push_back(std::move(path));
 		}
 		return out;
 	}
@@ -103,12 +103,12 @@ std::vector<Path> ActiveDisplayPaths()
 std::wstring DisplaySignature(const std::wstring& source)
 {
 	std::vector<std::wstring> ids;
-	for (const auto& p : ActiveDisplayPaths())
-		if (p.source == source)
+	for (const auto& path : ActiveDisplayPaths())
+		if (path.source == source)
 		{
-			if (p.identity.empty() || p.colorResult != ERROR_SUCCESS)
+			if (path.identity.empty() || path.color_result != ERROR_SUCCESS)
 				throw std::runtime_error("Cannot establish output identity and color mode for a reversible test");
-			ids.push_back(p.identity + L":" + std::to_wstring(p.color.value));
+			ids.push_back(path.identity + L":" + std::to_wstring(path.color.value));
 		}
 	std::sort(ids.begin(), ids.end());
 	std::wstring out;
@@ -164,12 +164,12 @@ void PrintDisplayProfileDefaults(const Path& p, GetDisplayDefault query)
 
 void PrintDriverModel(LUID luid)
 {
-	HMODULE gdi = GetModuleHandleW(L"gdi32.dll");
+	HMODULE gdi32 = GetModuleHandleW(L"gdi32.dll");
 	const auto open =
-		reinterpret_cast<decltype(&D3DKMTOpenAdapterFromLuid)>(GetProcAddress(gdi, "D3DKMTOpenAdapterFromLuid"));
+		reinterpret_cast<decltype(&D3DKMTOpenAdapterFromLuid)>(GetProcAddress(gdi32, "D3DKMTOpenAdapterFromLuid"));
 	const auto query =
-		reinterpret_cast<decltype(&D3DKMTQueryAdapterInfo)>(GetProcAddress(gdi, "D3DKMTQueryAdapterInfo"));
-	const auto close = reinterpret_cast<decltype(&D3DKMTCloseAdapter)>(GetProcAddress(gdi, "D3DKMTCloseAdapter"));
+		reinterpret_cast<decltype(&D3DKMTQueryAdapterInfo)>(GetProcAddress(gdi32, "D3DKMTQueryAdapterInfo"));
+	const auto close = reinterpret_cast<decltype(&D3DKMTCloseAdapter)>(GetProcAddress(gdi32, "D3DKMTCloseAdapter"));
 	if (!open || !query || !close)
 	{
 		std::wcout << L"  WDDM query unavailable\n";
@@ -244,19 +244,21 @@ void PrintCalibrationCapabilities(const Path& p, GetCaps query)
 	{
 		MhcCaps mhc { sizeof(MhcCaps), FALSE, 0, 0, 0 };
 		VcgtCaps vcgt { sizeof(VcgtCaps), FALSE };
-		const HRESULT mr = query(scope, p.info.sourceInfo.adapterId, p.info.sourceInfo.id, 2, &mhc);
-		const HRESULT vr = query(scope, p.info.sourceInfo.adapterId, p.info.sourceInfo.id, 1, &vcgt);
+		const HRESULT mhc_result = query(scope, p.info.sourceInfo.adapterId, p.info.sourceInfo.id, 2, &mhc);
+		const HRESULT vcgt_result = query(scope, p.info.sourceInfo.adapterId, p.info.sourceInfo.id, 1, &vcgt);
 		std::wcout << L"  " << (scope == WCS_PROFILE_MANAGEMENT_SCOPE_CURRENT_USER ? L"User" : L"System")
 				   << L" capabilities: ";
-		if (SUCCEEDED(mr))
+		if (SUCCEEDED(mhc_result))
 			std::wcout << L"MHC2=" << (mhc.supported ? L"yes" : L"no") << L", entries=" << mhc.entries << L", matrix="
 					   << mhc.rows << L"x" << mhc.columns;
 		else
-			std::wcout << L"MHC2 query failed HRESULT=0x" << std::hex << static_cast<unsigned long>(mr) << std::dec;
-		if (SUCCEEDED(vr))
+			std::wcout << L"MHC2 query failed HRESULT=0x" << std::hex << static_cast<unsigned long>(mhc_result)
+					   << std::dec;
+		if (SUCCEEDED(vcgt_result))
 			std::wcout << L"; VCGT=" << (vcgt.supported ? L"yes" : L"no");
 		else
-			std::wcout << L"; VCGT query failed HRESULT=0x" << std::hex << static_cast<unsigned long>(vr) << std::dec;
+			std::wcout << L"; VCGT query failed HRESULT=0x" << std::hex << static_cast<unsigned long>(vcgt_result)
+					   << std::dec;
 		std::wcout << L"\n";
 	}
 }
@@ -265,10 +267,11 @@ void PrintDiagnosticReport()
 {
 	std::wcout << L"LUT Diagnostic 0.4 - read-only report\n";
 	using RtlVersion = LONG(WINAPI*)(OSVERSIONINFOW*);
-	const auto rtl = reinterpret_cast<RtlVersion>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
+	const auto get_windows_version =
+		reinterpret_cast<RtlVersion>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
 	OSVERSIONINFOW version {};
 	version.dwOSVersionInfoSize = sizeof(version);
-	if (rtl && rtl(&version) == 0)
+	if (get_windows_version && get_windows_version(&version) == 0)
 		std::wcout << L"Windows " << version.dwMajorVersion << L"." << version.dwMinorVersion << L" build "
 				   << version.dwBuildNumber << L"\n";
 	DISPLAY_DEVICEW adapter {};
@@ -281,7 +284,7 @@ void PrintDiagnosticReport()
 	HMODULE mscms = LoadLibraryExW(L"mscms.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 	const auto query =
 		mscms ? reinterpret_cast<GetCaps>(GetProcAddress(mscms, "ColorProfileGetDeviceCapabilities")) : nullptr;
-	const auto getDefault =
+	const auto get_default =
 		mscms ? reinterpret_cast<GetDisplayDefault>(GetProcAddress(mscms, "ColorProfileGetDisplayDefault")) : nullptr;
 	std::wcout << L"\nColor-management API exports:\n";
 	for (const char* name :
@@ -309,7 +312,7 @@ void PrintDiagnosticReport()
 				++count;
 				std::wcout << L"  Output: " << target.name << L" (target ID=" << target.info.targetInfo.id
 						   << L")\n  Identity: " << target.identity << L"\n";
-				if (target.colorResult == ERROR_SUCCESS)
+				if (target.color_result == ERROR_SUCCESS)
 				{
 					std::wcout << L"  Advanced Color supported=" << target.color.advancedColorSupported << L", enabled="
 							   << target.color.advancedColorEnabled << L", wide-color enforced="
@@ -317,7 +320,7 @@ void PrintDiagnosticReport()
 							   << target.color.bitsPerColorChannel << L"\n";
 				}
 				else
-					std::wcout << L"  Advanced Color query failed: " << target.colorResult << L"\n";
+					std::wcout << L"  Advanced Color query failed: " << target.color_result << L"\n";
 				DISPLAYCONFIG_SDR_WHITE_LEVEL white {};
 				InitDeviceInfoHeader(white, DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL,
 				                     target.info.targetInfo.adapterId, target.info.targetInfo.id);
@@ -328,10 +331,10 @@ void PrintDiagnosticReport()
 				   << (count > 1 ? L" (clone group; GDI test addresses this whole source)" : L"") << L"\n";
 		PrintDriverModel(p.info.sourceInfo.adapterId);
 		PrintCalibrationCapabilities(p, query);
-		PrintDisplayProfileDefaults(p, getDefault);
+		PrintDisplayProfileDefaults(p, get_default);
 		DC dc(p.source);
 		Ramp ramp {};
-		if (dc.h && GetDeviceGammaRamp(dc.h, &ramp))
+		if (dc.handle && GetDeviceGammaRamp(dc.handle, &ramp))
 		{
 			std::wcout << L"  GDI gamma ramp: readable (256 x 3; readback does not prove scanout behavior)\n";
 			for (size_t c = 0; c < 3; ++c)
@@ -343,7 +346,7 @@ void PrintDiagnosticReport()
 			std::wcout << L"  GDI gamma ramp: not readable\n";
 		DWORD length = 32768;
 		std::vector<wchar_t> profile(length);
-		if (dc.h && GetICMProfileW(dc.h, &length, profile.data()))
+		if (dc.handle && GetICMProfileW(dc.handle, &length, profile.data()))
 		{
 			std::wcout << L"  GDI ICC profile: " << profile.data() << L"\n";
 			ProfileTags(profile.data());
@@ -379,10 +382,10 @@ void ExportHdr(const std::wstring& file, double white, double gamma, std::size_t
 	}
 	const auto text = csv.str();
 	Handle h(CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
-	if (h.h == INVALID_HANDLE_VALUE)
+	if (h.handle == INVALID_HANDLE_VALUE)
 		throw std::runtime_error("Cannot create CSV (existing files are not overwritten)");
 	DWORD written = 0;
-	if (!WriteFile(h.h, text.data(), static_cast<DWORD>(text.size()), &written, nullptr) || written != text.size())
+	if (!WriteFile(h.handle, text.data(), static_cast<DWORD>(text.size()), &written, nullptr) || written != text.size())
 		throw std::runtime_error("CSV write failed");
 	std::wcout << L"Exported " << entries << L" PQ-domain curve samples to " << file << L"\nSDR white=" << white
 			   << L" nits; target gamma=" << gamma
@@ -398,7 +401,7 @@ void CompareHdr(const std::wstring& source, double white, double gamma)
 		throw std::runtime_error("Display source is not active");
 	DC dc(source);
 	Ramp actual {};
-	if (!dc.h || !GetDeviceGammaRamp(dc.h, &actual))
+	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &actual))
 		throw std::runtime_error("Cannot read gamma ramp");
 	std::wcout << L"Read-only HDR model comparison for " << source << L"\nSDR white=" << white << L" nits; gamma="
 			   << gamma << L"\n";
@@ -429,10 +432,10 @@ Ramp ComposeContrastRamp(const Ramp& baseline, double amount, double pivot)
 		for (size_t i = 0; i < 256; ++i)
 		{
 			const double at = ContrastCurve(static_cast<double>(i) / 255.0, amount, pivot) * 255.0;
-			const auto lo = static_cast<size_t>(std::floor(at));
-			const auto hi = std::min(lo + 1, size_t { 255 });
-			result[c][i] =
-				static_cast<WORD>(std::lround(baseline[c][lo] + (baseline[c][hi] - baseline[c][lo]) * (at - lo)));
+			const auto lower = static_cast<size_t>(std::floor(at));
+			const auto upper = std::min(lower + 1, size_t { 255 });
+			result[c][i] = static_cast<WORD>(
+				std::lround(baseline[c][lower] + (baseline[c][upper] - baseline[c][lower]) * (at - lower)));
 		}
 	return result;
 }
@@ -482,8 +485,8 @@ void SaveSnapshot(const std::wstring& file, const Snapshot& value)
 {
 	Handle h(CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
 	DWORD bytes = 0;
-	if (h.h == INVALID_HANDLE_VALUE || !WriteFile(h.h, &value, sizeof(value), &bytes, nullptr) ||
-	    bytes != sizeof(value) || !FlushFileBuffers(h.h))
+	if (h.handle == INVALID_HANDLE_VALUE || !WriteFile(h.handle, &value, sizeof(value), &bytes, nullptr) ||
+	    bytes != sizeof(value) || !FlushFileBuffers(h.handle))
 		throw std::runtime_error("Cannot persist recovery snapshot");
 }
 
@@ -494,9 +497,10 @@ Snapshot LoadSnapshot(const std::wstring& file)
 	Snapshot value {};
 	DWORD bytes = 0;
 	LARGE_INTEGER size {};
-	if (h.h == INVALID_HANDLE_VALUE || !GetFileSizeEx(h.h, &size) || size.QuadPart != sizeof(value) ||
-	    !ReadFile(h.h, &value, sizeof(value), &bytes, nullptr) || bytes != sizeof(value) || value.magic != 0x3154554c ||
-	    value.source[31] != 0 || value.signature[2047] != 0 || value.source[0] == 0 || value.signature[0] == 0)
+	if (h.handle == INVALID_HANDLE_VALUE || !GetFileSizeEx(h.handle, &size) || size.QuadPart != sizeof(value) ||
+	    !ReadFile(h.handle, &value, sizeof(value), &bytes, nullptr) || bytes != sizeof(value) ||
+	    value.magic != 0x3154554c || value.source[31] != 0 || value.signature[2047] != 0 || value.source[0] == 0 ||
+	    value.signature[0] == 0)
 		throw std::runtime_error("Invalid recovery snapshot");
 	return value;
 }
@@ -510,10 +514,10 @@ int RestoreSnapshot(const Snapshot& value)
 		return 3;
 	}
 	DC dc(value.source);
-	if (!dc.h || !SetDeviceGammaRamp(dc.h, const_cast<Ramp*>(&value.ramp)))
+	if (!dc.handle || !SetDeviceGammaRamp(dc.handle, const_cast<Ramp*>(&value.ramp)))
 		return 4;
 	Ramp actual {};
-	if (!GetDeviceGammaRamp(dc.h, &actual) || actual != value.ramp)
+	if (!GetDeviceGammaRamp(dc.handle, &actual) || actual != value.ramp)
 		return 5;
 	return 0;
 }
@@ -526,29 +530,29 @@ std::wstring QuoteArgument(const std::wstring& value)
 	return L"\"" + value + L"\"";
 }
 
-HANDLE cancelEvent = nullptr;
+HANDLE cancel_event = nullptr;
 BOOL WINAPI ConsoleCtrlHandler(DWORD kind)
 {
-	if ((kind == CTRL_C_EVENT || kind == CTRL_BREAK_EVENT) && cancelEvent)
+	if ((kind == CTRL_C_EVENT || kind == CTRL_BREAK_EVENT) && cancel_event)
 	{
-		SetEvent(cancelEvent);
+		SetEvent(cancel_event);
 		return TRUE;
 	}
 	return FALSE; // Closing/killing the parent is handled by the independent guardian.
 }
 
-int RunRecoveryGuardian(const std::wstring& file, DWORD parentId, const std::wstring& readyName,
-                        const std::wstring& doneName, bool probe = false)
+int RunRecoveryGuardian(const std::wstring& file, DWORD parent_id, const std::wstring& ready_name,
+                        const std::wstring& done_name, bool probe = false)
 {
 	const auto snapshot = LoadSnapshot(file);
-	Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parentId));
-	Handle ready(OpenEventW(EVENT_MODIFY_STATE, FALSE, readyName.c_str()));
-	Handle done(OpenEventW(SYNCHRONIZE, FALSE, doneName.c_str()));
+	Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parent_id));
+	Handle ready(OpenEventW(EVENT_MODIFY_STATE, FALSE, ready_name.c_str()));
+	Handle done(OpenEventW(SYNCHRONIZE, FALSE, done_name.c_str()));
 	Handle lease(probe ? nullptr : OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\LutWorkbench-LutWriter"));
-	if (!parent.h || !ready.h || !done.h || (!probe && !lease.h))
+	if (!parent.handle || !ready.handle || !done.handle || (!probe && !lease.handle))
 		return 6;
-	SetEvent(ready.h);
-	HANDLE wait[] = { parent.h, done.h };
+	SetEvent(ready.handle);
+	HANDLE wait[] = { parent.handle, done.handle };
 	const DWORD result = WaitForMultipleObjects(2, wait, FALSE, 30000);
 	if (result == WAIT_FAILED)
 		return 7;
@@ -571,15 +575,15 @@ void RunRecoverySelfTest()
 	const auto roundtrip = LoadSnapshot(file);
 	if (std::memcmp(&snapshot, &roundtrip, sizeof(snapshot)) != 0)
 		throw std::runtime_error("Snapshot roundtrip failed");
-	const auto readyName = L"Local\\LutDiagnostic-probe-ready-" + key;
-	const auto doneName = L"Local\\LutDiagnostic-probe-done-" + key;
-	Handle ready(CreateEventW(nullptr, TRUE, FALSE, readyName.c_str()));
-	Handle done(CreateEventW(nullptr, TRUE, FALSE, doneName.c_str()));
-	if (!ready.h || !done.h)
+	const auto ready_name = L"Local\\LutDiagnostic-probe-ready-" + key;
+	const auto done_name = L"Local\\LutDiagnostic-probe-done-" + key;
+	Handle ready(CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str()));
+	Handle done(CreateEventW(nullptr, TRUE, FALSE, done_name.c_str()));
+	if (!ready.handle || !done.handle)
 		throw std::runtime_error("Recovery test events failed");
 	auto command = QuoteArgument(exe) + L" --guardian-probe " + QuoteArgument(file) + L" " +
-	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(readyName) + L" " +
-	               QuoteArgument(doneName);
+	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(ready_name) + L" " +
+	               QuoteArgument(done_name);
 	STARTUPINFOW startup {};
 	startup.cb = sizeof(startup);
 	PROCESS_INFORMATION process {};
@@ -587,15 +591,15 @@ void RunRecoverySelfTest()
 	                    &process))
 		throw std::runtime_error("Recovery test process failed");
 	Handle child(process.hProcess), thread(process.hThread);
-	HANDLE wait[] = { ready.h, child.h };
-	const bool readyOk = WaitForMultipleObjects(2, wait, FALSE, 5000) == WAIT_OBJECT_0;
-	const bool stillWaiting = readyOk && WaitForSingleObject(child.h, 0) == WAIT_TIMEOUT;
-	SetEvent(done.h);
-	const DWORD finished = WaitForSingleObject(child.h, 5000);
+	HANDLE wait[] = { ready.handle, child.handle };
+	const bool ready_ok = WaitForMultipleObjects(2, wait, FALSE, 5000) == WAIT_OBJECT_0;
+	const bool still_waiting = ready_ok && WaitForSingleObject(child.handle, 0) == WAIT_TIMEOUT;
+	SetEvent(done.handle);
+	const DWORD finished = WaitForSingleObject(child.handle, 5000);
 	DWORD code = STILL_ACTIVE;
-	GetExitCodeProcess(child.h, &code);
+	GetExitCodeProcess(child.handle, &code);
 	DeleteFileW(file.c_str()); // Only this test's uniquely-created temporary snapshot.
-	if (!stillWaiting || finished != WAIT_OBJECT_0 || code != 0)
+	if (!still_waiting || finished != WAIT_OBJECT_0 || code != 0)
 		throw std::runtime_error("Guardian handshake failed");
 	std::wcout << L"Snapshot and independent guardian handshake passed. No display APIs used.\n";
 }
@@ -630,10 +634,10 @@ double QuerySdrWhiteNits(const std::wstring& source)
 	if (!nvidia)
 		throw std::runtime_error("This experimental PQ-domain GDI test currently requires an NVIDIA output");
 	std::vector<Path> targets;
-	for (const auto& p : ActiveDisplayPaths())
-		if (p.source == source)
-			targets.push_back(p);
-	if (targets.size() != 1 || targets[0].colorResult != ERROR_SUCCESS || !targets[0].color.advancedColorEnabled)
+	for (const auto& path : ActiveDisplayPaths())
+		if (path.source == source)
+			targets.push_back(path);
+	if (targets.size() != 1 || targets[0].color_result != ERROR_SUCCESS || !targets[0].color.advancedColorEnabled)
 		throw std::runtime_error(
 			"HDR comparison requires one active Advanced Color output; clone groups are not supported");
 	DISPLAYCONFIG_SDR_WHITE_LEVEL white {};
@@ -650,8 +654,8 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
                     double gamma = 2.2)
 {
 	Handle lease(CreateMutexW(nullptr, TRUE, L"Local\\LutWorkbench-LutWriter"));
-	const DWORD leaseError = GetLastError();
-	if (!lease.h || leaseError == ERROR_ALREADY_EXISTS)
+	const DWORD lease_error = GetLastError();
+	if (!lease.handle || lease_error == ERROR_ALREADY_EXISTS)
 		throw std::runtime_error("Another live LUT session or timed test is active; disable it before testing");
 	Snapshot snapshot;
 	if (source.size() >= std::size(snapshot.source))
@@ -662,7 +666,7 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
 	std::copy(source.begin(), source.end(), snapshot.source);
 	std::copy(before.begin(), before.end(), snapshot.signature);
 	DC dc(source);
-	if (!dc.h || !GetDeviceGammaRamp(dc.h, &snapshot.ramp))
+	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &snapshot.ramp))
 		throw std::runtime_error("Cannot capture baseline; nothing changed");
 	Ramp identity {};
 	for (auto& channel : identity)
@@ -676,25 +680,25 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
 		throw std::runtime_error(
 			"Existing ramp is not identity or a recognized HDR correction; refusing to replace unknown calibration");
 	wchar_t temp[MAX_PATH] {};
-	const DWORD tempLength = GetTempPathW(MAX_PATH, temp);
-	if (!tempLength || tempLength >= MAX_PATH)
+	const DWORD temp_length = GetTempPathW(MAX_PATH, temp);
+	if (!temp_length || temp_length >= MAX_PATH)
 		throw std::runtime_error("Cannot locate recovery directory");
 	const auto key = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
 	const auto file = std::wstring(temp) + L"LutDiagnostic-" + key + L".bin";
 	SaveSnapshot(file, snapshot);
-	const auto readyName = L"Local\\LutDiagnostic-ready-" + key;
-	const auto doneName = L"Local\\LutDiagnostic-done-" + key;
-	Handle ready(CreateEventW(nullptr, TRUE, FALSE, readyName.c_str()));
-	Handle done(CreateEventW(nullptr, TRUE, FALSE, doneName.c_str()));
+	const auto ready_name = L"Local\\LutDiagnostic-ready-" + key;
+	const auto done_name = L"Local\\LutDiagnostic-done-" + key;
+	Handle ready(CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str()));
+	Handle done(CreateEventW(nullptr, TRUE, FALSE, done_name.c_str()));
 	Handle cancel(CreateEventW(nullptr, TRUE, FALSE, nullptr));
-	if (!ready.h || !done.h || !cancel.h)
+	if (!ready.handle || !done.handle || !cancel.handle)
 		throw std::runtime_error("Cannot create recovery events; nothing changed");
 	wchar_t exe[32768] {};
 	if (!GetModuleFileNameW(nullptr, exe, static_cast<DWORD>(std::size(exe))))
 		throw std::runtime_error("Cannot locate executable");
 	auto command = QuoteArgument(exe) + L" --guardian " + QuoteArgument(file) + L" " +
-	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(readyName) + L" " +
-	               QuoteArgument(doneName);
+	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(ready_name) + L" " +
+	               QuoteArgument(done_name);
 	STARTUPINFOW startup {};
 	startup.cb = sizeof(startup);
 	PROCESS_INFORMATION process {};
@@ -702,14 +706,14 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
 	                    &process))
 		throw std::runtime_error("Cannot start restoration guardian; nothing changed");
 	Handle child(process.hProcess), thread(process.hThread);
-	HANDLE startWait[] = { ready.h, child.h };
-	if (WaitForMultipleObjects(2, startWait, FALSE, 5000) != WAIT_OBJECT_0)
+	HANDLE start_wait[] = { ready.handle, child.handle };
+	if (WaitForMultipleObjects(2, start_wait, FALSE, 5000) != WAIT_OBJECT_0)
 	{
-		SetEvent(done.h);
-		WaitForSingleObject(child.h, 5000);
+		SetEvent(done.handle);
+		WaitForSingleObject(child.handle, 5000);
 		throw std::runtime_error("Restoration guardian did not become ready; nothing changed");
 	}
-	cancelEvent = cancel.h;
+	cancel_event = cancel.handle;
 	SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 	std::wcout << L"Recovery snapshot: " << file << L"\nTesting source " << source << L" for " << seconds
 			   << L" seconds. All outputs sharing this source may change. Ctrl+C restores early.\n"
@@ -719,20 +723,20 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
 	{
 		if (DisplaySignature(source) != before)
 			throw std::runtime_error("Display changed before application");
-		HANDLE wait[] = { cancel.h, child.h };
+		HANDLE wait[] = { cancel.handle, child.handle };
 		bool apply = true;
 		if (hdr)
 		{
 			std::wcout << L"HDR comparison: SDR white=" << white << L" nits, gamma=" << gamma
 					   << L". Identity reference for 2 seconds, then correction for " << seconds - 2 << L" seconds.\n"
 					   << std::flush;
-			if (WaitForSingleObject(child.h, 0) != WAIT_TIMEOUT)
+			if (WaitForSingleObject(child.handle, 0) != WAIT_TIMEOUT)
 				throw std::runtime_error("Restoration guardian exited before application");
-			if (!SetDeviceGammaRamp(dc.h, &identity))
+			if (!SetDeviceGammaRamp(dc.handle, &identity))
 				throw std::runtime_error("Identity reference application failed");
 			Ramp reference {};
 			std::wcout << L"Identity reference exact readback="
-					   << (GetDeviceGammaRamp(dc.h, &reference) && reference == identity ? L"yes" : L"no") << L"\n"
+					   << (GetDeviceGammaRamp(dc.handle, &reference) && reference == identity ? L"yes" : L"no") << L"\n"
 					   << std::flush;
 			apply = WaitForMultipleObjects(2, wait, FALSE, 2000) == WAIT_TIMEOUT;
 		}
@@ -740,12 +744,12 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
 		{
 			if (DisplaySignature(source) != before || (hdr && std::abs(QuerySdrWhiteNits(source) - white) > 0.001))
 				throw std::runtime_error("Display configuration or SDR brightness changed during the test");
-			if (WaitForSingleObject(child.h, 0) != WAIT_TIMEOUT)
+			if (WaitForSingleObject(child.handle, 0) != WAIT_TIMEOUT)
 				throw std::runtime_error("Restoration guardian exited before application");
-			if (!SetDeviceGammaRamp(dc.h, &adjusted))
+			if (!SetDeviceGammaRamp(dc.handle, &adjusted))
 				throw std::runtime_error("SetDeviceGammaRamp failed");
 			Ramp actual {};
-			const bool match = GetDeviceGammaRamp(dc.h, &actual) && actual == adjusted;
+			const bool match = GetDeviceGammaRamp(dc.handle, &actual) && actual == adjusted;
 			std::wcout << L"Correction API accepted; exact readback=" << (match ? L"yes" : L"no")
 					   << L". Observe the image; readback alone proves no visible effect.\n"
 					   << std::flush;
@@ -757,12 +761,12 @@ int RunTimedLutTest(const std::wstring& source, double amount, double pivot, DWO
 		std::cerr << error.what() << '\n';
 		result = 1;
 	}
-	SetEvent(done.h);
-	const DWORD waited = WaitForSingleObject(child.h, 10000);
+	SetEvent(done.handle);
+	const DWORD waited = WaitForSingleObject(child.handle, 10000);
 	DWORD restored = STILL_ACTIVE;
-	GetExitCodeProcess(child.h, &restored);
+	GetExitCodeProcess(child.handle, &restored);
 	SetConsoleCtrlHandler(ConsoleCtrlHandler, FALSE);
-	cancelEvent = nullptr;
+	cancel_event = nullptr;
 	if (waited != WAIT_OBJECT_0 || restored != 0)
 	{
 		std::wcerr << L"Restoration not verified (guardian code " << restored << L"). Snapshot retained: " << file

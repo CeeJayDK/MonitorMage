@@ -43,22 +43,22 @@ bool SamePath(const std::filesystem::path& a, const std::filesystem::path& b)
 
 void Validate(const Configuration& config)
 {
-	if (config.rules.size() > 256)
+	if (config.Rules.size() > 256)
 		throw std::runtime_error("At most 256 application rules are supported");
-	for (size_t i = 0; i < config.rules.size(); ++i)
+	for (size_t i = 0; i < config.Rules.size(); ++i)
 	{
-		const auto& rule = config.rules[i];
-		if (!rule.executable.is_absolute() || rule.executable.filename().empty())
+		const auto& rule = config.Rules[i];
+		if (!rule.Executable.is_absolute() || rule.Executable.filename().empty())
 			throw std::runtime_error("Application rules require a full executable path");
-		if (rule.action != Action::Look && rule.action != Action::Bypass && rule.action != Action::Disable &&
-		    rule.action != Action::PauseHdr)
+		if (rule.Action != Action::Look && rule.Action != Action::Bypass && rule.Action != Action::Disable &&
+		    rule.Action != Action::PauseHdr)
 			throw std::runtime_error("Unknown application rule action");
-		if (rule.action == Action::Look && rule.look.empty())
+		if (rule.Action == Action::Look && rule.Look.empty())
 			throw std::runtime_error("Choose a saved look for the application rule");
-		if (rule.action != Action::Look && !rule.look.empty())
+		if (rule.Action != Action::Look && !rule.Look.empty())
 			throw std::runtime_error("Only look rules may specify a preset");
 		for (size_t j = 0; j < i; ++j)
-			if (SamePath(rule.executable, config.rules[j].executable))
+			if (SamePath(rule.Executable, config.Rules[j].Executable))
 				throw std::runtime_error("Duplicate executable rule");
 	}
 }
@@ -74,29 +74,30 @@ Configuration Read(const std::filesystem::path& settings)
 	const auto enabled = ReadIniValue(settings, L"Applications", L"Enabled", L"0");
 	if (enabled != L"0" && enabled != L"1")
 		throw std::runtime_error("Invalid automatic profile flag");
-	config.enabled = enabled == L"1";
+	config.Enabled = enabled == L"1";
 	// Version 1's DesktopLook is intentionally ignored: unmatched apps retain the user's look.
-	const auto countText = ReadIniValue(settings, L"Applications", L"RuleCount", L"0");
-	if (countText.empty() || countText.find_first_not_of(L"0123456789") != std::wstring::npos || countText.size() > 3)
+	const auto count_text = ReadIniValue(settings, L"Applications", L"RuleCount", L"0");
+	if (count_text.empty() || count_text.find_first_not_of(L"0123456789") != std::wstring::npos ||
+	    count_text.size() > 3)
 		throw std::runtime_error("Invalid application rule count");
-	const unsigned long count = wcstoul(countText.c_str(), nullptr, 10);
+	const unsigned long count = wcstoul(count_text.c_str(), nullptr, 10);
 	if (count > 256)
 		throw std::runtime_error("Too many application rules");
 	for (unsigned long i = 0; i < count; ++i)
 	{
 		const auto section = L"Application." + std::to_wstring(i);
 		Rule rule;
-		rule.executable = ToAbsolutePath(settings, ReadIniValue(settings, section.c_str(), L"Executable"));
+		rule.Executable = ToAbsolutePath(settings, ReadIniValue(settings, section.c_str(), L"Executable"));
 		const auto action = ReadIniValue(settings, section.c_str(), L"Action");
 		if (action != L"Look" && action != L"Bypass" && action != L"Disable" &&
 		    !(version == L"3" && action == L"PauseHdr"))
 			throw std::runtime_error("Unknown application action");
-		rule.action = action == L"Look"      ? Action::Look
+		rule.Action = action == L"Look"      ? Action::Look
 		              : action == L"Bypass"  ? Action::Bypass
 		              : action == L"Disable" ? Action::Disable
 		                                     : Action::PauseHdr;
-		rule.look = ToAbsolutePath(settings, ReadIniValue(settings, section.c_str(), L"Look"));
-		config.rules.push_back(rule);
+		rule.Look = ToAbsolutePath(settings, ReadIniValue(settings, section.c_str(), L"Look"));
+		config.Rules.push_back(rule);
 	}
 	Validate(config);
 	return config;
@@ -105,37 +106,37 @@ Configuration Read(const std::filesystem::path& settings)
 std::wstring Encode(const Configuration& config, const std::filesystem::path& settings)
 {
 	Validate(config);
-	std::wstring text = L"\r\n[Applications]\r\nVersion=3\r\nEnabled=" + std::wstring(config.enabled ? L"1" : L"0") +
-	                    L"\r\nRuleCount=" + std::to_wstring(config.rules.size()) + L"\r\n";
-	for (size_t i = 0; i < config.rules.size(); ++i)
+	std::wstring text = L"\r\n[Applications]\r\nVersion=3\r\nEnabled=" + std::wstring(config.Enabled ? L"1" : L"0") +
+	                    L"\r\nRuleCount=" + std::to_wstring(config.Rules.size()) + L"\r\n";
+	for (size_t i = 0; i < config.Rules.size(); ++i)
 	{
-		const auto& rule = config.rules[i];
-		text += L"\r\n[Application." + std::to_wstring(i) + L"]\r\nExecutable=" + rule.executable.wstring() +
+		const auto& rule = config.Rules[i];
+		text += L"\r\n[Application." + std::to_wstring(i) + L"]\r\nExecutable=" + rule.Executable.wstring() +
 		        L"\r\nAction=" +
-		        (rule.action == Action::Look      ? L"Look"
-		         : rule.action == Action::Bypass  ? L"Bypass"
-		         : rule.action == Action::Disable ? L"Disable"
+		        (rule.Action == Action::Look      ? L"Look"
+		         : rule.Action == Action::Bypass  ? L"Bypass"
+		         : rule.Action == Action::Disable ? L"Disable"
 		                                          : L"PauseHdr") +
-		        L"\r\nLook=" + ToPortablePath(settings, rule.look) + L"\r\n";
+		        L"\r\nLook=" + ToPortablePath(settings, rule.Look) + L"\r\n";
 	}
 	return text;
 }
 
 Decision ResolveForProgram(const Configuration& config, const std::filesystem::path& executable)
 {
-	if (config.enabled)
-		for (const auto& rule : config.rules)
-			if (SamePath(rule.executable, executable))
-				return { rule.action, rule.look, true };
+	if (config.Enabled)
+		for (const auto& rule : config.Rules)
+			if (SamePath(rule.Executable, executable))
+				return { rule.Action, rule.Look, true };
 	return { Action::Look, {}, false }; // Caller restores the look from before the application override.
 }
 
 bool Focus::UpdateFocusedProgram(const std::filesystem::path& executable)
 {
-	if (SamePath(current_, executable))
+	if (SamePath(_current, executable))
 		return false;
-	current_ = executable;
-	manual_ = false;
+	_current = executable;
+	_manual = false;
 	return true;
 }
 }

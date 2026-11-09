@@ -19,9 +19,9 @@ HRGN TooltipShape(HWND tip, int inset = 0)
 {
 	RECT bounds {};
 	GetWindowRect(tip, &bounds);
-	const int d = MulDiv(style::CornerRadius * 2, GetDpiForWindow(tip), 96);
+	const int diameter = MulDiv(style::CORNER_RADIUS * 2, GetDpiForWindow(tip), 96);
 	return CreateRoundRectRgn(inset, inset, bounds.right - bounds.left - inset, bounds.bottom - bounds.top - inset,
-	                          std::max(1, d - inset * 2), std::max(1, d - inset * 2));
+	                          std::max(1, diameter - inset * 2), std::max(1, diameter - inset * 2));
 }
 
 void TooltipBounds(HWND tip)
@@ -42,11 +42,11 @@ void TooltipBorder(HWND tip, HDC supplied = nullptr)
 	if (!dc)
 		return;
 	const int width = bounds.right - bounds.left, height = bounds.bottom - bounds.top;
-	const int d = MulDiv(style::CornerRadius * 2, GetDpiForWindow(tip), 96);
+	const int diameter = MulDiv(style::CORNER_RADIUS * 2, GetDpiForWindow(tip), 96);
 	// Remove the native bevel, including its corner remnants. The padding
 	// keeps text outside these small corner squares.
-	HBRUSH fill = CreateSolidBrush(Surface);
-	const int corner = d / 2 + 1;
+	HBRUSH fill = CreateSolidBrush(THEME_SURFACE);
+	const int corner = diameter / 2 + 1;
 	const RECT clear[] { { 0, 0, width, 2 },
 		                 { 0, height - 2, width, height },
 		                 { 0, 0, 2, height },
@@ -63,7 +63,7 @@ void TooltipBorder(HWND tip, HDC supplied = nullptr)
 	// the same rasterized contour, including the bottom/right pixels.
 	HRGN edge = TooltipShape(tip), inside = TooltipShape(tip, 1);
 	CombineRgn(edge, edge, inside, RGN_DIFF);
-	fill = CreateSolidBrush(Border);
+	fill = CreateSolidBrush(THEME_BORDER);
 	FillRgn(dc, edge, fill);
 	DeleteObject(fill);
 	DeleteObject(inside);
@@ -72,27 +72,27 @@ void TooltipBorder(HWND tip, HDC supplied = nullptr)
 		ReleaseDC(tip, dc);
 }
 
-LRESULT CALLBACK TooltipStyleProc(HWND tip, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK TooltipStyleProc(HWND tip, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
-	if (msg == WM_NCDESTROY)
+	if (message == WM_NCDESTROY)
 	{
 		auto font = reinterpret_cast<HFONT>(RemovePropW(tip, L"MonitorMageTipFont"));
-		const auto result = DefSubclassProc(tip, msg, wp, lp);
+		const auto result = DefSubclassProc(tip, message, w_param, l_param);
 		if (font)
 			DeleteObject(font);
 		return result;
 	}
-	if (msg == WM_NCPAINT)
+	if (message == WM_NCPAINT)
 	{
 		TooltipBorder(tip);
 		return 0;
 	}
-	const auto result = DefSubclassProc(tip, msg, wp, lp);
-	if (msg == WM_PAINT)
+	const auto result = DefSubclassProc(tip, message, w_param, l_param);
+	if (message == WM_PAINT)
 		TooltipBorder(tip);
-	if (msg == WM_WINDOWPOSCHANGED)
+	if (message == WM_WINDOWPOSCHANGED)
 		TooltipBounds(tip);
-	if ((msg == WM_SHOWWINDOW && wp) || msg == WM_THEMECHANGED)
+	if ((message == WM_SHOWWINDOW && w_param) || message == WM_THEMECHANGED)
 		StyleTooltip(tip);
 	return result;
 }
@@ -101,53 +101,53 @@ struct SliderClicks
 {
 	POINT point {};
 	DWORD time = 0;
-	bool candidate = false, tracking = false, suppressUp = false;
+	bool candidate = false, tracking = false, suppress_up = false;
 };
 
-LRESULT CALLBACK SliderResetProc(HWND slider, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR ref)
+LRESULT CALLBACK SliderResetProc(HWND slider, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR ref)
 {
 	auto& clicks = *reinterpret_cast<SliderClicks*>(ref);
-	if (msg == WM_NCDESTROY)
+	if (message == WM_NCDESTROY)
 	{
 		delete &clicks;
-		return DefSubclassProc(slider, msg, wp, lp);
+		return DefSubclassProc(slider, message, w_param, l_param);
 	}
-	const POINT point { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+	const POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 	const auto close = [&]()
 	{
 		return std::abs(point.x - clicks.point.x) <= GetSystemMetrics(SM_CXDOUBLECLK) / 2 &&
 		       std::abs(point.y - clicks.point.y) <= GetSystemMetrics(SM_CYDOUBLECLK) / 2;
 	};
-	bool doubleClick = msg == WM_LBUTTONDBLCLK;
-	if (msg == WM_LBUTTONDOWN)
+	bool double_click = message == WM_LBUTTONDBLCLK;
+	if (message == WM_LBUTTONDOWN)
 	{
-		doubleClick = clicks.candidate && GetTickCount() - clicks.time <= GetDoubleClickTime() && close();
+		double_click = clicks.candidate && GetTickCount() - clicks.time <= GetDoubleClickTime() && close();
 		clicks.candidate = false;
 		clicks.point = point;
 		clicks.time = GetTickCount();
-		clicks.tracking = !doubleClick;
+		clicks.tracking = !double_click;
 	}
-	if (msg == WM_MOUSEMOVE && clicks.tracking && !close())
+	if (message == WM_MOUSEMOVE && clicks.tracking && !close())
 		clicks.tracking = false;
-	if (msg == WM_LBUTTONUP)
+	if (message == WM_LBUTTONUP)
 	{
-		if (clicks.suppressUp)
+		if (clicks.suppress_up)
 		{
-			clicks.suppressUp = false;
+			clicks.suppress_up = false;
 			return 0;
 		}
 		clicks.candidate = clicks.tracking;
 		clicks.tracking = false;
 		clicks.point = point;
 	}
-	if (msg == WM_CANCELMODE || msg == WM_KILLFOCUS)
+	if (message == WM_CANCELMODE || message == WM_KILLFOCUS)
 		clicks.candidate = clicks.tracking = false;
-	if (msg == WM_RBUTTONDOWN)
+	if (message == WM_RBUTTONDOWN)
 		return 0;
-	if (doubleClick || msg == WM_RBUTTONUP || msg == WM_CONTEXTMENU)
+	if (double_click || message == WM_RBUTTONUP || message == WM_CONTEXTMENU)
 	{
 		clicks.candidate = clicks.tracking = false;
-		clicks.suppressUp = doubleClick;
+		clicks.suppress_up = double_click;
 		if (IsWindowEnabled(slider))
 			if (const auto marker = reinterpret_cast<INT_PTR>(GetPropW(slider, L"LutSliderDefault")))
 			{
@@ -156,7 +156,7 @@ LRESULT CALLBACK SliderResetProc(HWND slider, UINT msg, WPARAM wp, LPARAM lp, UI
 			}
 		return 0;
 	}
-	return DefSubclassProc(slider, msg, wp, lp);
+	return DefSubclassProc(slider, message, w_param, l_param);
 }
 }
 
@@ -175,7 +175,7 @@ void StyleTooltip(HWND tip)
 	LOGFONTW desired {}, current {};
 	GetObjectW(base, sizeof(desired), &desired);
 	DeleteObject(base);
-	desired.lfHeight = -MulDiv(style::SecondaryTextSize, dpi, 96);
+	desired.lfHeight = -MulDiv(style::SECONDARY_TEXT_SIZE, dpi, 96);
 	if (old)
 		GetObjectW(old, sizeof(current), &current);
 	if (!old || desired.lfHeight != current.lfHeight || wcscmp(desired.lfFaceName, current.lfFaceName))
@@ -194,8 +194,8 @@ void StyleTooltip(HWND tip)
 	const int horizontal = MulDiv(6, dpi, 96), vertical = MulDiv(3, dpi, 96);
 	RECT margin { horizontal, vertical, horizontal, vertical };
 	SendMessageW(tip, TTM_SETMARGIN, 0, reinterpret_cast<LPARAM>(&margin));
-	SendMessageW(tip, TTM_SETTIPBKCOLOR, Surface, 0);
-	SendMessageW(tip, TTM_SETTIPTEXTCOLOR, Text, 0);
+	SendMessageW(tip, TTM_SETTIPBKCOLOR, THEME_SURFACE, 0);
+	SendMessageW(tip, TTM_SETTIPTEXTCOLOR, THEME_TEXT, 0);
 }
 
 bool TooltipEdgeSelfTest(HWND tip)
@@ -232,7 +232,7 @@ bool TooltipEdgeSelfTest(HWND tip)
 			++left;
 		while (right >= left && !PtInRegion(shape, right, y))
 			--right;
-		if (left <= right && (GetPixel(dc, left, y) != Border || GetPixel(dc, right, y) != Border))
+		if (left <= right && (GetPixel(dc, left, y) != THEME_BORDER || GetPixel(dc, right, y) != THEME_BORDER))
 			ok = false;
 	}
 	for (int x = 0; x < w; ++x)
@@ -242,7 +242,7 @@ bool TooltipEdgeSelfTest(HWND tip)
 			++top;
 		while (last >= top && !PtInRegion(shape, x, last))
 			--last;
-		if (top <= last && (GetPixel(dc, x, top) != Border || GetPixel(dc, x, last) != Border))
+		if (top <= last && (GetPixel(dc, x, top) != THEME_BORDER || GetPixel(dc, x, last) != THEME_BORDER))
 			ok = false;
 	}
 	DeleteObject(shape);
@@ -261,7 +261,7 @@ struct Brush
 	~Brush() { DeleteObject(value); }
 };
 
-Brush bg(Background), surface(Surface);
+Brush bg(THEME_BACKGROUND), surface(THEME_SURFACE);
 std::wstring family = L"Bahnschrift";
 int ScaleForDpi(HWND window, int n)
 {
@@ -272,15 +272,15 @@ void FillRoundedRect(HDC dc, RECT rect, COLORREF fill, COLORREF border, int radi
 {
 	HBRUSH brush = CreateSolidBrush(fill);
 	HPEN pen = CreatePen(PS_SOLID, 1, border);
-	const auto oldBrush = SelectObject(dc, brush), oldPen = SelectObject(dc, pen);
+	const auto old_brush = SelectObject(dc, brush), old_pen = SelectObject(dc, pen);
 	RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, radius * 2, radius * 2);
-	SelectObject(dc, oldBrush);
-	SelectObject(dc, oldPen);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(brush);
 	DeleteObject(pen);
 }
 
-void RoundBounds(HWND window, int radius = style::CornerRadius)
+void RoundBounds(HWND window, int radius = style::CORNER_RADIUS)
 {
 	RECT rect {};
 	GetWindowRect(window, &rect);
@@ -300,12 +300,12 @@ void RoundBounds(HWND window, int radius = style::CornerRadius)
 
 void DrawFocusOutline(HWND window, HDC dc, RECT rect)
 {
-	HPEN pen =
-		CreatePen(PS_SOLID, 1, (GetFocus() == window || GetPropW(window, L"LutThemeHover")) ? FocusBorder : Border);
-	const auto oldPen = SelectObject(dc, pen), oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+	HPEN pen = CreatePen(
+		PS_SOLID, 1, (GetFocus() == window || GetPropW(window, L"LutThemeHover")) ? THEME_FOCUS_BORDER : THEME_BORDER);
+	const auto old_pen = SelectObject(dc, pen), old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
 	RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, ScaleForDpi(window, 8), ScaleForDpi(window, 8));
-	SelectObject(dc, oldBrush);
-	SelectObject(dc, oldPen);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(pen);
 }
 
@@ -315,24 +315,29 @@ void DrawGear(HDC dc, int x, int y, int radius, COLORREF colour, int stroke)
 	for (int i = 0; i < 32; ++i)
 	{
 		const double angle = i * 6.283185307179586 / 32;
-		const double r = (i % 4 < 2 ? radius : radius * .77);
-		points[i] = { x + static_cast<LONG>(std::lround(std::cos(angle) * r)),
-			          y + static_cast<LONG>(std::lround(std::sin(angle) * r)) };
+		const double spoke_radius = (i % 4 < 2 ? radius : radius * .77);
+		points[i] = { x + static_cast<LONG>(std::lround(std::cos(angle) * spoke_radius)),
+			          y + static_cast<LONG>(std::lround(std::sin(angle) * spoke_radius)) };
 	}
 	HPEN pen = CreatePen(PS_SOLID, stroke, colour);
-	auto op = SelectObject(dc, pen), ob = SelectObject(dc, GetStockObject(NULL_BRUSH));
+	auto old_pen = SelectObject(dc, pen), old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
 	Polygon(dc, points, 32);
 	Ellipse(dc, x - radius / 3, y - radius / 3, x + radius / 3 + 1, y + radius / 3 + 1);
-	SelectObject(dc, ob);
-	SelectObject(dc, op);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(pen);
+}
+
+bool IsToolbarGlyph(Glyph glyph)
+{
+	return glyph >= Glyph::Save && glyph <= Glyph::Revert;
 }
 
 // Keep the one-pixel button edge out of the icon's supersampling pass.
 // The fill and border share one native raster contour, like popup edges.
-void GlyphFrame(HWND window, HDC dc, RECT rect, int kind, bool hover, bool focus, COLORREF base, bool menu)
+void GlyphFrame(HWND window, HDC dc, RECT rect, Glyph glyph, bool hover, bool focus, COLORREF base, bool menu)
 {
-	const bool toolbar = !menu && kind >= 4 && kind <= 8;
+	const bool toolbar = !menu && IsToolbarGlyph(glyph);
 	if (!toolbar && !hover && !focus)
 		return;
 	const int diameter = ScaleForDpi(window, 8);
@@ -344,8 +349,8 @@ void GlyphFrame(HWND window, HDC dc, RECT rect, int kind, bool hover, bool focus
 		HBRUSH fill = CreateSolidBrush(base);
 		FillRgn(dc, outside, fill);
 		DeleteObject(fill);
-		const COLORREF edgeColor = hover || focus ? FocusBorder : Border;
-		HBRUSH edge = CreateSolidBrush(edgeColor);
+		const COLORREF edge_color = hover || focus ? THEME_FOCUS_BORDER : THEME_BORDER;
+		HBRUSH edge = CreateSolidBrush(edge_color);
 		FrameRgn(dc, shape, edge, 1, 1);
 		DeleteObject(edge);
 		// Approved middle variant: keep the rounded corners bright, then
@@ -353,26 +358,26 @@ void GlyphFrame(HWND window, HDC dc, RECT rect, int kind, bool hover, bool focus
 		// This runs only when generating a cached icon/button image.
 		const int radius = diameter / 2;
 		const double transition = std::max(1.0, ScaleForDpi(window, 16) / 3.0);
-		const auto colorAt = [&](int distance)
+		const auto color_at = [&](int distance)
 		{
 			double t = std::clamp(distance / transition, 0.0, 1.0);
 			t = t * t * (3 - 2 * t);
 			const double gain = 1.0 - .235 * t;
-			return RGB(static_cast<int>(std::lround(GetRValue(edgeColor) * gain)),
-			           static_cast<int>(std::lround(GetGValue(edgeColor) * gain)),
-			           static_cast<int>(std::lround(GetBValue(edgeColor) * gain)));
+			return RGB(static_cast<int>(std::lround(GetRValue(edge_color) * gain)),
+			           static_cast<int>(std::lround(GetGValue(edge_color) * gain)),
+			           static_cast<int>(std::lround(GetBValue(edge_color) * gain)));
 		};
 		const int left = rect.left + radius, right = rect.right - radius - 2;
 		for (int x = left; x <= right; ++x)
 		{
-			const auto color = colorAt(std::min(x - left, right - x));
+			const auto color = color_at(std::min(x - left, right - x));
 			SetPixelV(dc, x, rect.top, color);
 			SetPixelV(dc, x, rect.bottom - 2, color);
 		}
 		const int top = rect.top + radius, bottom = rect.bottom - radius - 2;
 		for (int y = top; y <= bottom; ++y)
 		{
-			const auto color = colorAt(std::min(y - top, bottom - y));
+			const auto color = color_at(std::min(y - top, bottom - y));
 			SetPixelV(dc, rect.left, y, color);
 			SetPixelV(dc, rect.right - 2, y, color);
 		}
@@ -383,22 +388,23 @@ void GlyphFrame(HWND window, HDC dc, RECT rect, int kind, bool hover, bool focus
 		DeleteObject(shape);
 }
 
-void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, bool /*hover*/, bool /*focus*/,
+void GlyphRaster(HWND window, HDC dc, RECT rect, Glyph glyph, bool on, bool enabled, bool /*hover*/, bool /*focus*/,
                  COLORREF base, bool menu = false)
 {
-	const bool toolbar = !menu && kind >= 4 && kind <= 8;
-	HBRUSH back = CreateSolidBrush(toolbar ? Surface : base);
+	const bool toolbar = !menu && IsToolbarGlyph(glyph);
+	HBRUSH back = CreateSolidBrush(toolbar ? THEME_SURFACE : base);
 	FillRect(dc, &rect, back);
 	DeleteObject(back);
-	const COLORREF ink = menu        ? (kind == 16                             ? CloseRed
-	                                    : kind == 1                            ? (on ? RGB(255, 207, 69) : Muted)
-	                                    : kind == 2 || kind == 3 || kind == 19 ? (on ? Accent : Muted)
-	                                    : enabled                              ? Text
-	                                                                           : Border)
-	                     : toolbar   ? (enabled ? Text : Border)
-	                     : kind == 1 ? (on ? RGB(255, 207, 69) : Muted)
-	                     : on        ? Accent
-	                                 : Muted;
+	const COLORREF ink = menu                  ? (glyph == Glyph::Close ? THEME_CLOSE_RED
+	                                              : glyph == Glyph::Sun ? (on ? RGB(255, 207, 69) : THEME_MUTED)
+	                                              : glyph == Glyph::Power || glyph == Glyph::Diamond || glyph == Glyph::ColorFilter
+	                                                  ? (on ? THEME_ACCENT : THEME_MUTED)
+	                                              : enabled ? THEME_TEXT
+	                                                        : THEME_BORDER)
+	                     : toolbar             ? (enabled ? THEME_TEXT : THEME_BORDER)
+	                     : glyph == Glyph::Sun ? (on ? RGB(255, 207, 69) : THEME_MUTED)
+	                     : on                  ? THEME_ACCENT
+	                                           : THEME_MUTED;
 	// Small line icons share the caption controls' one-DIP stroke weight.
 	// Keep their button bounds unchanged so pointer and keyboard targets stay roomy.
 	const auto unit = [&](int value)
@@ -406,36 +412,36 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 		return MulDiv(ScaleForDpi(window, value), 3, 4);
 	};
 	const int x = (rect.left + rect.right) / 2, y = (rect.top + rect.bottom) / 2, r = unit(8);
-	HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 1), !enabled && !on ? Border : ink);
-	auto op = SelectObject(dc, pen), ob = SelectObject(dc, GetStockObject(NULL_BRUSH));
-	if (kind == 1)
+	HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 1), !enabled && !on ? THEME_BORDER : ink);
+	auto old_pen = SelectObject(dc, pen), old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+	if (glyph == Glyph::Sun)
 	{
 		Ellipse(dc, x - r / 2, y - r / 2, x + r / 2 + 1, y + r / 2 + 1);
 		for (int i = 0; i < 8; ++i)
 		{
-			const double a = i * 6.283185307179586 / 8;
-			MoveToEx(dc, x + static_cast<int>(std::lround(std::cos(a) * r * .7)),
-			         y + static_cast<int>(std::lround(std::sin(a) * r * .7)), nullptr);
-			LineTo(dc, x + static_cast<int>(std::lround(std::cos(a) * r)),
-			       y + static_cast<int>(std::lround(std::sin(a) * r)));
+			const double angle = i * 6.283185307179586 / 8;
+			MoveToEx(dc, x + static_cast<int>(std::lround(std::cos(angle) * r * .7)),
+			         y + static_cast<int>(std::lround(std::sin(angle) * r * .7)), nullptr);
+			LineTo(dc, x + static_cast<int>(std::lround(std::cos(angle) * r)),
+			       y + static_cast<int>(std::lround(std::sin(angle) * r)));
 		}
 	}
-	else if (kind == 2)
+	else if (glyph == Glyph::Power)
 	{
 		Arc(dc, x - r, y - r, x + r, y + r, x - r, y - r, x + r, y - r);
 		MoveToEx(dc, x, y - r, nullptr);
 		LineTo(dc, x, y - unit(1));
 	}
-	else if (kind == 3)
+	else if (glyph == Glyph::Diamond)
 	{
 		POINT points[] { { x, y - r }, { x + r, y }, { x, y + r }, { x - r, y } };
 		Polygon(dc, points, 4);
 	}
-	else if (kind == 9)
+	else if (glyph == Glyph::Settings)
 	{
 		DrawGear(dc, x, y, r, ink, ScaleForDpi(window, 1));
 	}
-	else if (kind == 10)
+	else if (glyph == Glyph::Info)
 	{
 		Ellipse(dc, x - r, y - r, x + r + 1, y + r + 1);
 		MoveToEx(dc, x, y - unit(1), nullptr);
@@ -444,28 +450,28 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 		// Draw the dot in logical units, with a visible gap above the stem.
 		const int diameter = std::max(2, ScaleForDpi(window, 1)), left = x - diameter / 2,
 				  top = y - unit(4) - diameter / 2;
-		HBRUSH dot = CreateSolidBrush(!enabled && !on ? Border : ink);
-		const auto priorBrush = SelectObject(dc, dot), priorPen = SelectObject(dc, GetStockObject(NULL_PEN));
+		HBRUSH dot = CreateSolidBrush(!enabled && !on ? THEME_BORDER : ink);
+		const auto prior_brush = SelectObject(dc, dot), prior_pen = SelectObject(dc, GetStockObject(NULL_PEN));
 		Ellipse(dc, left, top, left + diameter, top + diameter);
-		SelectObject(dc, priorPen);
-		SelectObject(dc, priorBrush);
+		SelectObject(dc, prior_pen);
+		SelectObject(dc, prior_brush);
 		DeleteObject(dot);
 	}
-	else if (kind >= 11)
+	else if (glyph >= Glyph::Editor)
 	{
-		const auto line = [&](int a, int b, int c, int d)
+		const auto line = [&](int x1, int y1, int x2, int y2)
 		{
-			MoveToEx(dc, x + unit(a), y + unit(b), nullptr);
-			LineTo(dc, x + unit(c), y + unit(d));
+			MoveToEx(dc, x + unit(x1), y + unit(y1), nullptr);
+			LineTo(dc, x + unit(x2), y + unit(y2));
 		};
-		if (kind == 11)
+		if (glyph == Glyph::Editor)
 		{
 			Rectangle(dc, x - r, y - r, x + r + 1, y + unit(4));
 			line(0, 4, 0, 8);
 			line(-4, 8, 4, 8);
 			line(-5, 1, 5, -4);
 		}
-		else if (kind == 12)
+		else if (glyph == Glyph::Move)
 		{
 			line(-8, 0, 8, 0);
 			line(0, -8, 0, 8);
@@ -478,7 +484,7 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 			line(0, 8, -4, 4);
 			line(0, 8, 4, 4);
 		}
-		else if (kind == 13)
+		else if (glyph == Glyph::Resize)
 		{
 			line(-7, 7, 7, -7);
 			line(-7, 1, -7, 7);
@@ -486,26 +492,26 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 			line(1, -7, 7, -7);
 			line(7, -7, 7, -1);
 		}
-		else if (kind == 14)
+		else if (glyph == Glyph::Minimize)
 			line(-7, 4, 7, 4);
-		else if (kind == 15)
+		else if (glyph == Glyph::Maximize)
 			Rectangle(dc, x - r, y - r, x + r + 1, y + r + 1);
-		else if (kind == 16)
+		else if (glyph == Glyph::Close)
 		{
 			line(-6, -6, 6, 6);
 			line(-6, 6, 6, -6);
 		}
-		else if (kind == 17)
+		else if (glyph == Glyph::Bypass)
 		{
 			Ellipse(dc, x - r, y - r, x + r + 1, y + r + 1);
 			line(-6, 6, 6, -6);
 		}
-		else if (kind == 18)
+		else if (glyph == Glyph::Restore)
 		{
 			Rectangle(dc, x - unit(4), y - r, x + r + 1, y + unit(4));
 			Rectangle(dc, x - r, y - unit(4), x + unit(4), y + r + 1);
 		}
-		else if (kind == 19)
+		else if (glyph == Glyph::ColorFilter)
 		{
 			POINT filter[] { { x - r, y - r },       { x + r, y - r },       { x + unit(2), y + unit(1) },
 				             { x + unit(2), y + r }, { x - unit(2), y + r }, { x - unit(2), y + unit(1) },
@@ -515,29 +521,29 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 	}
 	else
 	{
-		const auto line = [&](int a, int b, int c, int d)
+		const auto line = [&](int x1, int y1, int x2, int y2)
 		{
-			MoveToEx(dc, x + unit(a), y + unit(b), nullptr);
-			LineTo(dc, x + unit(c), y + unit(d));
+			MoveToEx(dc, x + unit(x1), y + unit(y1), nullptr);
+			LineTo(dc, x + unit(x2), y + unit(y2));
 		};
-		if (kind == 4 || kind == 5)
+		if (glyph == Glyph::Save || glyph == Glyph::SaveAs)
 		{
 			POINT edge[] { { x - r, y - r }, { x + unit(5), y - r }, { x + r, y - unit(5) },
 				           { x + r, y + r }, { x - r, y + r },       { x - r, y - r } };
 			Polyline(dc, edge, 6);
 			Rectangle(dc, x - unit(4), y - r, x + unit(4), y - unit(1));
 			Rectangle(dc, x - unit(4), y + unit(3), x + unit(4), y + r);
-			if (kind == 5)
+			if (glyph == Glyph::SaveAs)
 			{
 				RECT badge { x + unit(2), y + unit(1), x + unit(11), y + unit(11) };
-				HBRUSH brush = CreateSolidBrush(Surface);
+				HBRUSH brush = CreateSolidBrush(THEME_SURFACE);
 				FillRect(dc, &badge, brush);
 				DeleteObject(brush);
 				line(3, 6, 10, 6);
 				line(6, 3, 6, 10);
 			}
 		}
-		else if (kind == 6)
+		else if (glyph == Glyph::Export)
 		{
 			line(-7, -3, -7, 8);
 			line(-7, 8, 5, 8);
@@ -546,7 +552,7 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 			line(1, -8, 8, -8);
 			line(8, -8, 8, -1);
 		}
-		else if (kind == 7)
+		else if (glyph == Glyph::Reset)
 		{
 			POINT arc[25] {};
 			for (int i = 0; i < 25; ++i)
@@ -571,8 +577,8 @@ void GlyphRaster(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled
 			line(-8, 0, -3, 5);
 		}
 	}
-	SelectObject(dc, ob);
-	SelectObject(dc, op);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(pen);
 }
 
@@ -580,7 +586,8 @@ struct GlyphCache
 {
 	struct Entry
 	{
-		int width, height, kind;
+		int width, height;
+		Glyph glyph;
 		UINT dpi;
 		unsigned state;
 		COLORREF base;
@@ -592,13 +599,13 @@ struct GlyphCache
 		for (const auto& entry : entries)
 			DeleteObject(entry.bitmap);
 	}
-} glyphCache;
-void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, bool hover, bool focus, COLORREF base,
-               bool menu = false)
+} glyph_cache;
+void DrawGlyph(HWND window, HDC dc, RECT rect, Glyph glyph, bool on, bool enabled, bool hover, bool focus,
+               COLORREF base, bool menu = false)
 {
 	// A normal symbol needs no cached padding. Keep full-size images only
 	// when they include a toolbar frame or hover/focus outline.
-	if (!hover && !focus && (menu || kind < 4 || kind > 8))
+	if (!hover && !focus && (menu || !IsToolbarGlyph(glyph)))
 	{
 		HBRUSH background = CreateSolidBrush(base);
 		FillRect(dc, &rect, background);
@@ -614,8 +621,8 @@ void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, 
 	const UINT dpi = GetDpiForWindow(window);
 	const unsigned state = (on ? 1 : 0) | (enabled ? 2 : 0) | (hover ? 4 : 0) | (focus ? 8 : 0) | (menu ? 16 : 0);
 	HBITMAP image = nullptr;
-	for (const auto& entry : glyphCache.entries)
-		if (entry.width == w && entry.height == h && entry.kind == kind && entry.dpi == dpi && entry.state == state &&
+	for (const auto& entry : glyph_cache.entries)
+		if (entry.width == w && entry.height == h && entry.glyph == glyph && entry.dpi == dpi && entry.state == state &&
 		    entry.base == base)
 		{
 			image = entry.bitmap;
@@ -624,8 +631,8 @@ void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, 
 	HDC memory = CreateCompatibleDC(dc);
 	if (!memory)
 	{
-		GlyphRaster(window, dc, rect, kind, on, enabled, hover, focus, base, menu);
-		GlyphFrame(window, dc, rect, kind, hover, focus, base, menu);
+		GlyphRaster(window, dc, rect, glyph, on, enabled, hover, focus, base, menu);
+		GlyphFrame(window, dc, rect, glyph, hover, focus, base, menu);
 		return;
 	}
 	if (!image)
@@ -640,7 +647,7 @@ void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, 
 			SetMapMode(memory, MM_ANISOTROPIC);
 			SetWindowExtEx(memory, w, h, nullptr);
 			SetViewportExtEx(memory, w * 4, h * 4, nullptr);
-			GlyphRaster(window, memory, { 0, 0, w, h }, kind, on, enabled, hover, focus, base, menu);
+			GlyphRaster(window, memory, { 0, 0, w, h }, glyph, on, enabled, hover, focus, base, menu);
 			RestoreDC(memory, saved);
 			HDC reduced = CreateCompatibleDC(dc);
 			if (reduced)
@@ -650,7 +657,7 @@ void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, 
 				SetBrushOrgEx(reduced, 0, 0, nullptr);
 				if (StretchBlt(reduced, 0, 0, w, h, memory, 0, 0, w * 4, h * 4, SRCCOPY))
 				{
-					GlyphFrame(window, reduced, { 0, 0, w, h }, kind, hover, focus, base, menu);
+					GlyphFrame(window, reduced, { 0, 0, w, h }, glyph, hover, focus, base, menu);
 					image = low;
 				}
 				SelectObject(reduced, old);
@@ -663,12 +670,12 @@ void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, 
 		if (image)
 		{
 			// Bound retained GDI/memory use even after many DPI/state changes.
-			if (glyphCache.entries.size() == 32)
+			if (glyph_cache.entries.size() == 32)
 			{
-				DeleteObject(glyphCache.entries.front().bitmap);
-				glyphCache.entries.erase(glyphCache.entries.begin());
+				DeleteObject(glyph_cache.entries.front().bitmap);
+				glyph_cache.entries.erase(glyph_cache.entries.begin());
 			}
-			glyphCache.entries.push_back({ w, h, kind, dpi, state, base, image });
+			glyph_cache.entries.push_back({ w, h, glyph, dpi, state, base, image });
 		}
 		else if (low)
 			DeleteObject(low);
@@ -681,8 +688,8 @@ void DrawGlyph(HWND window, HDC dc, RECT rect, int kind, bool on, bool enabled, 
 	}
 	else
 	{
-		GlyphRaster(window, dc, rect, kind, on, enabled, hover, focus, base, menu);
-		GlyphFrame(window, dc, rect, kind, hover, focus, base, menu);
+		GlyphRaster(window, dc, rect, glyph, on, enabled, hover, focus, base, menu);
+		GlyphFrame(window, dc, rect, glyph, hover, focus, base, menu);
 	}
 	DeleteDC(memory);
 }
@@ -822,8 +829,8 @@ void ShowCaptionMenu(HWND window, POINT anchor)
 		PostMessageW(window, WM_SYSCOMMAND, command, 0);
 }
 
-constexpr UINT_PTR GeometryTimer = 0x434d4752;
-constexpr UINT_PTR CaptionTipTimer = 0x43546970;
+constexpr UINT_PTR TIMER_GEOMETRY = 0x434d4752;
+constexpr UINT_PTR TIMER_CAPTION_TIP = 0x43546970;
 HWND CaptionTip(HWND window)
 {
 	return reinterpret_cast<HWND>(GetPropW(window, L"LutCaptionTooltip"));
@@ -831,7 +838,7 @@ HWND CaptionTip(HWND window)
 
 void HideCaptionTip(HWND window)
 {
-	KillTimer(window, CaptionTipTimer);
+	KillTimer(window, TIMER_CAPTION_TIP);
 	RemovePropW(window, L"LutCaptionTipHit");
 	if (auto tip = CaptionTip(window))
 	{
@@ -871,12 +878,12 @@ void TrackCaptionTip(HWND window, int hit)
 		SendMessageW(tip, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&item));
 	}
 	SetPropW(window, L"LutCaptionTipHit", reinterpret_cast<HANDLE>(static_cast<INT_PTR>(hit)));
-	SetTimer(window, CaptionTipTimer, GetDoubleClickTime(), nullptr);
+	SetTimer(window, TIMER_CAPTION_TIP, GetDoubleClickTime(), nullptr);
 }
 
 void ShowCaptionTip(HWND window)
 {
-	KillTimer(window, CaptionTipTimer);
+	KillTimer(window, TIMER_CAPTION_TIP);
 	const auto hit = static_cast<int>(reinterpret_cast<INT_PTR>(GetPropW(window, L"LutCaptionTipHit")));
 	const auto text = CaptionTooltip(window, hit);
 	auto tip = CaptionTip(window);
@@ -909,12 +916,12 @@ void PopupBorder(HWND list, HDC supplied = nullptr)
 	if (GetWindowRgn(list, edge) == ERROR)
 	{
 		DeleteObject(edge);
-		const int diameter = ScaleForDpi(list, style::CornerRadius * 2);
+		const int diameter = ScaleForDpi(list, style::CORNER_RADIUS * 2);
 		edge = CreateRoundRectRgn(0, 0, rect.right + 1, rect.bottom + 1, diameter, diameter);
 	}
 	if (edge)
 	{
-		HBRUSH ink = CreateSolidBrush(FocusBorder);
+		HBRUSH ink = CreateSolidBrush(THEME_FOCUS_BORDER);
 		FrameRgn(dc, edge, ink, 1, 1);
 		DeleteObject(ink);
 		DeleteObject(edge);
@@ -923,26 +930,26 @@ void PopupBorder(HWND list, HDC supplied = nullptr)
 		ReleaseDC(list, dc);
 }
 
-LRESULT CALLBACK PopupListProc(HWND list, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK PopupListProc(HWND list, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
-	if (msg == WM_NCDESTROY)
+	if (message == WM_NCDESTROY)
 	{
 		RemoveWindowSubclass(list, PopupListProc, 4);
-		return DefSubclassProc(list, msg, wp, lp);
+		return DefSubclassProc(list, message, w_param, l_param);
 	}
-	if (msg == WM_NCPAINT)
+	if (message == WM_NCPAINT)
 	{
-		const auto result = DefSubclassProc(list, msg, wp, lp);
+		const auto result = DefSubclassProc(list, message, w_param, l_param);
 		PopupBorder(list);
 		return result;
 	}
-	const bool trackSelection =
-		msg == WM_MOUSEMOVE || msg == WM_KEYDOWN || msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP || msg == WM_VSCROLL;
-	const auto selection = trackSelection ? DefSubclassProc(list, LB_GETCURSEL, 0, 0) : LB_ERR;
+	const bool track_selection = message == WM_MOUSEMOVE || message == WM_KEYDOWN || message == WM_LBUTTONDOWN ||
+	                             message == WM_LBUTTONUP || message == WM_VSCROLL;
+	const auto selection = track_selection ? DefSubclassProc(list, LB_GETCURSEL, 0, 0) : LB_ERR;
 	int saved = 0;
-	if (msg == WM_PRINT)
+	if (message == WM_PRINT)
 	{
-		HDC dc = reinterpret_cast<HDC>(wp);
+		HDC dc = reinterpret_cast<HDC>(w_param);
 		saved = SaveDC(dc);
 		HRGN shape = CreateRectRgn(0, 0, 0, 0);
 		if (GetWindowRgn(list, shape) != ERROR)
@@ -954,18 +961,18 @@ LRESULT CALLBACK PopupListProc(HWND list, UINT msg, WPARAM wp, LPARAM lp, UINT_P
 		}
 		DeleteObject(shape);
 	}
-	const auto result = DefSubclassProc(list, msg, wp, lp);
-	if (msg == WM_WINDOWPOSCHANGED || msg == WM_SHOWWINDOW || msg == WM_DPICHANGED)
+	const auto result = DefSubclassProc(list, message, w_param, l_param);
+	if (message == WM_WINDOWPOSCHANGED || message == WM_SHOWWINDOW || message == WM_DPICHANGED)
 		RoundBounds(list);
 	// Native item drawing reaches into the rounded corners. Restore the
 	// complete border after painting or changing the selected row.
-	if (msg == WM_PAINT || msg == WM_NCACTIVATE || msg == LB_SETCURSEL ||
-	    (trackSelection && selection != DefSubclassProc(list, LB_GETCURSEL, 0, 0)))
+	if (message == WM_PAINT || message == WM_NCACTIVATE || message == LB_SETCURSEL ||
+	    (track_selection && selection != DefSubclassProc(list, LB_GETCURSEL, 0, 0)))
 		PopupBorder(list);
-	if (msg == WM_PRINT && (lp & PRF_NONCLIENT))
-		PopupBorder(list, reinterpret_cast<HDC>(wp));
+	if (message == WM_PRINT && (l_param & PRF_NONCLIENT))
+		PopupBorder(list, reinterpret_cast<HDC>(w_param));
 	if (saved)
-		RestoreDC(reinterpret_cast<HDC>(wp), saved);
+		RestoreDC(reinterpret_cast<HDC>(w_param), saved);
 	return result;
 }
 
@@ -973,9 +980,9 @@ LRESULT CALLBACK PopupListProc(HWND list, UINT msg, WPARAM wp, LPARAM lp, UINT_P
 // its frame. Removing the native square frame avoids a second border.
 bool SingleLineEdit(HWND window)
 {
-	wchar_t cls[32] {};
-	GetClassNameW(window, cls, 32);
-	return wcscmp(cls, L"Edit") == 0 && !(GetWindowLongPtrW(window, GWL_STYLE) & ES_MULTILINE);
+	wchar_t class_name[32] {};
+	GetClassNameW(window, class_name, 32);
+	return wcscmp(class_name, L"Edit") == 0 && !(GetWindowLongPtrW(window, GWL_STYLE) & ES_MULTILINE);
 }
 
 RECT InputBounds(HWND window)
@@ -1011,22 +1018,23 @@ void PaintInputFrame(HWND window)
 	ReleaseDC(window, dc);
 }
 
-LRESULT CALLBACK InputControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK InputControlProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
-	if (msg == WM_NCDESTROY)
+	if (message == WM_NCDESTROY)
 	{
 		RemovePropW(window, L"LutThemeHover");
 		RemoveWindowSubclass(window, InputControlProc, 5);
-		return DefSubclassProc(window, msg, wp, lp);
+		return DefSubclassProc(window, message, w_param, l_param);
 	}
 	const bool centered = SingleLineEdit(window);
-	bool hoverChanged = false;
-	if (centered && msg == WM_NCHITTEST)
+	bool hover_changed = false;
+	if (centered && message == WM_NCHITTEST)
 		return HTCLIENT;
-	if (centered && msg == WM_NCCALCSIZE)
+	if (centered && message == WM_NCCALCSIZE)
 	{
-		const auto result = DefSubclassProc(window, msg, wp, lp);
-		auto rect = wp ? &reinterpret_cast<NCCALCSIZE_PARAMS*>(lp)->rgrc[0] : reinterpret_cast<RECT*>(lp);
+		const auto result = DefSubclassProc(window, message, w_param, l_param);
+		auto rect =
+			w_param ? &reinterpret_cast<NCCALCSIZE_PARAMS*>(l_param)->rgrc[0] : reinterpret_cast<RECT*>(l_param);
 		HDC dc = GetDC(window);
 		if (!dc)
 			return result;
@@ -1040,15 +1048,15 @@ LRESULT CALLBACK InputControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, U
 		rect->bottom -= spare - spare / 2;
 		return result;
 	}
-	if (centered && msg == WM_NCPAINT)
+	if (centered && message == WM_NCPAINT)
 	{
 		PaintInputFrame(window);
 		return 0;
 	}
-	if (centered && msg == WM_PRINT)
+	if (centered && message == WM_PRINT)
 	{
 		const auto bounds = InputBounds(window);
-		HDC dc = reinterpret_cast<HDC>(wp);
+		HDC dc = reinterpret_cast<HDC>(w_param);
 		const int saved = SaveDC(dc);
 		IntersectClipRect(dc, 0, 0, bounds.right, bounds.bottom);
 		FillRect(dc, &bounds, surface.value);
@@ -1059,48 +1067,49 @@ LRESULT CALLBACK InputControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, U
 		IntersectClipRect(dc, origin.x, origin.y, origin.x + client.right, origin.y + client.bottom);
 		OffsetViewportOrgEx(dc, origin.x, origin.y, nullptr);
 		SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(window, WM_GETFONT, 0, 0)));
-		DefSubclassProc(window, WM_PRINTCLIENT, wp, PRF_CLIENT);
+		DefSubclassProc(window, WM_PRINTCLIENT, w_param, PRF_CLIENT);
 		RestoreDC(dc, content);
 		DrawFocusOutline(window, dc, bounds);
 		RestoreDC(dc, saved);
 		return 0;
 	}
-	if (msg == WM_MOUSEMOVE && !GetPropW(window, L"LutThemeHover"))
+	if (message == WM_MOUSEMOVE && !GetPropW(window, L"LutThemeHover"))
 	{
-		hoverChanged = true;
+		hover_changed = true;
 		SetPropW(window, L"LutThemeHover", reinterpret_cast<HANDLE>(1));
 		TRACKMOUSEEVENT track { sizeof(track), TME_LEAVE, window, 0 };
 		TrackMouseEvent(&track);
 		InvalidateRect(window, nullptr, FALSE);
 	}
-	if (msg == WM_MOUSELEAVE)
+	if (message == WM_MOUSELEAVE)
 	{
-		hoverChanged = true;
+		hover_changed = true;
 		RemovePropW(window, L"LutThemeHover");
 		InvalidateRect(window, nullptr, FALSE);
 	}
-	const auto result = DefSubclassProc(window, msg, wp, lp);
-	if (centered && msg == WM_SETFONT)
+	const auto result = DefSubclassProc(window, message, w_param, l_param);
+	if (centered && message == WM_SETFONT)
 		SetWindowPos(window, nullptr, 0, 0, 0, 0,
 		             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-	if (msg == WM_SIZE || msg == WM_DPICHANGED)
+	if (message == WM_SIZE || message == WM_DPICHANGED)
 		RoundBounds(window);
-	if (msg == WM_SETFOCUS || msg == WM_KILLFOCUS || msg == WM_ENABLE)
+	if (message == WM_SETFOCUS || message == WM_KILLFOCUS || message == WM_ENABLE)
 		InvalidateRect(window, nullptr, FALSE);
 	if (centered)
 	{
-		if (msg == WM_PAINT || msg == WM_SETFOCUS || msg == WM_KILLFOCUS || msg == WM_ENABLE || hoverChanged)
+		if (message == WM_PAINT || message == WM_SETFOCUS || message == WM_KILLFOCUS || message == WM_ENABLE ||
+		    hover_changed)
 			PaintInputFrame(window);
 		return result;
 	}
-	if (msg == WM_PAINT || msg == WM_PRINT || msg == WM_PRINTCLIENT)
+	if (message == WM_PAINT || message == WM_PRINT || message == WM_PRINTCLIENT)
 	{
-		HDC dc = msg == WM_PAINT ? GetDC(window) : reinterpret_cast<HDC>(wp);
+		HDC dc = message == WM_PAINT ? GetDC(window) : reinterpret_cast<HDC>(w_param);
 		RECT rect {};
 		GetClientRect(window, &rect);
 		if (dc)
 			DrawFocusOutline(window, dc, rect);
-		if (msg == WM_PAINT && dc)
+		if (message == WM_PAINT && dc)
 			ReleaseDC(window, dc);
 	}
 	return result;
@@ -1145,8 +1154,8 @@ void PaintCaption(HWND window, HDC dc)
 	FillRect(dc, &cap, bg.value);
 	SetBkMode(dc, TRANSPARENT);
 	auto font = reinterpret_cast<HFONT>(GetPropW(window, L"LutCaptionFont"));
-	const auto oldFont = SelectObject(dc, font ? font : GetStockObject(DEFAULT_GUI_FONT));
-	SetTextColor(dc, GetForegroundWindow() == window ? Text : Muted);
+	const auto old_font = SelectObject(dc, font ? font : GetStockObject(DEFAULT_GUI_FONT));
+	SetTextColor(dc, GetForegroundWindow() == window ? THEME_TEXT : THEME_MUTED);
 	const auto icon = reinterpret_cast<HICON>(SendMessageW(window, WM_GETICON, ICON_SMALL, 0));
 	if (icon)
 		DrawIconEx(dc, ScaleForDpi(window, 13), ScaleForDpi(window, 10), icon, ScaleForDpi(window, 16),
@@ -1167,10 +1176,10 @@ void PaintCaption(HWND window, HDC dc)
 		{
 			const auto& entry = (*list)[i];
 			DrawGlyph(window, dc, ActionRect(window, cap.right, i),
-			          i == 0   ? 1
-			          : i == 1 ? 3
-			                   : 2,
-			          entry.on, entry.enabled, hover == 100 + i, false, Background);
+			          i == 0   ? Glyph::Sun
+			          : i == 1 ? Glyph::Diamond
+			                   : Glyph::Power,
+			          entry.on, entry.enabled, hover == 100 + i, false, THEME_BACKGROUND);
 		}
 	if (GetPropW(window, L"LutPowerCommand"))
 	{
@@ -1178,20 +1187,20 @@ void PaintCaption(HWND window, HDC dc)
 		const bool on = (state & 1) != 0, enabled = (state & 2) != 0;
 		const bool settings = GetPropW(window, L"LutCaptionSettings") != nullptr;
 		RECT button = PrimaryRect(window, cap.right);
-		const COLORREF ink = !enabled ? Border : on ? Accent : Text;
+		const COLORREF ink = !enabled ? THEME_BORDER : on ? THEME_ACCENT : THEME_TEXT;
 		const bool pressed = GetPropW(window, L"LutCaptionPressed") == reinterpret_cast<HANDLE>(HTHELP);
 		if (settings)
 		{
-			DrawGlyph(window, dc, button, static_cast<int>(Glyph::Settings), on, enabled, hover == HTHELP || pressed,
-			          false, Background);
+			DrawGlyph(window, dc, button, Glyph::Settings, on, enabled, hover == HTHELP || pressed, false,
+			          THEME_BACKGROUND);
 		}
 		else
 		{
 			FillRoundedRect(dc, button,
 			                enabled && pressed           ? RGB(57, 80, 94)
 			                : enabled && hover == HTHELP ? RGB(66, 71, 79)
-			                                             : Surface,
-			                on ? Accent : Border, ScaleForDpi(window, 6));
+			                                             : THEME_SURFACE,
+			                on ? THEME_ACCENT : THEME_BORDER, ScaleForDpi(window, 6));
 			const int cx = settings ? (button.left + button.right) / 2 : button.left + ScaleForDpi(window, 20),
 					  cy = (button.top + button.bottom) / 2, r = ScaleForDpi(window, 9);
 			HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 2), ink);
@@ -1201,10 +1210,10 @@ void PaintCaption(HWND window, HDC dc)
 			LineTo(dc, cx, cy - ScaleForDpi(window, 1));
 			SelectObject(dc, previous);
 			DeleteObject(pen);
-			RECT powerLabel = button;
-			powerLabel.left += ScaleForDpi(window, 37);
+			RECT power_label = button;
+			power_label.left += ScaleForDpi(window, 37);
 			SetTextColor(dc, ink);
-			DrawTextW(dc, on ? L"ON" : L"OFF", -1, &powerLabel, DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
+			DrawTextW(dc, on ? L"ON" : L"OFF", -1, &power_label, DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
 		}
 	}
 	for (int hit : { HTMINBUTTON, HTCLOSE })
@@ -1214,12 +1223,13 @@ void PaintCaption(HWND window, HDC dc)
 		RECT button { cap.right - ScaleForDpi(window, hit == HTCLOSE ? 44 : 88), ScaleForDpi(window, 4),
 			          cap.right - ScaleForDpi(window, hit == HTCLOSE ? 5 : 49), cap.bottom - ScaleForDpi(window, 4) };
 		if (hover == hit)
-			FillRoundedRect(dc, button, hit == HTCLOSE ? CloseRed : Surface, hit == HTCLOSE ? CloseRed : Surface,
-			                ScaleForDpi(window, 4));
+			FillRoundedRect(dc, button, hit == HTCLOSE ? THEME_CLOSE_RED : THEME_SURFACE,
+			                hit == HTCLOSE ? THEME_CLOSE_RED : THEME_SURFACE, ScaleForDpi(window, 4));
 		const int cx = (button.left + button.right) / 2, cy = (button.top + button.bottom) / 2,
 				  arm = ScaleForDpi(window, 5);
-		HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 1), hit == HTCLOSE && hover != HTCLOSE ? CloseRed : Text);
-		const auto oldPen = SelectObject(dc, pen);
+		HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 1),
+		                     hit == HTCLOSE && hover != HTCLOSE ? THEME_CLOSE_RED : THEME_TEXT);
+		const auto old_pen = SelectObject(dc, pen);
 		if (hit == HTCLOSE)
 		{
 			MoveToEx(dc, cx - arm, cy - arm, nullptr);
@@ -1232,17 +1242,17 @@ void PaintCaption(HWND window, HDC dc)
 			MoveToEx(dc, cx - arm, cy + ScaleForDpi(window, 3), nullptr);
 			LineTo(dc, cx + arm, cy + ScaleForDpi(window, 3));
 		}
-		SelectObject(dc, oldPen);
+		SelectObject(dc, old_pen);
 		DeleteObject(pen);
 	}
 	HPEN pen = CreatePen(PS_SOLID, 1, RGB(60, 64, 71));
-	const auto oldPen = SelectObject(dc, pen);
-	const auto oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+	const auto old_pen = SelectObject(dc, pen);
+	const auto old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
 	RoundRect(dc, 0, 0, cap.right, outer.bottom - outer.top, ScaleForDpi(window, 16), ScaleForDpi(window, 16));
-	SelectObject(dc, oldBrush);
-	SelectObject(dc, oldPen);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(pen);
-	SelectObject(dc, oldFont);
+	SelectObject(dc, old_font);
 }
 
 void RepaintCaption(HWND window)
@@ -1270,10 +1280,10 @@ void RepaintCaption(HWND window)
 		DeleteDC(buffer);
 	// Preserve the frame outside the short caption buffer without clearing it.
 	HPEN pen = CreatePen(PS_SOLID, 1, RGB(60, 64, 71));
-	auto oldPen = SelectObject(dc, pen), oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+	auto old_pen = SelectObject(dc, pen), old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
 	RoundRect(dc, 0, 0, width, outer.bottom - outer.top, ScaleForDpi(window, 16), ScaleForDpi(window, 16));
-	SelectObject(dc, oldBrush);
-	SelectObject(dc, oldPen);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(pen);
 	ReleaseDC(window, dc);
 }
@@ -1294,9 +1304,9 @@ void PaintWindowToDc(HWND window, HDC dc, LPARAM flags)
 	OffsetViewportOrgEx(dc, origin.x, origin.y, nullptr);
 	// Scrolled children can have negative coordinates. Keep their print path
 	// inside the client area, matching native window clipping at runtime.
-	RECT clientClip {};
-	GetClientRect(window, &clientClip);
-	IntersectClipRect(dc, clientClip.left, clientClip.top, clientClip.right, clientClip.bottom);
+	RECT client_clip {};
+	GetClientRect(window, &client_clip);
+	IntersectClipRect(dc, client_clip.left, client_clip.top, client_clip.right, client_clip.bottom);
 	if (flags & PRF_CLIENT)
 	{
 		RECT client {};
@@ -1313,7 +1323,7 @@ void PaintWindowToDc(HWND window, HDC dc, LPARAM flags)
 			GetWindowRect(child, &rect);
 			POINT at { rect.left, rect.top };
 			ScreenToClient(window, &at);
-			const int childSaved = SaveDC(dc);
+			const int child_saved = SaveDC(dc);
 			OffsetViewportOrgEx(dc, at.x, at.y, nullptr);
 			IntersectClipRect(dc, 0, 0, rect.right - rect.left, rect.bottom - rect.top);
 			HRGN shape = CreateRectRgn(0, 0, 0, 0);
@@ -1327,7 +1337,7 @@ void PaintWindowToDc(HWND window, HDC dc, LPARAM flags)
 			DeleteObject(shape);
 			SendMessageW(child, WM_PRINT, reinterpret_cast<WPARAM>(dc),
 			             PRF_NONCLIENT | PRF_CLIENT | PRF_CHILDREN | PRF_ERASEBKGND);
-			RestoreDC(dc, childSaved);
+			RestoreDC(dc, child_saved);
 		}
 	RestoreDC(dc, saved);
 }
@@ -1355,11 +1365,11 @@ void PaintControl(HWND window, HDC dc)
 	} clip(dc, rect);
 	FillRect(dc, &rect, bg.value);
 	auto font = reinterpret_cast<HFONT>(SendMessageW(window, WM_GETFONT, 0, 0));
-	const auto oldFont = SelectObject(dc, font);
+	const auto old_font = SelectObject(dc, font);
 	SetBkMode(dc, TRANSPARENT);
 	const bool enabled = IsWindowEnabled(window) != FALSE, focused = GetFocus() == window;
 	const bool hover = GetPropW(window, L"LutThemeHover") != nullptr;
-	SetTextColor(dc, enabled ? Text : Muted);
+	SetTextColor(dc, enabled ? THEME_TEXT : THEME_MUTED);
 	if (GetPropW(window, L"LutToggle"))
 	{
 		const bool on = SendMessageW(window, BM_GETCHECK, 0, 0) == BST_CHECKED;
@@ -1371,41 +1381,44 @@ void PaintControl(HWND window, HDC dc)
 			InflateRect(&focus, -1, -1);
 			DrawFocusRect(dc, &focus);
 		}
-		SelectObject(dc, oldFont);
+		SelectObject(dc, old_font);
 		return;
 	}
-	if (auto kind = reinterpret_cast<INT_PTR>(GetPropW(window, L"LutMonitorGlyph")))
+	if (const auto glyph = static_cast<Glyph>(reinterpret_cast<INT_PTR>(GetPropW(window, L"LutMonitorGlyph")));
+	    glyph != Glyph::None)
 	{
-		const bool captioned = kind >= 4 && kind <= 8;
+		const bool captioned = IsToolbarGlyph(glyph);
 		RECT icon = rect;
 		if (captioned)
 			icon.bottom = std::min(rect.bottom, rect.top + ScaleForDpi(window, 28));
-		DrawGlyph(window, dc, icon, static_cast<int>(kind), GetPropW(window, L"LutMonitorOn") != nullptr, enabled,
-		          hover, focused, captioned ? Background : RGB(7, 9, 12));
+		DrawGlyph(window, dc, icon, glyph, GetPropW(window, L"LutMonitorOn") != nullptr, enabled, hover, focused,
+		          captioned ? THEME_BACKGROUND : RGB(7, 9, 12));
 		if (captioned && rect.bottom > icon.bottom)
 		{
 			const wchar_t* captions[] { L"Save", L"Save as", L"Export", L"Reset", L"Revert" };
-			LOGFONTW labelStyle {};
-			GetObjectW(font, sizeof(labelStyle), &labelStyle);
-			labelStyle.lfHeight = -ScaleForDpi(window, style::CaptionTextSize);
-			HFONT labelFont = CreateFontIndirectW(&labelStyle);
-			SelectObject(dc, labelFont ? labelFont : font);
+			LOGFONTW label_style {};
+			GetObjectW(font, sizeof(label_style), &label_style);
+			label_style.lfHeight = -ScaleForDpi(window, style::CAPTION_TEXT_SIZE);
+			HFONT label_font = CreateFontIndirectW(&label_style);
+			SelectObject(dc, label_font ? label_font : font);
 			RECT label = rect;
 			label.top = icon.bottom;
-			SetTextColor(dc, enabled ? Muted : Border);
-			DrawTextW(dc, captions[kind - 4], -1, &label, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+			SetTextColor(dc, enabled ? THEME_MUTED : THEME_BORDER);
+			DrawTextW(dc, captions[static_cast<int>(glyph) - static_cast<int>(Glyph::Save)], -1, &label,
+			          DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 			SelectObject(dc, font);
-			if (labelFont)
-				DeleteObject(labelFont);
+			if (label_font)
+				DeleteObject(label_font);
 		}
-		SelectObject(dc, oldFont);
+		SelectObject(dc, old_font);
 		return;
 	}
-	wchar_t cls[40] {};
-	GetClassNameW(window, cls, static_cast<int>(std::size(cls)));
-	if (wcscmp(cls, HOTKEY_CLASSW) == 0)
+	wchar_t class_name[40] {};
+	GetClassNameW(window, class_name, static_cast<int>(std::size(class_name)));
+	if (wcscmp(class_name, HOTKEY_CLASSW) == 0)
 	{
-		FillRoundedRect(dc, rect, Surface, (focused || hover) ? FocusBorder : Border, ScaleForDpi(window, 4));
+		FillRoundedRect(dc, rect, THEME_SURFACE, (focused || hover) ? THEME_FOCUS_BORDER : THEME_BORDER,
+		                ScaleForDpi(window, 4));
 		const WORD shortcut = static_cast<WORD>(SendMessageW(window, HKM_GETHOTKEY, 0, 0));
 		std::wstring text;
 		if (HIBYTE(shortcut) & HOTKEYF_CONTROL)
@@ -1429,21 +1442,21 @@ void PaintControl(HWND window, HDC dc)
 		label.left += ScaleForDpi(window, 8);
 		DrawTextW(dc, text.c_str(), -1, &label, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
 	}
-	else if (wcscmp(cls, L"ComboBox") == 0)
+	else if (wcscmp(class_name, L"ComboBox") == 0)
 	{
-		FillRoundedRect(dc, rect, enabled ? Surface : Background, (focused || hover) ? FocusBorder : Border,
-		                ScaleForDpi(window, 4));
+		FillRoundedRect(dc, rect, enabled ? THEME_SURFACE : THEME_BACKGROUND,
+		                (focused || hover) ? THEME_FOCUS_BORDER : THEME_BORDER, ScaleForDpi(window, 4));
 		wchar_t text[1024] {};
 		GetWindowTextW(window, text, static_cast<int>(std::size(text)));
 		RECT label { rect.left + ScaleForDpi(window, 9), rect.top, rect.right - ScaleForDpi(window, 25), rect.bottom };
 		DrawTextW(dc, text, -1, &label, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
 		const int x = rect.right - ScaleForDpi(window, 13), y = (rect.top + rect.bottom) / 2;
-		HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 1), enabled ? Text : Muted);
-		const auto oldPen = SelectObject(dc, pen);
+		HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 1), enabled ? THEME_TEXT : THEME_MUTED);
+		const auto old_pen = SelectObject(dc, pen);
 		MoveToEx(dc, x - ScaleForDpi(window, 4), y - ScaleForDpi(window, 2), nullptr);
 		LineTo(dc, x, y + ScaleForDpi(window, 2));
 		LineTo(dc, x + ScaleForDpi(window, 4), y - ScaleForDpi(window, 2));
-		SelectObject(dc, oldPen);
+		SelectObject(dc, old_pen);
 		DeleteObject(pen);
 	}
 	else
@@ -1459,41 +1472,41 @@ void PaintControl(HWND window, HDC dc)
 			const int size = ScaleForDpi(window, 14), top = (rect.bottom - size) / 2;
 			RECT box { rect.left + 1, top, rect.left + 1 + size, top + size };
 			const bool checked = SendMessageW(window, BM_GETCHECK, 0, 0) == BST_CHECKED;
-			const COLORREF ink = enabled ? Accent : Muted;
+			const COLORREF ink = enabled ? THEME_ACCENT : THEME_MUTED;
 			if (radio)
 			{
-				HBRUSH brush = CreateSolidBrush(Surface);
-				HPEN pen = CreatePen(PS_SOLID, 1, (focused || hover) ? FocusBorder : Border);
-				auto oldBrush = SelectObject(dc, brush), oldPen = SelectObject(dc, pen);
+				HBRUSH brush = CreateSolidBrush(THEME_SURFACE);
+				HPEN pen = CreatePen(PS_SOLID, 1, (focused || hover) ? THEME_FOCUS_BORDER : THEME_BORDER);
+				auto old_brush = SelectObject(dc, brush), old_pen = SelectObject(dc, pen);
 				Ellipse(dc, box.left, box.top, box.right, box.bottom);
-				SelectObject(dc, oldBrush);
-				SelectObject(dc, oldPen);
+				SelectObject(dc, old_brush);
+				SelectObject(dc, old_pen);
 				DeleteObject(brush);
 				DeleteObject(pen);
 				if (checked)
 				{
 					InflateRect(&box, -ScaleForDpi(window, 4), -ScaleForDpi(window, 4));
 					brush = CreateSolidBrush(ink);
-					oldBrush = SelectObject(dc, brush);
-					oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
+					old_brush = SelectObject(dc, brush);
+					old_pen = SelectObject(dc, GetStockObject(NULL_PEN));
 					Ellipse(dc, box.left, box.top, box.right, box.bottom);
-					SelectObject(dc, oldBrush);
-					SelectObject(dc, oldPen);
+					SelectObject(dc, old_brush);
+					SelectObject(dc, old_pen);
 					DeleteObject(brush);
 				}
 			}
 			else
 			{
-				FillRoundedRect(dc, box, checked ? ink : Surface, (focused || hover) ? FocusBorder : Border,
-				                ScaleForDpi(window, 2));
+				FillRoundedRect(dc, box, checked ? ink : THEME_SURFACE,
+				                (focused || hover) ? THEME_FOCUS_BORDER : THEME_BORDER, ScaleForDpi(window, 2));
 				if (checked)
 				{
-					HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 2), Background);
-					const auto oldPen = SelectObject(dc, pen);
+					HPEN pen = CreatePen(PS_SOLID, ScaleForDpi(window, 2), THEME_BACKGROUND);
+					const auto old_pen = SelectObject(dc, pen);
 					MoveToEx(dc, box.left + ScaleForDpi(window, 3), box.top + ScaleForDpi(window, 7), nullptr);
 					LineTo(dc, box.left + ScaleForDpi(window, 6), box.top + ScaleForDpi(window, 10));
 					LineTo(dc, box.left + ScaleForDpi(window, 11), box.top + ScaleForDpi(window, 4));
-					SelectObject(dc, oldPen);
+					SelectObject(dc, old_pen);
 					DeleteObject(pen);
 				}
 			}
@@ -1502,8 +1515,9 @@ void PaintControl(HWND window, HDC dc)
 		}
 		else
 		{
-			const auto fill = enabled ? Surface : Background;
-			FillRoundedRect(dc, rect, fill, (focused || hover) ? FocusBorder : Border, ScaleForDpi(window, 4));
+			const auto fill = enabled ? THEME_SURFACE : THEME_BACKGROUND;
+			FillRoundedRect(dc, rect, fill, (focused || hover) ? THEME_FOCUS_BORDER : THEME_BORDER,
+			                ScaleForDpi(window, 4));
 			DrawTextW(dc, text, -1, &label, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
 		}
 		if (focused && !(SendMessageW(window, WM_QUERYUISTATE, 0, 0) & UISF_HIDEFOCUS))
@@ -1513,14 +1527,14 @@ void PaintControl(HWND window, HDC dc)
 			DrawFocusRect(dc, &focus);
 		}
 	}
-	SelectObject(dc, oldFont);
+	SelectObject(dc, old_font);
 }
 
-LRESULT CALLBACK SliderPaintProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK SliderPaintProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
-	if (msg == WM_ERASEBKGND)
+	if (message == WM_ERASEBKGND)
 		return 1;
-	if (msg == WM_PAINT)
+	if (message == WM_PAINT)
 	{
 		PAINTSTRUCT paint {};
 		HDC target = BeginPaint(window, &paint);
@@ -1535,14 +1549,14 @@ LRESULT CALLBACK SliderPaintProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UI
 		EndPaint(window, &paint);
 		return 0;
 	}
-	if (msg == WM_NCDESTROY)
+	if (message == WM_NCDESTROY)
 		RemoveWindowSubclass(window, SliderPaintProc, 82);
-	return DefSubclassProc(window, msg, wp, lp);
+	return DefSubclassProc(window, message, w_param, l_param);
 }
 
-LRESULT CALLBACK ThemedControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK ThemedControlProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
-	switch (msg)
+	switch (message)
 	{
 		case WM_SIZE:
 		{
@@ -1553,11 +1567,11 @@ LRESULT CALLBACK ThemedControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, 
 			break;
 		}
 		case WM_SETCURSOR:
-			if (LOWORD(lp) == HTCLIENT && IsWindowEnabled(window))
+			if (LOWORD(l_param) == HTCLIENT && IsWindowEnabled(window))
 			{
-				wchar_t cls[40] {};
-				GetClassNameW(window, cls, 40);
-				if (wcscmp(cls, L"Button") == 0 || wcscmp(cls, L"ComboBox") == 0)
+				wchar_t class_name[40] {};
+				GetClassNameW(window, class_name, 40);
+				if (wcscmp(class_name, L"Button") == 0 || wcscmp(class_name, L"ComboBox") == 0)
 				{
 					SetCursor(LoadCursorW(nullptr, IDC_HAND));
 					return TRUE;
@@ -1580,7 +1594,7 @@ LRESULT CALLBACK ThemedControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, 
 		}
 		case WM_PRINT:
 		case WM_PRINTCLIENT:
-			PaintControl(window, reinterpret_cast<HDC>(wp));
+			PaintControl(window, reinterpret_cast<HDC>(w_param));
 			return 0;
 		case WM_ERASEBKGND:
 			return 1;
@@ -1606,20 +1620,20 @@ LRESULT CALLBACK ThemedControlProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, 
 			RemoveWindowSubclass(window, ThemedControlProc, 1);
 			break;
 	}
-	const auto result = DefSubclassProc(window, msg, wp, lp);
-	if (msg == WM_SETFONT)
+	const auto result = DefSubclassProc(window, message, w_param, l_param);
+	if (message == WM_SETFONT)
 	{
-		wchar_t cls[32] {};
-		GetClassNameW(window, cls, 32);
-		if (wcscmp(cls, L"ComboBox") == 0)
+		wchar_t class_name[32] {};
+		GetClassNameW(window, class_name, 32);
+		if (wcscmp(class_name, L"ComboBox") == 0)
 		{
 			SendMessageW(window, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), ScaleForDpi(window, 18));
 			SendMessageW(window, CB_SETITEMHEIGHT, 0, ScaleForDpi(window, 18));
 		}
 	}
-	if (msg == BM_SETCHECK || msg == BM_SETSTATE || msg == CB_SETCURSEL || msg == HKM_SETHOTKEY || msg == WM_KEYDOWN ||
-	    msg == WM_KEYUP || msg == WM_CHAR || msg == WM_ENABLE || msg == WM_SETTEXT || msg == WM_SETFOCUS ||
-	    msg == WM_KILLFOCUS || msg == WM_UPDATEUISTATE)
+	if (message == BM_SETCHECK || message == BM_SETSTATE || message == CB_SETCURSEL || message == HKM_SETHOTKEY ||
+	    message == WM_KEYDOWN || message == WM_KEYUP || message == WM_CHAR || message == WM_ENABLE ||
+	    message == WM_SETTEXT || message == WM_SETFOCUS || message == WM_KILLFOCUS || message == WM_UPDATEUISTATE)
 		InvalidateRect(window, nullptr, FALSE);
 	return result;
 }
@@ -1654,9 +1668,9 @@ void UpdateHelpFont(HWND owner, HelpWindow& state)
 	SendMessageW(state.tip, TTM_SETMAXTIPWIDTH, 0, ScaleForDpi(owner, 360));
 }
 
-LRESULT CALLBACK HelpOwnerProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR data)
+LRESULT CALLBACK HelpOwnerProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR data)
 {
-	if (msg == WM_NCDESTROY)
+	if (message == WM_NCDESTROY)
 	{
 		auto state = reinterpret_cast<HelpWindow*>(data);
 		RemovePropW(window, L"MonitorMageHelp");
@@ -1665,7 +1679,7 @@ LRESULT CALLBACK HelpOwnerProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT
 		RemoveWindowSubclass(window, HelpOwnerProc, 9);
 		delete state;
 	}
-	return DefSubclassProc(window, msg, wp, lp);
+	return DefSubclassProc(window, message, w_param, l_param);
 }
 
 void SetHelpRegion(HWND control, UINT_PTR id, const RECT* region, const wchar_t* text)
@@ -1811,11 +1825,11 @@ const wchar_t* CaptionTooltip(HWND window, int hit)
 	if (hit == 100 && GetCaptionActions(window))
 		return HdrTooltip((*GetCaptionActions(window))[0].on, (*GetCaptionActions(window))[0].enabled);
 	if (hit == 101 && GetCaptionActions(window))
-		return wording::ApplicationProfiles;
+		return wording::LABEL_APPLICATION_PROFILES;
 	if (hit == 102 && GetCaptionActions(window))
 		return (*GetCaptionActions(window))[2].on ? L"Turn off (Alt+P)" : L"Turn on (Alt+P)";
 	if (hit == HTHELP && GetPropW(window, L"LutPowerCommand"))
-		return GetPropW(window, L"LutCaptionSettings") ? wording::Settings : L"Master power on/off";
+		return GetPropW(window, L"LutCaptionSettings") ? wording::LABEL_SETTINGS : L"Master power on/off";
 	if (hit == HTMINBUTTON && (GetWindowLongPtrW(window, GWL_STYLE) & WS_MINIMIZEBOX))
 		return L"Minimize";
 	if (hit == HTCLOSE)
@@ -1868,7 +1882,7 @@ void SetCaptionPowerButton(HWND window, int command, bool on, bool enabled)
 	{
 		HMENU menu = GetSystemMenu(window, FALSE);
 		AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-		const auto label = GetPropW(window, L"LutCaptionSettings") ? std::wstring(wording::Settings) + L"\tAlt+S"
+		const auto label = GetPropW(window, L"LutCaptionSettings") ? std::wstring(wording::LABEL_SETTINGS) + L"\tAlt+S"
 		                                                           : L"Power on/off\tAlt+P";
 		AppendMenuW(menu, MF_STRING, 0x1F00, label.c_str());
 	}
@@ -1900,10 +1914,10 @@ void SetIconButton(HWND window, Glyph glyph, bool on, bool enabled)
 
 void PaintMenuGlyph(HWND window, HDC dc, RECT rect, Glyph icon, bool on, bool enabled, COLORREF base)
 {
-	DrawGlyph(window, dc, rect, static_cast<int>(icon), on, enabled, false, false, base, true);
+	DrawGlyph(window, dc, rect, icon, on, enabled, false, false, base, true);
 }
 
-void ConfigureSlider(HWND window, int defaultValue, wchar_t thumbLetter)
+void ConfigureSlider(HWND window, int default_value, wchar_t thumb_letter)
 {
 	DWORD_PTR clicks = 0;
 	if (!GetWindowSubclass(window, SliderResetProc, 11, &clicks))
@@ -1912,8 +1926,8 @@ void ConfigureSlider(HWND window, int defaultValue, wchar_t thumbLetter)
 		if (SetWindowSubclass(window, SliderResetProc, 11, reinterpret_cast<DWORD_PTR>(state.get())))
 			state.release();
 	}
-	const auto marker = reinterpret_cast<HANDLE>(static_cast<INT_PTR>(defaultValue) + 32769);
-	const auto letter = reinterpret_cast<HANDLE>(static_cast<INT_PTR>(thumbLetter));
+	const auto marker = reinterpret_cast<HANDLE>(static_cast<INT_PTR>(default_value) + 32769);
+	const auto letter = reinterpret_cast<HANDLE>(static_cast<INT_PTR>(thumb_letter));
 	if (GetPropW(window, L"LutSliderDefault") == marker && GetPropW(window, L"LutSliderLetter") == letter)
 		return;
 	SetPropW(window, L"LutSliderDefault", marker);
@@ -1932,7 +1946,7 @@ void CaptionActions(HWND window, const std::array<CaptionAction, 3>& value)
 	{
 		list = new Actions;
 		SetPropW(window, L"LutCaptionActions", list);
-		const wchar_t* names[] { L"Windows HDR", wording::ApplicationProfiles, L"Master power" };
+		const wchar_t* names[] { L"Windows HDR", wording::LABEL_APPLICATION_PROFILES, L"Master power" };
 		for (int i = 0; i < 3; ++i)
 			AppendMenuW(GetSystemMenu(window, FALSE), MF_STRING, 0x1F10 + i * 16, names[i]);
 	}
@@ -1962,19 +1976,19 @@ void PaintToggle(HWND window, HDC dc, RECT bounds, bool on, bool powered, bool h
 		        bounds.top + (bounds.bottom - bounds.top - height) / 2, 0, 0 };
 	pill.right = pill.left + width;
 	pill.bottom = pill.top + height;
-	const auto fill = on ? (powered ? theme.onTrack : theme.unpoweredTrack) : theme.offTrack;
+	const auto fill = on ? (powered ? theme.on_track : theme.unpowered_track) : theme.off_track;
 	FillRoundedRect(dc, pill, fill,
 	                highlighted     ? theme.highlight
-	                : on && powered ? theme.onTrack
+	                : on && powered ? theme.on_track
 	                                : theme.border,
 	                height / 2);
 	const int inset = ScaleForDpi(window, theme.inset), knob = ScaleForDpi(window, theme.knob),
 			  x = on ? pill.right - inset - knob : pill.left + inset;
-	HBRUSH brush = CreateSolidBrush(on ? theme.onKnob : theme.offKnob);
-	auto oldBrush = SelectObject(dc, brush), oldPen = SelectObject(dc, GetStockObject(NULL_PEN));
+	HBRUSH brush = CreateSolidBrush(on ? theme.on_knob : theme.off_knob);
+	auto old_brush = SelectObject(dc, brush), old_pen = SelectObject(dc, GetStockObject(NULL_PEN));
 	Ellipse(dc, x, pill.top + inset, x + knob, pill.top + inset + knob);
-	SelectObject(dc, oldPen);
-	SelectObject(dc, oldBrush);
+	SelectObject(dc, old_pen);
+	SelectObject(dc, old_brush);
 	DeleteObject(brush);
 }
 
@@ -2005,7 +2019,7 @@ void SliderColour(HWND window, COLORREF colour)
 
 HFONT CreateUiFont(UINT dpi)
 {
-	return CreateFontW(-MulDiv(style::TextSize, dpi, 96), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+	return CreateFontW(-MulDiv(style::TEXT_SIZE, dpi, 96), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
 	                   OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, family.c_str());
 }
 
@@ -2013,9 +2027,9 @@ int ContentWidth(HWND window, HFONT font, int minimum, int maximum)
 {
 	if (!window)
 		return minimum;
-	wchar_t cls[32] {};
-	GetClassNameW(window, cls, 32);
-	const bool combo = wcscmp(cls, L"ComboBox") == 0;
+	wchar_t class_name[32] {};
+	GetClassNameW(window, class_name, 32);
+	const bool combo = wcscmp(class_name, L"ComboBox") == 0;
 	HDC dc = GetDC(window);
 	if (!dc)
 		return minimum;
@@ -2054,29 +2068,30 @@ void AdjustThemedWindowRect(RECT& rect, UINT dpi)
 
 void ApplyControlTheme(HWND window)
 {
-	wchar_t cls[40] {};
-	GetClassNameW(window, cls, static_cast<int>(std::size(cls)));
-	if (wcscmp(cls, TRACKBAR_CLASSW) == 0)
+	wchar_t class_name[40] {};
+	GetClassNameW(window, class_name, static_cast<int>(std::size(class_name)));
+	if (wcscmp(class_name, TRACKBAR_CLASSW) == 0)
 		SetWindowSubclass(window, SliderPaintProc, 82, 0);
-	if (wcscmp(cls, L"Button") == 0 || wcscmp(cls, L"ComboBox") == 0 || wcscmp(cls, HOTKEY_CLASSW) == 0)
+	if (wcscmp(class_name, L"Button") == 0 || wcscmp(class_name, L"ComboBox") == 0 ||
+	    wcscmp(class_name, HOTKEY_CLASSW) == 0)
 		SetWindowSubclass(window, ThemedControlProc, 1, 0);
-	const bool framedList = wcscmp(cls, L"ListBox") == 0 && (GetWindowLongPtrW(window, GWL_STYLE) & WS_BORDER);
-	if (wcscmp(cls, L"Edit") == 0 || wcscmp(cls, HOTKEY_CLASSW) == 0 || framedList)
+	const bool framed_list = wcscmp(class_name, L"ListBox") == 0 && (GetWindowLongPtrW(window, GWL_STYLE) & WS_BORDER);
+	if (wcscmp(class_name, L"Edit") == 0 || wcscmp(class_name, HOTKEY_CLASSW) == 0 || framed_list)
 	{
 		SetWindowLongPtrW(window, GWL_STYLE, GetWindowLongPtrW(window, GWL_STYLE) & ~WS_BORDER);
 		SetWindowLongPtrW(window, GWL_EXSTYLE, GetWindowLongPtrW(window, GWL_EXSTYLE) & ~WS_EX_CLIENTEDGE);
 		SetWindowPos(window, nullptr, 0, 0, 0, 0,
 		             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-		if (wcscmp(cls, L"Edit") == 0 || framedList)
+		if (wcscmp(class_name, L"Edit") == 0 || framed_list)
 			SetWindowSubclass(window, InputControlProc, 5, 0);
-		if (wcscmp(cls, L"Edit") == 0)
+		if (wcscmp(class_name, L"Edit") == 0)
 			SendMessageW(window, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN,
 			             MAKELPARAM(ScaleForDpi(window, 8), ScaleForDpi(window, 8)));
 		RoundBounds(window);
 	}
-	if (wcscmp(cls, L"ComboBox") == 0 || wcscmp(cls, L"ListBox") == 0 || wcscmp(cls, L"Edit") == 0)
+	if (wcscmp(class_name, L"ComboBox") == 0 || wcscmp(class_name, L"ListBox") == 0 || wcscmp(class_name, L"Edit") == 0)
 		SetWindowTheme(window, L"", L"");
-	if (wcscmp(cls, L"ComboBox") == 0)
+	if (wcscmp(class_name, L"ComboBox") == 0)
 	{
 		COMBOBOXINFO info { sizeof(info) };
 		if (GetComboBoxInfo(window, &info))
@@ -2114,23 +2129,23 @@ void ApplyWindowFrameTheme(HWND window)
 		DeleteObject(shape); // Windows owns a successful region.
 }
 
-bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& result)
+bool HandleThemeMessage(HWND window, UINT message, WPARAM w_param, LPARAM l_param, LRESULT& result)
 {
-	switch (msg)
+	switch (message)
 	{
 		case WM_NCRBUTTONUP:
-			if (wp == HTCAPTION || wp == HTSYSMENU)
+			if (w_param == HTCAPTION || w_param == HTSYSMENU)
 			{
 				HideCaptionTip(window);
-				ShowCaptionMenu(window, { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) });
+				ShowCaptionMenu(window, { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) });
 				result = 0;
 				return true;
 			}
 			break;
 		case WM_CONTEXTMENU:
-			if (reinterpret_cast<HWND>(wp) == window)
+			if (reinterpret_cast<HWND>(w_param) == window)
 			{
-				POINT at { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+				POINT at { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 				if (at.x == -1 && at.y == -1)
 				{
 					RECT bounds {};
@@ -2147,7 +2162,7 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			break;
 		case WM_SETCURSOR:
 		{
-			const int hit = LOWORD(lp);
+			const int hit = LOWORD(l_param);
 			auto entry = CaptionActionAtHit(window, hit);
 			if (IsWindowEnabled(window) &&
 			    ((entry && entry->enabled) || hit == HTCLOSE || hit == HTMINBUTTON || hit == HTSYSMENU ||
@@ -2159,10 +2174,10 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			}
 			if (hit == HTCLIENT)
 			{
-				wchar_t cls[40] {};
-				auto target = reinterpret_cast<HWND>(wp);
-				GetClassNameW(target, cls, 40);
-				if (IsWindowEnabled(target) && wcscmp(cls, TRACKBAR_CLASSW) == 0)
+				wchar_t class_name[40] {};
+				auto target = reinterpret_cast<HWND>(w_param);
+				GetClassNameW(target, class_name, 40);
+				if (IsWindowEnabled(target) && wcscmp(class_name, TRACKBAR_CLASSW) == 0)
 				{
 					SetCursor(LoadCursorW(nullptr, IDC_SIZEWE));
 					result = TRUE;
@@ -2172,7 +2187,7 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			break;
 		}
 		case WM_MEASUREITEM:
-			if (auto item = reinterpret_cast<MEASUREITEMSTRUCT*>(lp); item->CtlType == ODT_COMBOBOX)
+			if (auto item = reinterpret_cast<MEASUREITEMSTRUCT*>(l_param); item->CtlType == ODT_COMBOBOX)
 			{
 				item->itemHeight = ScaleForDpi(window, 18);
 				result = TRUE;
@@ -2180,17 +2195,17 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			}
 			break;
 		case WM_DRAWITEM:
-			if (auto item = reinterpret_cast<DRAWITEMSTRUCT*>(lp); item->CtlType == ODT_COMBOBOX)
+			if (auto item = reinterpret_cast<DRAWITEMSTRUCT*>(l_param); item->CtlType == ODT_COMBOBOX)
 			{
 				const auto combo = item->hwndItem;
 				HDC dc = item->hDC;
 				const bool selected = (item->itemState & ODS_SELECTED) != 0;
-				HBRUSH fill = CreateSolidBrush(selected ? RGB(66, 71, 79) : Surface);
+				HBRUSH fill = CreateSolidBrush(selected ? RGB(66, 71, 79) : THEME_SURFACE);
 				FillRect(dc, &item->rcItem, fill);
 				DeleteObject(fill);
 				const auto old = SelectObject(dc, reinterpret_cast<HFONT>(SendMessageW(combo, WM_GETFONT, 0, 0)));
 				SetBkMode(dc, TRANSPARENT);
-				SetTextColor(dc, IsWindowEnabled(combo) ? Text : Muted);
+				SetTextColor(dc, IsWindowEnabled(combo) ? THEME_TEXT : THEME_MUTED);
 				if (item->itemID != static_cast<UINT>(-1))
 				{
 					const auto length = SendMessageW(combo, CB_GETLBTEXTLEN, item->itemID, 0);
@@ -2218,7 +2233,8 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			break;
 		case WM_NCCALCSIZE:
 		{
-			RECT* rect = wp ? &reinterpret_cast<NCCALCSIZE_PARAMS*>(lp)->rgrc[0] : reinterpret_cast<RECT*>(lp);
+			RECT* rect =
+				w_param ? &reinterpret_cast<NCCALCSIZE_PARAMS*>(l_param)->rgrc[0] : reinterpret_cast<RECT*>(l_param);
 			rect->left += 1;
 			rect->right -= 1;
 			rect->top += ScaleForDpi(window, 36);
@@ -2234,29 +2250,29 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			result = 0;
 			return true;
 		case WM_NCACTIVATE:
-			if (!wp)
+			if (!w_param)
 				HideCaptionTip(window);
 			RepaintCaption(window);
 			result = TRUE;
 			return true;
 		case WM_NCHITTEST:
 		{
-			POINT point { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+			POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 			result = CaptionHitTest(window, point);
 			return true;
 		}
 		case WM_NCMOUSEMOVE:
 		{
-			TrackCaptionTip(window, static_cast<int>(wp));
+			TrackCaptionTip(window, static_cast<int>(w_param));
 			const auto previous = GetPropW(window, L"LutCaptionHover");
 			if (!previous)
 			{
 				TRACKMOUSEEVENT tracking { sizeof(tracking), TME_NONCLIENT | TME_LEAVE, window, 0 };
 				TrackMouseEvent(&tracking);
 			}
-			if (previous != reinterpret_cast<HANDLE>(wp))
+			if (previous != reinterpret_cast<HANDLE>(w_param))
 			{
-				SetPropW(window, L"LutCaptionHover", reinterpret_cast<HANDLE>(wp));
+				SetPropW(window, L"LutCaptionHover", reinterpret_cast<HANDLE>(w_param));
 				RepaintCaption(window);
 			}
 			result = 0;
@@ -2270,21 +2286,21 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			return true;
 		case WM_DISPLAYCHANGE:
 			if (GetPropW(window, L"MonitorMagePreferredSize"))
-				SetTimer(window, GeometryTimer, 250, nullptr);
+				SetTimer(window, TIMER_GEOMETRY, 250, nullptr);
 			break;
 		case WM_SETTINGCHANGE:
-			if (wp == SPI_SETWORKAREA && GetPropW(window, L"MonitorMagePreferredSize"))
-				SetTimer(window, GeometryTimer, 250, nullptr);
+			if (w_param == SPI_SETWORKAREA && GetPropW(window, L"MonitorMagePreferredSize"))
+				SetTimer(window, TIMER_GEOMETRY, 250, nullptr);
 			break;
 		case WM_TIMER:
-			if (wp == GeometryTimer)
+			if (w_param == TIMER_GEOMETRY)
 			{
-				KillTimer(window, GeometryTimer);
+				KillTimer(window, TIMER_GEOMETRY);
 				RepairWindowSize(window);
 				result = 0;
 				return true;
 			}
-			if (wp == CaptionTipTimer)
+			if (w_param == TIMER_CAPTION_TIP)
 			{
 				ShowCaptionTip(window);
 				result = 0;
@@ -2292,16 +2308,16 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			}
 			break;
 		case WM_SHOWWINDOW:
-			if (!wp)
+			if (!w_param)
 				HideCaptionTip(window);
 			else if (GetPropW(window, L"MonitorMagePreferredSize"))
-				SetTimer(window, GeometryTimer, 250, nullptr);
+				SetTimer(window, TIMER_GEOMETRY, 250, nullptr);
 			break;
 		case WM_MOUSEMOVE:
 			HideCaptionTip(window);
 			if (GetPropW(window, L"LutCaptionPressed"))
 			{
-				POINT point { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+				POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 				ClientToScreen(window, &point);
 				const auto hit = reinterpret_cast<HANDLE>(static_cast<INT_PTR>(CaptionHitTest(window, point)));
 				if (GetPropW(window, L"LutCaptionHover") != hit)
@@ -2314,13 +2330,13 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			}
 			break;
 		case WM_NCLBUTTONDBLCLK:
-			if (!CaptionActionAtHit(window, static_cast<int>(wp)) &&
-			    (wp != HTHELP || !GetPropW(window, L"LutPowerCommand")))
+			if (!CaptionActionAtHit(window, static_cast<int>(w_param)) &&
+			    (w_param != HTHELP || !GetPropW(window, L"LutPowerCommand")))
 				break;
 			[[fallthrough]];
 		case WM_NCLBUTTONDOWN:
 			HideCaptionTip(window);
-			if (wp == HTSYSMENU)
+			if (w_param == HTSYSMENU)
 			{
 				RECT bounds {};
 				GetWindowRect(window, &bounds);
@@ -2328,31 +2344,31 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 				result = 0;
 				return true;
 			}
-			if (auto entry = CaptionActionAtHit(window, static_cast<int>(wp)))
+			if (auto entry = CaptionActionAtHit(window, static_cast<int>(w_param)))
 			{
 				if (entry->enabled)
 				{
-					SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(wp));
+					SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
 					SetCapture(window);
 					RepaintCaption(window);
 				}
 				result = 0;
 				return true;
 			}
-			if (wp == HTHELP && GetPropW(window, L"LutPowerCommand"))
+			if (w_param == HTHELP && GetPropW(window, L"LutPowerCommand"))
 			{
 				if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
 				{
-					SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(wp));
+					SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
 					SetCapture(window);
 					RepaintCaption(window);
 				}
 				result = 0;
 				return true;
 			}
-			if (wp == HTCLOSE || wp == HTMINBUTTON)
+			if (w_param == HTCLOSE || w_param == HTMINBUTTON)
 			{
-				SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(wp));
+				SetPropW(window, L"LutCaptionPressed", reinterpret_cast<HANDLE>(w_param));
 				SetCapture(window);
 				result = 0;
 				return true;
@@ -2361,7 +2377,7 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 		case WM_LBUTTONUP:
 			if (const auto hit = reinterpret_cast<INT_PTR>(RemovePropW(window, L"LutCaptionPressed")))
 			{
-				POINT point { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+				POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 				ClientToScreen(window, &point);
 				ReleaseCapture();
 				if (CaptionHitTest(window, point) == hit)
@@ -2386,17 +2402,18 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			break;
 		case WM_SYSCOMMAND:
 		case WM_SYSCHAR:
-			if (msg == WM_SYSCOMMAND && (wp & 0xFFF0) == SC_RESTORE && GetPropW(window, L"MonitorMagePreferredSize"))
+			if (message == WM_SYSCOMMAND && (w_param & 0xFFF0) == SC_RESTORE &&
+			    GetPropW(window, L"MonitorMagePreferredSize"))
 			{
-				DefWindowProcW(window, msg, wp, lp);
+				DefWindowProcW(window, message, w_param, l_param);
 				RepairWindowSize(window);
 				result = 0;
 				return true;
 			}
-			if (msg == WM_SYSCOMMAND && ((wp & 0xFFF0) == SC_KEYMENU || (wp & 0xFFF0) == SC_MOUSEMENU))
+			if (message == WM_SYSCOMMAND && ((w_param & 0xFFF0) == SC_KEYMENU || (w_param & 0xFFF0) == SC_MOUSEMENU))
 			{
 				// Alt+Space and the window icon use the same menu as caption right-click.
-				if ((wp & 0xFFF0) == SC_MOUSEMENU || lp == VK_SPACE || lp == 0)
+				if ((w_param & 0xFFF0) == SC_MOUSEMENU || l_param == VK_SPACE || l_param == 0)
 				{
 					RECT bounds {};
 					GetWindowRect(window, &bounds);
@@ -2407,9 +2424,9 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 					return true;
 				}
 			}
-			if (msg == WM_SYSCOMMAND && (wp & 0xFFF0) >= 0x1F10 && (wp & 0xFFF0) <= 0x1F30)
+			if (message == WM_SYSCOMMAND && (w_param & 0xFFF0) >= 0x1F10 && (w_param & 0xFFF0) <= 0x1F30)
 			{
-				if (auto entry = CaptionActionAtHit(window, 100 + static_cast<int>(((wp & 0xFFF0) - 0x1F10) / 16)))
+				if (auto entry = CaptionActionAtHit(window, 100 + static_cast<int>(((w_param & 0xFFF0) - 0x1F10) / 16)))
 				{
 					if (entry->enabled)
 						PostMessageW(window, WM_COMMAND, entry->command, 0);
@@ -2418,9 +2435,10 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 				}
 			}
 			if (GetPropW(window, L"LutPowerCommand") &&
-			    ((msg == WM_SYSCOMMAND && (wp & 0xFFF0) == 0x1F00) ||
-			     (msg == WM_SYSCHAR &&
-			      (GetPropW(window, L"LutCaptionSettings") ? (wp == L's' || wp == L'S') : (wp == L'p' || wp == L'P')))))
+			    ((message == WM_SYSCOMMAND && (w_param & 0xFFF0) == 0x1F00) ||
+			     (message == WM_SYSCHAR &&
+			      (GetPropW(window, L"LutCaptionSettings") ? (w_param == L's' || w_param == L'S')
+			                                               : (w_param == L'p' || w_param == L'P')))))
 			{
 				if ((reinterpret_cast<INT_PTR>(GetPropW(window, L"LutPowerState")) - 1) & 2)
 					PostMessageW(window, WM_COMMAND, reinterpret_cast<WPARAM>(GetPropW(window, L"LutPowerCommand")), 0);
@@ -2442,31 +2460,31 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			}
 			break;
 		case WM_SETTEXT:
-			result = DefWindowProcW(window, msg, wp, lp);
+			result = DefWindowProcW(window, message, w_param, l_param);
 			RepaintCaption(window);
 			return true;
 		case WM_SETICON:
-			result = DefWindowProcW(window, msg, wp, lp);
+			result = DefWindowProcW(window, message, w_param, l_param);
 			RepaintCaption(window);
 			return true;
 		case WM_PRINT:
-			PaintWindowToDc(window, reinterpret_cast<HDC>(wp), lp);
+			PaintWindowToDc(window, reinterpret_cast<HDC>(w_param), l_param);
 			result = 0;
 			return true;
 		case WM_DPICHANGED:
 		{
 			if (GetPropW(window, L"MonitorMagePreferredSize"))
-				SetTimer(window, GeometryTimer, 250, nullptr);
+				SetTimer(window, TIMER_GEOMETRY, 250, nullptr);
 			HideCaptionTip(window);
 			auto font = reinterpret_cast<HFONT>(RemovePropW(window, L"LutCaptionFont"));
 			if (font)
 				DeleteObject(font);
-			SetPropW(window, L"LutCaptionFont", CreateUiFont(HIWORD(wp)));
+			SetPropW(window, L"LutCaptionFont", CreateUiFont(HIWORD(w_param)));
 			break;
 		}
 		case WM_NCDESTROY:
 		{
-			KillTimer(window, GeometryTimer);
+			KillTimer(window, TIMER_GEOMETRY);
 			delete reinterpret_cast<SIZE*>(RemovePropW(window, L"MonitorMagePreferredSize"));
 			HideCaptionTip(window);
 			if (auto tip = reinterpret_cast<HWND>(RemovePropW(window, L"LutCaptionTooltip")))
@@ -2483,42 +2501,43 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 			break;
 		}
 	}
-	if (msg >= WM_CTLCOLORMSGBOX && msg <= WM_CTLCOLORSTATIC)
+	if (message >= WM_CTLCOLORMSGBOX && message <= WM_CTLCOLORSTATIC)
 	{
-		auto dc = reinterpret_cast<HDC>(wp);
-		const auto child = reinterpret_cast<HWND>(lp);
-		wchar_t cls[40] {};
-		GetClassNameW(child, cls, 40);
-		const bool field = msg == WM_CTLCOLOREDIT || msg == WM_CTLCOLORLISTBOX || wcscmp(cls, L"Edit") == 0;
-		SetTextColor(dc, IsWindowEnabled(child) ? Text : Muted);
-		SetBkColor(dc, field ? Surface : Background);
+		auto dc = reinterpret_cast<HDC>(w_param);
+		const auto child = reinterpret_cast<HWND>(l_param);
+		wchar_t class_name[40] {};
+		GetClassNameW(child, class_name, 40);
+		const bool field =
+			message == WM_CTLCOLOREDIT || message == WM_CTLCOLORLISTBOX || wcscmp(class_name, L"Edit") == 0;
+		SetTextColor(dc, IsWindowEnabled(child) ? THEME_TEXT : THEME_MUTED);
+		SetBkColor(dc, field ? THEME_SURFACE : THEME_BACKGROUND);
 		result = reinterpret_cast<LRESULT>(field ? surface.value : bg.value);
 		return true;
 	}
-	if (msg == WM_ERASEBKGND)
+	if (message == WM_ERASEBKGND)
 	{
 		RECT rect {};
 		GetClientRect(window, &rect);
-		FillRect(reinterpret_cast<HDC>(wp), &rect, bg.value);
+		FillRect(reinterpret_cast<HDC>(w_param), &rect, bg.value);
 		result = 1;
 		return true;
 	}
-	if (msg == WM_NOTIFY)
+	if (message == WM_NOTIFY)
 	{
-		auto draw = reinterpret_cast<NMCUSTOMDRAW*>(lp);
+		auto draw = reinterpret_cast<NMCUSTOMDRAW*>(l_param);
 		if (draw->hdr.code != NM_CUSTOMDRAW)
 			return false;
-		wchar_t cls[40] {};
-		GetClassNameW(draw->hdr.hwndFrom, cls, static_cast<int>(std::size(cls)));
+		wchar_t class_name[40] {};
+		GetClassNameW(draw->hdr.hwndFrom, class_name, static_cast<int>(std::size(class_name)));
 		// Native buttons also draw synchronously for text, enabled and pressed
 		// state changes. Route that path through the same dark painter.
-		if (wcscmp(cls, L"Button") == 0 && draw->dwDrawStage == CDDS_PREPAINT)
+		if (wcscmp(class_name, L"Button") == 0 && draw->dwDrawStage == CDDS_PREPAINT)
 		{
 			PaintControl(draw->hdr.hwndFrom, draw->hdc);
 			result = CDRF_SKIPDEFAULT;
 			return true;
 		}
-		if (wcscmp(cls, TRACKBAR_CLASSW) != 0)
+		if (wcscmp(class_name, TRACKBAR_CLASSW) != 0)
 			return false;
 		if (draw->dwDrawStage == CDDS_PREPAINT)
 		{
@@ -2529,14 +2548,14 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 		if (draw->dwDrawStage == CDDS_ITEMPREPAINT)
 		{
 			const auto stored = reinterpret_cast<UINT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderColour"));
-			const COLORREF colour = stored ? static_cast<COLORREF>(stored - 1) : Accent;
+			const COLORREF colour = stored ? static_cast<COLORREF>(stored - 1) : THEME_ACCENT;
 			if (draw->dwItemSpec == TBCD_CHANNEL)
 			{
 				RECT rect = draw->rc;
 				const int mid = (rect.top + rect.bottom) / 2;
 				rect.top = mid - ScaleForDpi(window, 2);
 				rect.bottom = mid + ScaleForDpi(window, 2);
-				FillRoundedRect(draw->hdc, rect, Border, Border, ScaleForDpi(window, 2));
+				FillRoundedRect(draw->hdc, rect, THEME_BORDER, THEME_BORDER, ScaleForDpi(window, 2));
 			}
 			if (draw->dwItemSpec == TBCD_CHANNEL && stored)
 			{
@@ -2544,9 +2563,9 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 				const int mid = (rect.top + rect.bottom) / 2;
 				rect.top = mid - ScaleForDpi(window, 2);
 				rect.bottom = mid + ScaleForDpi(window, 2);
-				const auto muted = RGB((GetRValue(colour) + 2 * GetRValue(Background)) / 3,
-				                       (GetGValue(colour) + 2 * ((Background >> 8) & 255)) / 3,
-				                       (GetBValue(colour) + 2 * GetBValue(Background)) / 3);
+				const auto muted = RGB((GetRValue(colour) + 2 * GetRValue(THEME_BACKGROUND)) / 3,
+				                       (GetGValue(colour) + 2 * ((THEME_BACKGROUND >> 8) & 255)) / 3,
+				                       (GetBValue(colour) + 2 * GetBValue(THEME_BACKGROUND)) / 3);
 				FillRoundedRect(draw->hdc, rect, muted, muted, ScaleForDpi(window, 2));
 			}
 			if (draw->dwItemSpec == TBCD_CHANNEL)
@@ -2559,7 +2578,7 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 						const int x = draw->rc.left + MulDiv(static_cast<int>(value - 32769) - low,
 						                                     draw->rc.right - draw->rc.left - 1, high - low),
 								  mid = (draw->rc.top + draw->rc.bottom) / 2;
-						HPEN tick = CreatePen(PS_SOLID, 1, Muted);
+						HPEN tick = CreatePen(PS_SOLID, 1, THEME_MUTED);
 						const auto old = SelectObject(draw->hdc, tick);
 						MoveToEx(draw->hdc, x, mid - ScaleForDpi(window, 5), nullptr);
 						LineTo(draw->hdc, x, mid + ScaleForDpi(window, 5) + 1);
@@ -2569,23 +2588,23 @@ bool HandleThemeMessage(HWND window, UINT msg, WPARAM wp, LPARAM lp, LRESULT& re
 				}
 			if (draw->dwItemSpec == TBCD_THUMB)
 			{
-				FillRoundedRect(draw->hdc, draw->rc, IsWindowEnabled(draw->hdr.hwndFrom) ? colour : Muted, Border,
-				                ScaleForDpi(window, 3));
+				FillRoundedRect(draw->hdc, draw->rc, IsWindowEnabled(draw->hdr.hwndFrom) ? colour : THEME_MUTED,
+				                THEME_BORDER, ScaleForDpi(window, 3));
 				if (const wchar_t letter = static_cast<wchar_t>(
 						reinterpret_cast<INT_PTR>(GetPropW(draw->hdr.hwndFrom, L"LutSliderLetter"))))
 				{
-					LOGFONTW labelStyle {};
+					LOGFONTW label_style {};
 					GetObjectW(reinterpret_cast<HFONT>(SendMessageW(draw->hdr.hwndFrom, WM_GETFONT, 0, 0)),
-					           sizeof(labelStyle), &labelStyle);
-					labelStyle.lfHeight = -ScaleForDpi(window, style::CaptionTextSize);
-					HFONT labelFont = CreateFontIndirectW(&labelStyle);
-					const auto old = SelectObject(draw->hdc, labelFont);
+					           sizeof(label_style), &label_style);
+					label_style.lfHeight = -ScaleForDpi(window, style::CAPTION_TEXT_SIZE);
+					HFONT label_font = CreateFontIndirectW(&label_style);
+					const auto old = SelectObject(draw->hdc, label_font);
 					SetBkMode(draw->hdc, TRANSPARENT);
-					SetTextColor(draw->hdc, Background);
+					SetTextColor(draw->hdc, THEME_BACKGROUND);
 					RECT label = draw->rc;
 					DrawTextW(draw->hdc, &letter, 1, &label, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 					SelectObject(draw->hdc, old);
-					DeleteObject(labelFont);
+					DeleteObject(label_font);
 				}
 			}
 			result = CDRF_SKIPDEFAULT;

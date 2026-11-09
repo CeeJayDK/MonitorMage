@@ -21,7 +21,7 @@ int main()
 			                                  { L"C:\\a.exe", L"Alpha", 100, true, true },
 			                                  { L"C:\\unknown.exe", L"Unknown", 0, true, false } };
 		programs::SortPrograms(list, true);
-		Check(list[0].name == L"Zulu" && list[1].name == L"Alpha" && list[2].name == L"beta" && !list[3].memoryKnown,
+		Check(list[0].name == L"Zulu" && list[1].name == L"Alpha" && list[2].name == L"beta" && !list[3].memory_known,
 		      "Memory ordering must put known larger values first with name tie breaks");
 		programs::SortPrograms(list, false);
 		Check(list[0].name == L"Alpha" && list[1].name == L"beta" && list[3].name == L"Zulu",

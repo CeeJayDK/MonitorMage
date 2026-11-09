@@ -110,31 +110,31 @@ int main()
 	// A tall stroke crosses several tile boundaries without seams. Reusing
 	// the workspace must also retain no old color, and remain bounded.
 	{
-		BITMAPINFO tallInfo = info;
-		tallInfo.bmiHeader.biWidth = 128;
-		tallInfo.bmiHeader.biHeight = -256;
-		void* tallPixels = nullptr;
-		HDC tallDC = CreateCompatibleDC(dc);
-		HBITMAP tall = CreateDIBSection(tallDC, &tallInfo, DIB_RGB_COLORS, &tallPixels, nullptr, 0);
-		if (!tallDC || !tall)
+		BITMAPINFO tall_info = info;
+		tall_info.bmiHeader.biWidth = 128;
+		tall_info.bmiHeader.biHeight = -256;
+		void* tall_pixels = nullptr;
+		HDC tall_dc = CreateCompatibleDC(dc);
+		HBITMAP tall = CreateDIBSection(tall_dc, &tall_info, DIB_RGB_COLORS, &tall_pixels, nullptr, 0);
+		if (!tall_dc || !tall)
 			return 3;
-		const auto prior = SelectObject(tallDC, tall);
-		PatBlt(tallDC, 0, 0, 128, 256, BLACKNESS);
+		const auto prior = SelectObject(tall_dc, tall);
+		PatBlt(tall_dc, 0, 0, 128, 256, BLACKNESS);
 		plot::Scratch scratch;
 		plot::Paths vertical;
 		vertical[0] = { { 64, 4 }, { 64, 252 } };
 		vertical[1] = vertical[0];
-		if (!plot::DrawRgbCurves(tallDC, 128, 256, vertical, 2, &scratch) || !scratch.ByteCount() ||
+		if (!plot::DrawRgbCurves(tall_dc, 128, 256, vertical, 2, &scratch) || !scratch.ByteCount() ||
 		    scratch.ByteCount() > 1048576)
 			ok = false;
 		GdiFlush();
-		const auto values = static_cast<const uint32_t*>(tallPixels);
+		const auto values = static_cast<const uint32_t*>(tall_pixels);
 		for (int y = 6; y < 250; ++y)
 			if ((values[y * 128 + 64] & 0xffffff) != 0xffff00)
 				ok = false;
 		vertical[1].clear();
-		PatBlt(tallDC, 0, 0, 128, 256, BLACKNESS);
-		if (!plot::DrawRgbCurves(tallDC, 128, 256, vertical, 2, &scratch))
+		PatBlt(tall_dc, 0, 0, 128, 256, BLACKNESS);
+		if (!plot::DrawRgbCurves(tall_dc, 128, 256, vertical, 2, &scratch))
 			ok = false;
 		GdiFlush();
 		for (int y = 6; y < 250; ++y)
@@ -143,9 +143,9 @@ int main()
 		scratch.Reset();
 		if (scratch.ByteCount())
 			ok = false;
-		SelectObject(tallDC, prior);
+		SelectObject(tall_dc, prior);
 		DeleteObject(tall);
-		DeleteDC(tallDC);
+		DeleteDC(tall_dc);
 	}
 	SelectObject(dc, old);
 	DeleteObject(bitmap);

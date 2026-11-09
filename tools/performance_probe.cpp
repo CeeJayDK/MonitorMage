@@ -21,7 +21,7 @@ int wmain(int argc, wchar_t** argv)
 	                    &child))
 		return 2;
 	CloseHandle(child.hThread);
-	SIZE_T peakWorking = 0, peakPrivate = 0;
+	SIZE_T peak_working = 0, peak_private = 0;
 	DWORD faults = 0;
 	for (;;)
 	{
@@ -29,8 +29,8 @@ int wmain(int argc, wchar_t** argv)
 		memory.cb = sizeof(memory);
 		if (GetProcessMemoryInfo(child.hProcess, reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)))
 		{
-			peakWorking = (std::max)(peakWorking, memory.PeakWorkingSetSize);
-			peakPrivate = (std::max)(peakPrivate, memory.PrivateUsage);
+			peak_working = (std::max)(peak_working, memory.PeakWorkingSetSize);
+			peak_private = (std::max)(peak_private, memory.PrivateUsage);
 			faults = (std::max)(faults, memory.PageFaultCount);
 		}
 		const auto wait = WaitForSingleObject(child.hProcess, 2);
@@ -55,8 +55,8 @@ int wmain(int argc, wchar_t** argv)
 			  << ",\"wall_ms\":" << (end.QuadPart - start.QuadPart) * 1000.0 / frequency.QuadPart
 			  << ",\"cpu_ms\":" << (ticks(kernel) + ticks(user)) / 10000.0
 			  << ",\"timed\":" << (timed ? "true" : "false") << ",\"sampled_total_page_faults\":" << faults
-			  << ",\"peak_working_set_mib\":" << peakWorking / 1048576.0
-			  << ",\"sampled_peak_private_mib\":" << peakPrivate / 1048576.0 << "}\n";
+			  << ",\"peak_working_set_mib\":" << peak_working / 1048576.0
+			  << ",\"sampled_peak_private_mib\":" << peak_private / 1048576.0 << "}\n";
 	CloseHandle(child.hProcess);
 	return static_cast<int>(code);
 }

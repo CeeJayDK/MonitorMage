@@ -20,22 +20,22 @@ inline double ApplyContrast(double x, double amount, double pivot)
 {
 	if (x <= 0 || x >= 1 || amount == 0 || x == pivot)
 		return x;
-	const double relativeOdds = (x / (1 - x)) / (pivot / (1 - pivot));
-	return 1 / (1 + ((1 - pivot) / pivot) * std::pow(relativeOdds, -(1 + amount)));
+	const double relative_odds = (x / (1 - x)) / (pivot / (1 - pivot));
+	return 1 / (1 + ((1 - pivot) / pivot) * std::pow(relative_odds, -(1 + amount)));
 }
 
 // SMPTE ST 2084 / ITU-R BT.2100 PQ, with luminance in cd/m2 (nits).
-inline constexpr double pqM1 = 2610.0 / 16384.0;
-inline constexpr double pqM2 = 2523.0 / 32.0;
-inline constexpr double pqC1 = 3424.0 / 4096.0;
-inline constexpr double pqC2 = 2413.0 / 128.0;
-inline constexpr double pqC3 = 2392.0 / 128.0;
+inline constexpr double PQ_M1 = 2610.0 / 16384.0;
+inline constexpr double PQ_M2 = 2523.0 / 32.0;
+inline constexpr double PQ_C1 = 3424.0 / 4096.0;
+inline constexpr double PQ_C2 = 2413.0 / 128.0;
+inline constexpr double PQ_C3 = 2392.0 / 128.0;
 
 inline double PqToNits(double code)
 {
 	RequireRange(code, 0, 1);
-	const double power = std::pow(code, 1 / pqM2);
-	return 10000 * std::pow(std::max(power - pqC1, 0.0) / (pqC2 - pqC3 * power), 1 / pqM1);
+	const double power = std::pow(code, 1 / PQ_M2);
+	return 10000 * std::pow(std::max(power - PQ_C1, 0.0) / (PQ_C2 - PQ_C3 * power), 1 / PQ_M1);
 }
 
 inline double NitsToPq(double nits)
@@ -44,49 +44,49 @@ inline double NitsToPq(double nits)
 	// Canonicalize black to exact code zero rather than the formula's tiny pedestal.
 	if (nits == 0)
 		return 0;
-	const double power = std::pow(nits / 10000, pqM1);
-	return std::pow((pqC1 + pqC2 * power) / (1 + pqC3 * power), pqM2);
+	const double power = std::pow(nits / 10000, PQ_M1);
+	return std::pow((PQ_C1 + PQ_C2 * power) / (1 + PQ_C3 * power), PQ_M2);
 }
 
 // Intersection of the two sRGB branches, avoiding rounding discontinuity at
 // the commonly rounded 0.04045/0.0031308 breakpoints.
-inline constexpr double srgbCodeKnee = 0.0404482362771082;
-inline constexpr double srgbLinearKnee = 0.00313066844250063;
+inline constexpr double SRGB_CODE_KNEE = 0.0404482362771082;
+inline constexpr double SRGB_LINEAR_KNEE = 0.00313066844250063;
 inline double SrgbDecode(double code)
 {
 	RequireRange(code, 0, 1);
-	return code <= srgbCodeKnee ? code / 12.92 : std::pow((code + 0.055) / 1.055, 2.4);
+	return code <= SRGB_CODE_KNEE ? code / 12.92 : std::pow((code + 0.055) / 1.055, 2.4);
 }
 
 inline double SrgbEncode(double linear)
 {
 	RequireRange(linear, 0, 1);
-	return linear <= srgbLinearKnee ? linear * 12.92 : 1.055 * std::pow(linear, 1 / 2.4) - 0.055;
+	return linear <= SRGB_LINEAR_KNEE ? linear * 12.92 : 1.055 * std::pow(linear, 1 / 2.4) - 0.055;
 }
 
 class HdrGammaCurve
 {
-	double whiteNits_, gamma_, whiteCode_;
+	double _white_nits, _gamma, _white_code;
 
 public:
-	HdrGammaCurve(double whiteNits, double gamma) : whiteNits_(whiteNits), gamma_(gamma), whiteCode_(0)
+	HdrGammaCurve(double white_nits, double gamma) : _white_nits(white_nits), _gamma(gamma), _white_code(0)
 	{
-		RequireRange(whiteNits, 1, 10000);
+		RequireRange(white_nits, 1, 10000);
 		RequireRange(gamma, 1, 4);
-		whiteCode_ = NitsToPq(whiteNits);
+		_white_code = NitsToPq(white_nits);
 	}
-	double WhiteNits() const { return whiteNits_; }
-	double Gamma() const { return gamma_; }
-	double WhiteCode() const { return whiteCode_; }
+	double WhiteNits() const { return _white_nits; }
+	double Gamma() const { return _gamma; }
+	double WhiteCode() const { return _white_code; }
 	double Map(double input) const
 	{
 		RequireRange(input, 0, 1);
-		if (input == 0 || input >= whiteCode_)
+		if (input == 0 || input >= _white_code)
 			return input;
-		const double relativeLight = std::clamp(PqToNits(input) / whiteNits_, 0.0, 1.0);
-		const double signal = SrgbEncode(relativeLight);
-		const double correctedNits = whiteNits_ * std::pow(signal, gamma_);
-		return NitsToPq(std::clamp(correctedNits, 0.0, 10000.0));
+		const double relative_light = std::clamp(PqToNits(input) / _white_nits, 0.0, 1.0);
+		const double signal = SrgbEncode(relative_light);
+		const double corrected_nits = _white_nits * std::pow(signal, _gamma);
+		return NitsToPq(std::clamp(corrected_nits, 0.0, 10000.0));
 	}
 	std::vector<double> SampleLut(std::size_t entries) const
 	{
@@ -102,33 +102,33 @@ public:
 // Creative contrast is evaluated in the reconstructed SDR signal, before the
 // target gamma. HDR highlights above SDR white remain unchanged in this version.
 inline double ApplyHdrContrastAndGamma(double code, double white, double gamma, double amount, double pivot,
-                                       bool correctGamma)
+                                       bool correct_gamma)
 {
 	RequireRange(code, 0, 1);
 	RequireRange(white, 1, 10000);
 	RequireRange(gamma, 1, 4);
 	RequireRange(amount, -0.25, 0.25);
 	RequireRange(pivot, 0.2, 0.8);
-	if (!correctGamma && amount == 0)
+	if (!correct_gamma && amount == 0)
 		return code;
-	if (amount == 0 && correctGamma)
+	if (amount == 0 && correct_gamma)
 		return HdrGammaCurve(white, gamma).Map(code);
 	if (code == 0 || code >= NitsToPq(white))
 		return code;
 	const double signal = SrgbEncode(std::clamp(PqToNits(code) / white, 0.0, 1.0));
 	const double creative = ApplyContrast(signal, amount, pivot);
-	const double relative = correctGamma ? std::pow(creative, gamma) : SrgbDecode(creative);
+	const double relative = correct_gamma ? std::pow(creative, gamma) : SrgbDecode(creative);
 	return NitsToPq(std::clamp(white * relative, 0.0, 10000.0));
 }
 
 // Compile the selected two-effect order into one point transform. Captured
 // per-channel monitor calibration is composed later by the output backend.
 inline double ApplyHdrEffectsInOrder(double code, double white, double gamma, double amount, double pivot,
-                                     bool correctGamma, bool correctionFirst)
+                                     bool correct_gamma, bool correction_first)
 {
-	if (!correctionFirst)
-		return ApplyHdrContrastAndGamma(code, white, gamma, amount, pivot, correctGamma);
-	const double corrected = correctGamma ? HdrGammaCurve(white, gamma).Map(code) : code;
+	if (!correction_first)
+		return ApplyHdrContrastAndGamma(code, white, gamma, amount, pivot, correct_gamma);
+	const double corrected = correct_gamma ? HdrGammaCurve(white, gamma).Map(code) : code;
 	return ApplyHdrContrastAndGamma(corrected, white, gamma, amount, pivot, false);
 }
 } // namespace color

@@ -16,10 +16,10 @@ namespace matrix_effect
 {
 namespace
 {
-constexpr DWORD Magic = 0x434d5831;
+constexpr DWORD SHARED_MEMORY_MAGIC = 0x434d5831;
 struct Shared
 {
-	DWORD magic = Magic;
+	DWORD magic = SHARED_MEMORY_MAGIC;
 	volatile LONG wanted = -1, revision = 0, processed = 0, state = static_cast<LONG>(State::Off), mono = 0,
 				  mix[3] { 21, 72, 7 };
 	UINT_PTR owner = 0;
@@ -27,12 +27,12 @@ struct Shared
 
 struct Handle
 {
-	HANDLE h = nullptr;
-	explicit Handle(HANDLE v = nullptr) : h(v) {}
+	HANDLE handle = nullptr;
+	explicit Handle(HANDLE value = nullptr) : handle(value) {}
 	~Handle()
 	{
-		if (h && h != INVALID_HANDLE_VALUE)
-			CloseHandle(h);
+		if (handle && handle != INVALID_HANDLE_VALUE)
+			CloseHandle(handle);
 	}
 	Handle(const Handle&) = delete;
 	Handle& operator=(const Handle&) = delete;
@@ -40,16 +40,16 @@ struct Handle
 
 struct Mapping
 {
-	Shared* p = nullptr;
+	Shared* shared = nullptr;
 	explicit Mapping(HANDLE h)
 	{
 		if (h)
-			p = static_cast<Shared*>(MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared)));
+			shared = static_cast<Shared*>(MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared)));
 	}
 	~Mapping()
 	{
-		if (p)
-			UnmapViewOfFile(p);
+		if (shared)
+			UnmapViewOfFile(shared);
 	}
 };
 
@@ -87,17 +87,17 @@ struct Fake final : matrix_color::Api
 	matrix_color::Matrix value = matrix_color::IdentityMatrix();
 	bool reject = false;
 	unsigned writes = 0;
-	bool Read(matrix_color::Matrix& m) override
+	bool Read(matrix_color::Matrix& matrix) override
 	{
-		m = value;
+		matrix = value;
 		return true;
 	}
-	bool Write(const matrix_color::Matrix& m) override
+	bool Write(const matrix_color::Matrix& matrix) override
 	{
 		++writes;
 		if (reject)
 			return false;
-		value = m;
+		value = matrix;
 		return true;
 	}
 };
@@ -108,18 +108,18 @@ struct Controller::Impl
 	Handle mapping, event, process;
 	std::unique_ptr<Mapping> view;
 	int amount = -1;
-	bool exitReported = false, mono = false;
+	bool exit_reported = false, mono = false;
 	std::array<int, 3> mix { 21, 72, 7 };
 	HWND owner = nullptr;
 	~Impl()
 	{
-		if (view && view->p)
+		if (view && view->shared)
 		{
-			InterlockedIncrement(&view->p->revision);
-			InterlockedExchange(&view->p->wanted, -2);
-			InterlockedIncrement(&view->p->revision);
-			if (event.h)
-				SetEvent(event.h);
+			InterlockedIncrement(&view->shared->revision);
+			InterlockedExchange(&view->shared->wanted, -2);
+			InterlockedIncrement(&view->shared->revision);
+			if (event.handle)
+				SetEvent(event.handle);
 		}
 	}
 };
@@ -130,22 +130,22 @@ int Controller::WaitForMessageOrWorkerExit(MSG& message)
 {
 	for (;;)
 	{
-		if (!impl_ || impl_->exitReported)
+		if (!_impl || _impl->exit_reported)
 			return static_cast<int>(GetMessageW(&message, nullptr, 0, 0));
-		const HANDLE process = impl_->process.h;
+		const HANDLE process = _impl->process.handle;
 		const DWORD wake = MsgWaitForMultipleObjectsEx(1, &process, INFINITE, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
 		if (wake == WAIT_FAILED)
 			return -1;
 		if (wake == WAIT_OBJECT_0)
 		{
-			impl_->exitReported = true;
+			_impl->exit_reported = true;
 			message = {};
-			message.hwnd = impl_->owner;
-			message.message = Changed;
+			message.hwnd = _impl->owner;
+			message.message = MESSAGE_MATRIX_CHANGED;
 			return 1;
 		}
 		// Peek also dispatches synchronous sent messages. One of those may
-		// replace the session, so re-read impl_ before waiting again.
+		// replace the session, so re-read _impl before waiting again.
 		if (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
 			return message.message == WM_QUIT ? 0 : 1;
 	}
@@ -153,17 +153,17 @@ int Controller::WaitForMessageOrWorkerExit(MSG& message)
 
 void Controller::Stop()
 {
-	if (impl_)
+	if (_impl)
 		Update(nullptr, -1);
 }
 
 State Controller::CurrentState() const
 {
-	if (!impl_)
+	if (!_impl)
 		return State::Off;
-	auto& shared = *impl_->view->p;
-	if (WaitForSingleObject(impl_->process.h, 0) != WAIT_TIMEOUT)
-		return impl_->amount < 0 && AtomicRead(shared.state) == static_cast<LONG>(State::Off) &&
+	auto& shared = *_impl->view->shared;
+	if (WaitForSingleObject(_impl->process.handle, 0) != WAIT_TIMEOUT)
+		return _impl->amount < 0 && AtomicRead(shared.state) == static_cast<LONG>(State::Off) &&
 		               AtomicRead(shared.revision) == AtomicRead(shared.processed)
 		           ? State::Off
 		           : State::Failed;
@@ -174,7 +174,7 @@ State Controller::CurrentState() const
 
 void Controller::Update(HWND owner, int amount, bool refresh, bool fake, const std::array<int, 3>* monochrome)
 {
-	if (amount < -1 || amount > color::SaturationMaximum)
+	if (amount < -1 || amount > color::SATURATION_MAXIMUM)
 		throw std::invalid_argument("Invalid saturation");
 	if (monochrome)
 		matrix_color::MonochromeMatrix(*monochrome); // Validate before starting or changing the worker.
@@ -182,9 +182,9 @@ void Controller::Update(HWND owner, int amount, bool refresh, bool fake, const s
 		amount = -1;
 	const bool mono = monochrome && amount >= 0;
 	const auto mix = mono ? *monochrome : std::array<int, 3> { 21, 72, 7 };
-	if (impl_ && WaitForSingleObject(impl_->process.h, 0) != WAIT_TIMEOUT)
-		impl_.reset();
-	if (!impl_)
+	if (_impl && WaitForSingleObject(_impl->process.handle, 0) != WAIT_TIMEOUT)
+		_impl.reset();
+	if (!_impl)
 	{
 		if (amount < 0)
 			return;
@@ -193,16 +193,16 @@ void Controller::Update(HWND owner, int amount, bool refresh, bool fake, const s
 		static unsigned serial = 0;
 		const auto token = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()) + L"-" +
 		                   std::to_wstring(++serial);
-		next->mapping.h = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared),
-		                                     SharedObjectName(token.c_str(), L"-map").c_str());
-		if (!next->mapping.h || GetLastError() == ERROR_ALREADY_EXISTS)
+		next->mapping.handle = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared),
+		                                          SharedObjectName(token.c_str(), L"-map").c_str());
+		if (!next->mapping.handle || GetLastError() == ERROR_ALREADY_EXISTS)
 			throw std::runtime_error("Color effect is unavailable");
-		next->view = std::make_unique<Mapping>(next->mapping.h);
-		next->event.h = CreateEventW(nullptr, FALSE, FALSE, SharedObjectName(token.c_str(), L"-event").c_str());
-		if (!next->view->p || !next->event.h)
+		next->view = std::make_unique<Mapping>(next->mapping.handle);
+		next->event.handle = CreateEventW(nullptr, FALSE, FALSE, SharedObjectName(token.c_str(), L"-event").c_str());
+		if (!next->view->shared || !next->event.handle)
 			throw std::runtime_error("Cannot prepare color effect");
-		*next->view->p = Shared {};
-		next->view->p->owner = reinterpret_cast<UINT_PTR>(owner);
+		*next->view->shared = Shared {};
+		next->view->shared->owner = reinterpret_cast<UINT_PTR>(owner);
 		auto command = L"\"" + ExecutablePath().wstring() + L"\" " +
 		               (fake ? L"--matrix-effect-probe " : L"--matrix-effect-worker ") +
 		               std::to_wstring(GetCurrentProcessId()) + L" " + token;
@@ -213,17 +213,17 @@ void Controller::Update(HWND owner, int amount, bool refresh, bool fake, const s
 		if (!CreateProcessW(ExecutablePath().c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
 		                    nullptr, nullptr, &startup, &child))
 			throw std::runtime_error("Cannot start color effect");
-		next->process.h = child.hProcess;
+		next->process.handle = child.hProcess;
 		CloseHandle(child.hThread);
-		impl_ = std::move(next);
+		_impl = std::move(next);
 	}
-	if (impl_->amount == amount && impl_->mono == mono && impl_->mix == mix &&
+	if (_impl->amount == amount && _impl->mono == mono && _impl->mix == mix &&
 	    (!refresh || (amount < 0 && CurrentState() == State::Off)))
 		return;
-	impl_->amount = amount;
-	impl_->mono = mono;
-	impl_->mix = mix;
-	auto& shared = *impl_->view->p;
+	_impl->amount = amount;
+	_impl->mono = mono;
+	_impl->mix = mix;
+	auto& shared = *_impl->view->shared;
 	// Odd/even publication prevents a rapid edit from mixing channels from
 	// different requests; the worker never spins waiting for an editor.
 	InterlockedIncrement(&shared.revision);
@@ -232,7 +232,7 @@ void Controller::Update(HWND owner, int amount, bool refresh, bool fake, const s
 	for (int i = 0; i < 3; ++i)
 		InterlockedExchange(&shared.mix[i], mix[i]);
 	InterlockedIncrement(&shared.revision);
-	SetEvent(impl_->event.h);
+	SetEvent(_impl->event.handle);
 }
 
 namespace
@@ -242,10 +242,10 @@ std::string ToUtf8(const wchar_t* text)
 	const int n = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
 	if (n < 1)
 		return {};
-	std::string s(n, '\0');
-	WideCharToMultiByte(CP_UTF8, 0, text, -1, s.data(), n, nullptr, nullptr);
-	s.pop_back();
-	return s;
+	std::string utf8_text(n, '\0');
+	WideCharToMultiByte(CP_UTF8, 0, text, -1, utf8_text.data(), n, nullptr, nullptr);
+	utf8_text.pop_back();
+	return utf8_text;
 }
 
 std::string ProcessName(DWORD pid)
@@ -253,7 +253,7 @@ std::string ProcessName(DWORD pid)
 	Handle process(OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid));
 	wchar_t image[32768] {};
 	DWORD length = 32768;
-	return process.h && QueryFullProcessImageNameW(process.h, 0, image, &length)
+	return process.handle && QueryFullProcessImageNameW(process.handle, 0, image, &length)
 	           ? ToUtf8(std::filesystem::path(image).filename().c_str())
 	           : std::string {};
 }
@@ -276,39 +276,39 @@ void DisplayReport(std::ostream& out)
 		if (device.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP)
 			out << "adapter=" << ToUtf8(device.DeviceString) << " device=" << ToUtf8(device.DeviceName) << '\n';
 	}
-	UINT32 pc = 0, mc = 0;
-	LONG error = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pc, &mc);
+	UINT32 path_count = 0, mode_count = 0;
+	LONG error = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count, &mode_count);
 	if (error)
 	{
 		out << "display_query_error=" << error << '\n';
 		return;
 	}
-	std::vector<DISPLAYCONFIG_PATH_INFO> paths(pc);
-	std::vector<DISPLAYCONFIG_MODE_INFO> modes(mc);
-	error = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pc, paths.data(), &mc, modes.data(), nullptr);
+	std::vector<DISPLAYCONFIG_PATH_INFO> paths(path_count);
+	std::vector<DISPLAYCONFIG_MODE_INFO> modes(mode_count);
+	error = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &path_count, paths.data(), &mode_count, modes.data(), nullptr);
 	if (error)
 	{
 		out << "display_query_error=" << error << '\n';
 		return;
 	}
-	for (UINT32 i = 0; i < pc; ++i)
+	for (UINT32 i = 0; i < path_count; ++i)
 	{
-		const auto& p = paths[i];
-		out << "display[" << i << "] source=" << p.sourceInfo.id;
-		if (p.sourceInfo.modeInfoIdx < mc &&
-		    modes[p.sourceInfo.modeInfoIdx].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
+		const auto& path = paths[i];
+		out << "display[" << i << "] source=" << path.sourceInfo.id;
+		if (path.sourceInfo.modeInfoIdx < mode_count &&
+		    modes[path.sourceInfo.modeInfoIdx].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
 		{
-			const auto& m = modes[p.sourceInfo.modeInfoIdx].sourceMode;
-			out << " resolution=" << m.width << 'x' << m.height;
+			const auto& source_mode = modes[path.sourceInfo.modeInfoIdx].sourceMode;
+			out << " resolution=" << source_mode.width << 'x' << source_mode.height;
 		}
 		DISPLAYCONFIG_TARGET_DEVICE_NAME name {};
-		name.header = { DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, sizeof(name), p.targetInfo.adapterId,
-			            p.targetInfo.id };
+		name.header = { DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, sizeof(name), path.targetInfo.adapterId,
+			            path.targetInfo.id };
 		if (!DisplayConfigGetDeviceInfo(&name.header))
 			out << " name=" << ToUtf8(name.monitorFriendlyDeviceName);
 		DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color {};
-		color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), p.targetInfo.adapterId,
-			             p.targetInfo.id };
+		color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), path.targetInfo.adapterId,
+			             path.targetInfo.id };
 		const auto advanced = DisplayConfigGetDeviceInfo(&color.header);
 		out << " advanced_color_query=" << advanced;
 		if (!advanced)
@@ -332,12 +332,13 @@ std::filesystem::path Controller::WriteReport() const
 	out << "MonitorMage " MONITORMAGE_VERSION " saturation compatibility report (UTF-8)\n"
 		<< "Read-only snapshot. No color, HDR or fullscreen settings were changed.\n"
 		<< "State: 0=off,1=starting,2=active,4=other_tool,5=failed,6=external_change\n"
-		<< "saturation=" << (impl_ ? impl_->amount : -1) << " state=" << static_cast<int>(CurrentState()) << '\n';
-	if (impl_)
-		out << "worker_pid=" << GetProcessId(impl_->process.h) << " revision=" << AtomicRead(impl_->view->p->revision)
-			<< " processed=" << AtomicRead(impl_->view->p->processed) << '\n';
-	if (impl_)
-		out << "monochrome=" << impl_->mono << " mix=" << impl_->mix[0] << ',' << impl_->mix[1] << ',' << impl_->mix[2]
+		<< "saturation=" << (_impl ? _impl->amount : -1) << " state=" << static_cast<int>(CurrentState()) << '\n';
+	if (_impl)
+		out << "worker_pid=" << GetProcessId(_impl->process.handle)
+			<< " revision=" << AtomicRead(_impl->view->shared->revision)
+			<< " processed=" << AtomicRead(_impl->view->shared->processed) << '\n';
+	if (_impl)
+		out << "monochrome=" << _impl->mono << " mix=" << _impl->mix[0] << ',' << _impl->mix[1] << ',' << _impl->mix[2]
 			<< '\n';
 	const auto filters = windows_controls::ReadColorFilterState();
 	out << "Windows_filters_available=" << filters.available << " on=" << filters.on << " type=" << filters.filter
@@ -358,23 +359,23 @@ std::filesystem::path Controller::WriteReport() const
 	return path;
 }
 
-int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
+int RunWorkerProcess(DWORD parent_id, const wchar_t* token, bool fake)
 {
-	if (!parentId || !IsValidToken(token))
+	if (!parent_id || !IsValidToken(token))
 		return 2;
-	Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parentId));
+	Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parent_id));
 	Handle event(OpenEventW(SYNCHRONIZE, FALSE, SharedObjectName(token, L"-event").c_str()));
 	Handle mapping(OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, SharedObjectName(token, L"-map").c_str()));
-	Mapping view(mapping.h);
-	if (!parent.h || !event.h || !view.p || view.p->magic != Magic)
+	Mapping view(mapping.handle);
+	if (!parent.handle || !event.handle || !view.shared || view.shared->magic != SHARED_MEMORY_MAGIC)
 		return 3;
-	auto& shared = *view.p;
+	auto& shared = *view.shared;
 	const HWND owner = reinterpret_cast<HWND>(shared.owner);
-	DWORD ownerPid = 0;
+	DWORD owner_pid = 0;
 	if (owner)
 	{
-		GetWindowThreadProcessId(owner, &ownerPid);
-		if (ownerPid != parentId)
+		GetWindowThreadProcessId(owner, &owner_pid);
+		if (owner_pid != parent_id)
 			return 4;
 	}
 	matrix_color::WindowsApi api;
@@ -408,28 +409,28 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 		{
 		}
 	unsigned entries = 0;
-	DWORD previousPid = 0;
-	std::string foregroundName;
-	LONG previousAmount = -2;
+	DWORD previous_pid = 0;
+	std::string foreground_name;
+	LONG previous_amount = -2;
 	const auto log = [&](const char* action, LONG amount, State state)
 	{
 		if (report && entries++ < 1024)
 		{
 			DWORD foreground = 0;
 			GetWindowThreadProcessId(GetForegroundWindow(), &foreground);
-			if (foreground != previousPid)
+			if (foreground != previous_pid)
 			{
-				foregroundName = ProcessName(foreground);
-				previousPid = foreground;
+				foreground_name = ProcessName(foreground);
+				previous_pid = foreground;
 			}
 			report << "time_ms=" << GetTickCount64() << " action=" << action << " saturation=" << amount
 				   << " state=" << static_cast<int>(state) << " foreground_pid=" << foreground
-				   << " foreground_executable=" << foregroundName << " resolution=" << GetSystemMetrics(SM_CXSCREEN)
+				   << " foreground_executable=" << foreground_name << " resolution=" << GetSystemMetrics(SM_CXSCREEN)
 				   << 'x' << GetSystemMetrics(SM_CYSCREEN) << '\n';
 			report.flush();
 		}
 	};
-	HANDLE wait[] { parent.h, event.h };
+	HANDLE wait[] { parent.handle, event.handle };
 	bool ending = false;
 	while (!ending)
 	{
@@ -438,11 +439,11 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 			break;
 		if (wake == WAIT_OBJECT_0 + 2)
 		{
-			MSG msg {};
-			while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE))
+			MSG message {};
+			while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
 			{
-				TranslateMessage(&msg);
-				DispatchMessageW(&msg);
+				TranslateMessage(&message);
+				DispatchMessageW(&message);
 			}
 			continue;
 		}
@@ -461,7 +462,7 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 			ending = true;
 			break;
 		}
-		if (WaitForSingleObject(parent.h, 0) != WAIT_TIMEOUT)
+		if (WaitForSingleObject(parent.handle, 0) != WAIT_TIMEOUT)
 			break;
 		if (amount < 0)
 		{
@@ -473,7 +474,7 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 				opened = false;
 			}
 		}
-		else if (amount > color::SaturationMaximum)
+		else if (amount > color::SATURATION_MAXIMUM)
 			state = State::Failed;
 		else
 		{
@@ -508,14 +509,14 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 				state = engine.Apply(target);
 			}
 		}
-		if (report && entries < 1024 && (previousAmount == -2 || previousAmount == amount))
+		if (report && entries < 1024 && (previous_amount == -2 || previous_amount == amount))
 			DisplayReport(report);
-		log(previousAmount == amount ? "reapply" : "update", amount, state);
-		previousAmount = amount;
+		log(previous_amount == amount ? "reapply" : "update", amount, state);
+		previous_amount = amount;
 		InterlockedExchange(&shared.state, static_cast<LONG>(state));
 		InterlockedExchange(&shared.processed, revision);
 		if (owner)
-			PostMessageW(owner, Changed, 0, 0);
+			PostMessageW(owner, MESSAGE_MATRIX_CHANGED, 0, 0);
 	}
 	auto restored = restore();
 	if (!fake && !api.Close())
@@ -544,13 +545,14 @@ int SelfTest()
 		if (std::abs(white - 1) > 1e-6f)
 			return 35;
 	}
-	const auto sat = matrix_color::SaturationMatrix(1.7f), combined = matrix_color::MultiplyMatrices(sat, mix);
+	const auto saturation = matrix_color::SaturationMatrix(1.7f),
+			   combined = matrix_color::MultiplyMatrices(saturation, mix);
 	const std::array<float, 5> input { .8f, .2f, .4f, 1, 1 };
 	std::array<float, 5> first {}, second {}, direct {};
 	for (int r = 0; r < 5; ++r)
 		for (int c = 0; c < 5; ++c)
 		{
-			first[c] += input[r] * sat[r][c];
+			first[c] += input[r] * saturation[r][c];
 			direct[c] += input[r] * combined[r][c];
 		}
 	for (int r = 0; r < 5; ++r)
@@ -587,7 +589,7 @@ int SelfTest()
 	if (recovery.NextDelay() != 250)
 		return 32;
 	if (engine.Apply(50) != State::Active || engine.Apply(120) != State::Active ||
-	    engine.Apply(color::SaturationMaximum) != State::Active)
+	    engine.Apply(color::SATURATION_MAXIMUM) != State::Active)
 		return 2;
 	// Display-mode reset to identity must reapply; a different external matrix
 	// must be preserved, including on pause and exit.
@@ -635,7 +637,7 @@ int SelfTest()
 		if (!await(State::Active))
 			return 8;
 		controller.Update(nullptr, 50);
-		controller.Update(nullptr, color::SaturationMaximum);
+		controller.Update(nullptr, color::SATURATION_MAXIMUM);
 		if (!await(State::Active))
 			return 9;
 		controller.Stop();
@@ -656,8 +658,8 @@ int SelfTest()
 			weights = { i, 200 - i, i / 2 };
 			controller.Update(nullptr, 120, false, true, &weights);
 		}
-		if (!await(State::Active) || AtomicRead(controller.impl_->view->p->mix[0]) != 99 ||
-		    (AtomicRead(controller.impl_->view->p->revision) & 1))
+		if (!await(State::Active) || AtomicRead(controller._impl->view->shared->mix[0]) != 99 ||
+		    (AtomicRead(controller._impl->view->shared->revision) & 1))
 			return 40;
 		controller.Update(nullptr, 100, false, true);
 		if (!await(State::Off))
@@ -667,25 +669,25 @@ int SelfTest()
 			return 42;
 		// Keep independent observations alive while controller destruction
 		// asks the fake worker to restore and exit. No real API is loaded.
-		HANDLE processCopy = nullptr;
-		if (!DuplicateHandle(GetCurrentProcess(), controller.impl_->process.h, GetCurrentProcess(), &processCopy,
+		HANDLE process_copy = nullptr;
+		if (!DuplicateHandle(GetCurrentProcess(), controller._impl->process.handle, GetCurrentProcess(), &process_copy,
 		                     SYNCHRONIZE, FALSE, 0))
 			return 14;
-		Handle observedProcess(processCopy);
-		Mapping observed(controller.impl_->mapping.h);
+		Handle observed_process(process_copy);
+		Mapping observed(controller._impl->mapping.handle);
 		holder.reset();
-		if (WaitForSingleObject(observedProcess.h, 3000) != WAIT_OBJECT_0 || !observed.p ||
-		    AtomicRead(observed.p->state) != static_cast<LONG>(State::Off))
+		if (WaitForSingleObject(observed_process.handle, 3000) != WAIT_OBJECT_0 || !observed.shared ||
+		    AtomicRead(observed.shared->state) != static_cast<LONG>(State::Off))
 			return 15;
 		// Crash only a disposable owner created for this test. The worker
 		// must wake on parent death, restore its fake baseline, then exit.
-		auto ownerCommand = L"\"" + ExecutablePath().wstring() + L"\" --matrix-preview-owner";
+		auto owner_command = L"\"" + ExecutablePath().wstring() + L"\" --matrix-preview-owner";
 		STARTUPINFOW startup { sizeof(startup) };
 		startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_FORCEOFFFEEDBACK;
 		startup.wShowWindow = SW_HIDE;
-		PROCESS_INFORMATION ownerInfo {};
-		if (!CreateProcessW(ExecutablePath().c_str(), ownerCommand.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
-		                    nullptr, nullptr, &startup, &ownerInfo))
+		PROCESS_INFORMATION owner_info {};
+		if (!CreateProcessW(ExecutablePath().c_str(), owner_command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
+		                    nullptr, nullptr, &startup, &owner_info))
 			return 16;
 		struct Disposable
 		{
@@ -693,49 +695,49 @@ int SelfTest()
 			explicit Disposable(HANDLE h) : process(h) {}
 			~Disposable()
 			{
-				if (WaitForSingleObject(process.h, 0) == WAIT_TIMEOUT)
-					TerminateProcess(process.h, 0);
+				if (WaitForSingleObject(process.handle, 0) == WAIT_TIMEOUT)
+					TerminateProcess(process.handle, 0);
 			}
-		} owner(ownerInfo.hProcess);
-		CloseHandle(ownerInfo.hThread);
+		} owner(owner_info.hProcess);
+		CloseHandle(owner_info.hThread);
 		const auto token = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()) + L"-9999";
 		Handle mapping(CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared),
 		                                  SharedObjectName(token.c_str(), L"-map").c_str()));
-		Mapping orphan(mapping.h);
+		Mapping orphan(mapping.handle);
 		Handle event(CreateEventW(nullptr, FALSE, FALSE, SharedObjectName(token.c_str(), L"-event").c_str()));
-		if (!orphan.p || !event.h)
+		if (!orphan.shared || !event.handle)
 			return 17;
-		*orphan.p = Shared {};
-		orphan.p->wanted = 0;
-		orphan.p->revision = 2;
-		auto workerCommand = L"\"" + ExecutablePath().wstring() + L"\" --matrix-effect-probe " +
-		                     std::to_wstring(ownerInfo.dwProcessId) + L" " + token;
-		PROCESS_INFORMATION workerInfo {};
-		if (!CreateProcessW(ExecutablePath().c_str(), workerCommand.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
-		                    nullptr, nullptr, &startup, &workerInfo))
+		*orphan.shared = Shared {};
+		orphan.shared->wanted = 0;
+		orphan.shared->revision = 2;
+		auto worker_command = L"\"" + ExecutablePath().wstring() + L"\" --matrix-effect-probe " +
+		                      std::to_wstring(owner_info.dwProcessId) + L" " + token;
+		PROCESS_INFORMATION worker_info {};
+		if (!CreateProcessW(ExecutablePath().c_str(), worker_command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
+		                    nullptr, nullptr, &startup, &worker_info))
 			return 18;
-		Handle orphanWorker(workerInfo.hProcess);
-		CloseHandle(workerInfo.hThread);
-		SetEvent(event.h);
+		Handle orphan_worker(worker_info.hProcess);
+		CloseHandle(worker_info.hThread);
+		SetEvent(event.handle);
 		const auto deadline = GetTickCount64() + 3000;
-		while (AtomicRead(orphan.p->state) != static_cast<LONG>(State::Active) && GetTickCount64() < deadline)
+		while (AtomicRead(orphan.shared->state) != static_cast<LONG>(State::Active) && GetTickCount64() < deadline)
 			Sleep(5);
-		if (AtomicRead(orphan.p->state) != static_cast<LONG>(State::Active))
+		if (AtomicRead(orphan.shared->state) != static_cast<LONG>(State::Active))
 			return 19;
-		TerminateProcess(owner.process.h, 0);
-		if (WaitForSingleObject(orphanWorker.h, 3000) != WAIT_OBJECT_0 ||
-		    AtomicRead(orphan.p->state) != static_cast<LONG>(State::Off))
+		TerminateProcess(owner.process.handle, 0);
+		if (WaitForSingleObject(orphan_worker.handle, 3000) != WAIT_OBJECT_0 ||
+		    AtomicRead(orphan.shared->state) != static_cast<LONG>(State::Off))
 			return 20;
 		Controller watched;
 		watched.Update(nullptr, 50, false, true);
 		// Killing only the fake worker created here checks notification of an
 		// unexpected worker exit, without loading the Windows color API.
-		TerminateProcess(watched.impl_->process.h, 99);
-		if (WaitForSingleObject(watched.impl_->process.h, 3000) != WAIT_OBJECT_0)
+		TerminateProcess(watched._impl->process.handle, 99);
+		if (WaitForSingleObject(watched._impl->process.handle, 3000) != WAIT_OBJECT_0)
 			return 24;
 		MSG message {};
-		if (watched.WaitForMessageOrWorkerExit(message) != 1 || message.message != Changed ||
-		    !watched.impl_->exitReported || watched.CurrentState() != State::Failed)
+		if (watched.WaitForMessageOrWorkerExit(message) != 1 || message.message != MESSAGE_MATRIX_CHANGED ||
+		    !watched._impl->exit_reported || watched.CurrentState() != State::Failed)
 			return 25;
 		PeekMessageW(&message, nullptr, 0, 0, PM_NOREMOVE);
 		if (!PostThreadMessageW(GetCurrentThreadId(), WM_APP + 41, 123, 0))
@@ -743,10 +745,10 @@ int SelfTest()
 		if (watched.WaitForMessageOrWorkerExit(message) != 1 || message.message != WM_APP + 41 || message.wParam != 123)
 			return 26;
 		watched.Update(nullptr, 50, false, true);
-		if (watched.impl_->exitReported)
+		if (watched._impl->exit_reported)
 			return 27;
-		Controller readOnly;
-		const auto snapshot = readOnly.WriteReport();
+		Controller read_only;
+		const auto snapshot = read_only.WriteReport();
 		std::ifstream text(snapshot);
 		const std::string contents((std::istreambuf_iterator<char>(text)), {});
 		text.close();
@@ -754,7 +756,7 @@ int SelfTest()
 		                   contents.find("Windows=") != contents.npos &&
 		                   contents.find("exclusive vs borderless") != contents.npos;
 		DeleteFileW(snapshot.c_str());
-		if (!valid || readOnly.CurrentState() != State::Off)
+		if (!valid || read_only.CurrentState() != State::Off)
 			return 28;
 	}
 	catch (...)
@@ -782,11 +784,12 @@ int Benchmark(const wchar_t* path)
 		};
 		const auto cpu = [&]()
 		{
-			FILETIME c {}, e {}, k {}, u {};
-			if (!GetProcessTimes(controller.impl_->process.h, &c, &e, &k, &u))
+			FILETIME creation_time {}, exit_time {}, kernel_time {}, user_time {};
+			if (!GetProcessTimes(controller._impl->process.handle, &creation_time, &exit_time, &kernel_time,
+			                     &user_time))
 				throw std::runtime_error("Cannot measure worker CPU");
-			return ((static_cast<ULONGLONG>(k.dwHighDateTime) + u.dwHighDateTime) << 32) + k.dwLowDateTime +
-			       static_cast<ULONGLONG>(u.dwLowDateTime);
+			return ((static_cast<ULONGLONG>(kernel_time.dwHighDateTime) + user_time.dwHighDateTime) << 32) +
+			       kernel_time.dwLowDateTime + static_cast<ULONGLONG>(user_time.dwLowDateTime);
 		};
 		const auto sample = [&]()
 		{
@@ -794,8 +797,8 @@ int Benchmark(const wchar_t* path)
 			Sleep(1000);
 			PROCESS_MEMORY_COUNTERS_EX memory {};
 			memory.cb = sizeof(memory);
-			if (!GetProcessMemoryInfo(controller.impl_->process.h, reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),
-			                          sizeof(memory)))
+			if (!GetProcessMemoryInfo(controller._impl->process.handle,
+			                          reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory), sizeof(memory)))
 				throw std::runtime_error("Cannot measure worker memory");
 			std::ostringstream json;
 			json << "{\"elapsed_ms\":" << GetTickCount64() - start << ",\"cpu_ms\":" << (cpu() - before) / 10000.0
@@ -809,11 +812,11 @@ int Benchmark(const wchar_t* path)
 			return 1;
 		const auto startup = GetTickCount64() - start;
 		const auto active = sample();
-		const auto stopStart = GetTickCount64();
+		const auto stop_start = GetTickCount64();
 		controller.Stop();
 		if (!await(State::Off))
 			return 2;
-		const auto stop = GetTickCount64() - stopStart;
+		const auto stop = GetTickCount64() - stop_start;
 		const auto paused = sample();
 		std::ostringstream json;
 		json
@@ -823,8 +826,8 @@ int Benchmark(const wchar_t* path)
 		const auto bytes = json.str();
 		Handle file(CreateFileW(path, GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
 		DWORD written = 0;
-		return file.h != INVALID_HANDLE_VALUE &&
-		               WriteFile(file.h, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) &&
+		return file.handle != INVALID_HANDLE_VALUE &&
+		               WriteFile(file.handle, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr) &&
 		               written == bytes.size()
 		           ? 0
 		           : 3;

@@ -11,15 +11,15 @@ namespace live
 {
 namespace
 {
-constexpr const wchar_t* LeaseName = L"Local\\LutWorkbench-LutWriter";
+constexpr const wchar_t* WRITER_LEASE_NAME = L"Local\\LutWorkbench-LutWriter";
 struct Handle
 {
-	HANDLE h = nullptr;
-	explicit Handle(HANDLE value = nullptr) : h(value) {}
+	HANDLE handle = nullptr;
+	explicit Handle(HANDLE value = nullptr) : handle(value) {}
 	~Handle()
 	{
-		if (h && h != INVALID_HANDLE_VALUE)
-			CloseHandle(h);
+		if (handle && handle != INVALID_HANDLE_VALUE)
+			CloseHandle(handle);
 	}
 	Handle(const Handle&) = delete;
 	Handle& operator=(const Handle&) = delete;
@@ -33,12 +33,12 @@ struct WriterLease
 	DWORD thread = GetCurrentThreadId();
 	explicit WriterLease(const wchar_t* name)
 	{
-		handle.h = CreateMutexW(nullptr, TRUE, name);
+		handle.handle = CreateMutexW(nullptr, TRUE, name);
 		const DWORD error = GetLastError();
-		if (!handle.h || error == ERROR_ALREADY_EXISTS)
+		if (!handle.handle || error == ERROR_ALREADY_EXISTS)
 			throw std::runtime_error("Another LUT session or timed test is active");
 	}
-	~WriterLease() { ReleaseMutex(handle.h); }
+	~WriterLease() { ReleaseMutex(handle.handle); }
 };
 
 struct WriterLeases
@@ -60,15 +60,15 @@ struct WriterLeases
 	}
 };
 
-WriterLeases writerLeases;
+WriterLeases writer_leases;
 struct DC
 {
-	HDC h;
-	explicit DC(const std::wstring& name) : h(CreateDCW(L"DISPLAY", name.c_str(), nullptr, nullptr)) {}
+	HDC handle;
+	explicit DC(const std::wstring& name) : handle(CreateDCW(L"DISPLAY", name.c_str(), nullptr, nullptr)) {}
 	~DC()
 	{
-		if (h)
-			DeleteDC(h);
+		if (handle)
+			DeleteDC(handle);
 	}
 };
 
@@ -104,15 +104,15 @@ struct Shared
 
 struct View
 {
-	Shared* p = nullptr;
+	Shared* shared = nullptr;
 	explicit View(HANDLE mapping)
-		: p(static_cast<Shared*>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared))))
+		: shared(static_cast<Shared*>(MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared))))
 	{
 	}
 	~View()
 	{
-		if (p)
-			UnmapViewOfFile(p);
+		if (shared)
+			UnmapViewOfFile(shared);
 	}
 };
 
@@ -127,8 +127,8 @@ void SaveSnapshot(const std::wstring& file, const Snapshot& snapshot)
 {
 	Handle h(CreateFileW(file.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr));
 	DWORD count = 0;
-	if (h.h == INVALID_HANDLE_VALUE || !WriteFile(h.h, &snapshot, sizeof(snapshot), &count, nullptr) ||
-	    count != sizeof(snapshot) || !FlushFileBuffers(h.h))
+	if (h.handle == INVALID_HANDLE_VALUE || !WriteFile(h.handle, &snapshot, sizeof(snapshot), &count, nullptr) ||
+	    count != sizeof(snapshot) || !FlushFileBuffers(h.handle))
 		throw std::runtime_error("Cannot save recovery baseline");
 }
 
@@ -138,8 +138,8 @@ Snapshot LoadSnapshot(const wchar_t* file)
 	DWORD count = 0;
 	LARGE_INTEGER length {};
 	Handle h(CreateFileW(file, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr));
-	if (h.h == INVALID_HANDLE_VALUE || !GetFileSizeEx(h.h, &length) || length.QuadPart != sizeof(snapshot) ||
-	    !ReadFile(h.h, &snapshot, sizeof(snapshot), &count, nullptr) || count != sizeof(snapshot) ||
+	if (h.handle == INVALID_HANDLE_VALUE || !GetFileSizeEx(h.handle, &length) || length.QuadPart != sizeof(snapshot) ||
+	    !ReadFile(h.handle, &snapshot, sizeof(snapshot), &count, nullptr) || count != sizeof(snapshot) ||
 	    snapshot.magic != 0x3254554c || snapshot.source[31] || snapshot.identity[2047] || !snapshot.source[0] ||
 	    !snapshot.identity[0])
 		throw std::runtime_error("Invalid live recovery snapshot");
@@ -164,7 +164,7 @@ int RestoreSnapshot(const Snapshot& snapshot, Shared* shared)
 		return 11;
 	DC dc(output.name);
 	Ramp current {};
-	if (!dc.h || !GetDeviceGammaRamp(dc.h, &current))
+	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &current))
 		return 12;
 	if (shared)
 	{
@@ -173,9 +173,9 @@ int RestoreSnapshot(const Snapshot& snapshot, Shared* shared)
 		if (!IsRampOurs(current, snapshot.baseline, shared->last, shared->candidate, applied, pending))
 			return 10;
 	}
-	if (!SetDeviceGammaRamp(dc.h, const_cast<Ramp*>(&snapshot.baseline)))
+	if (!SetDeviceGammaRamp(dc.handle, const_cast<Ramp*>(&snapshot.baseline)))
 		return 13;
-	if (!GetDeviceGammaRamp(dc.h, &current) || MaxRampDifference(current, snapshot.baseline) > 2)
+	if (!GetDeviceGammaRamp(dc.handle, &current) || MaxRampDifference(current, snapshot.baseline) > 2)
 		return 14;
 	return 0;
 }
@@ -217,11 +217,11 @@ std::wstring DisplayTargetsFromIdentity(const std::wstring& mode)
 	{
 		const auto end = mode.find(L'\n', start);
 		auto line = mode.substr(start, end - start);
-		const auto modeAt = line.rfind(L':');
-		const auto flagsAt = modeAt == std::wstring::npos ? std::wstring::npos : line.rfind(L':', modeAt - 1);
-		if (flagsAt == std::wstring::npos)
+		const auto mode_at = line.rfind(L':');
+		const auto flags_at = mode_at == std::wstring::npos ? std::wstring::npos : line.rfind(L':', mode_at - 1);
+		if (flags_at == std::wstring::npos)
 			return {};
-		result += line.substr(0, flagsAt) + L"\n";
+		result += line.substr(0, flags_at) + L"\n";
 		if (end == std::wstring::npos)
 			break;
 		start = end + 1;
@@ -234,44 +234,45 @@ std::vector<Output> ActiveOutputs()
 {
 	for (int attempt = 0; attempt < 5; ++attempt)
 	{
-		UINT32 pc = 0, mc = 0;
-		if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pc, &mc) != ERROR_SUCCESS)
+		UINT32 path_count = 0, mode_count = 0;
+		if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count, &mode_count) != ERROR_SUCCESS)
 			throw std::runtime_error("Cannot enumerate outputs");
-		std::vector<DISPLAYCONFIG_PATH_INFO> paths(pc);
-		std::vector<DISPLAYCONFIG_MODE_INFO> modes(mc);
-		const LONG result = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pc, paths.data(), &mc, modes.data(), nullptr);
+		std::vector<DISPLAYCONFIG_PATH_INFO> paths(path_count);
+		std::vector<DISPLAYCONFIG_MODE_INFO> modes(mode_count);
+		const LONG result =
+			QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &path_count, paths.data(), &mode_count, modes.data(), nullptr);
 		if (result == ERROR_INSUFFICIENT_BUFFER)
 			continue;
 		if (result != ERROR_SUCCESS)
 			throw std::runtime_error("Cannot read display configuration");
 		std::vector<Output> list;
 		std::vector<std::vector<std::wstring>> identities;
-		for (UINT32 i = 0; i < pc; ++i)
+		for (UINT32 i = 0; i < path_count; ++i)
 		{
-			const auto& p = paths[i];
+			const auto& path = paths[i];
 			DISPLAYCONFIG_SOURCE_DEVICE_NAME source {};
-			source.header = { DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, sizeof(source), p.sourceInfo.adapterId,
-				              p.sourceInfo.id };
+			source.header = { DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, sizeof(source), path.sourceInfo.adapterId,
+				              path.sourceInfo.id };
 			DISPLAYCONFIG_TARGET_DEVICE_NAME target {};
-			target.header = { DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, sizeof(target), p.targetInfo.adapterId,
-				              p.targetInfo.id };
+			target.header = { DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, sizeof(target), path.targetInfo.adapterId,
+				              path.targetInfo.id };
 			if (DisplayConfigGetDeviceInfo(&source.header) || DisplayConfigGetDeviceInfo(&target.header))
 				throw std::runtime_error("Cannot identify display output");
 			DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color {};
-			color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), p.targetInfo.adapterId,
-				             p.targetInfo.id };
-			const bool colorKnown = DisplayConfigGetDeviceInfo(&color.header) == ERROR_SUCCESS;
+			color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color),
+				             path.targetInfo.adapterId, path.targetInfo.id };
+			const bool color_known = DisplayConfigGetDeviceInfo(&color.header) == ERROR_SUCCESS;
 			AdvancedColor2 modern {};
-			modern.header = { static_cast<DISPLAYCONFIG_DEVICE_INFO_TYPE>(15), sizeof(modern), p.targetInfo.adapterId,
-				              p.targetInfo.id };
-			const bool modernKnown = DisplayConfigGetDeviceInfo(&modern.header) == ERROR_SUCCESS;
-			static const bool reliableLegacy = LegacyHdrFlagReliable();
-			const bool targetHdr =
-				modernKnown ? modern.mode == 2 : reliableLegacy && colorKnown && color.advancedColorEnabled;
-			const bool modeKnown = modernKnown ? modern.mode == 0 || modern.mode == 2
-			                                   : colorKnown && (!color.advancedColorEnabled || reliableLegacy);
+			modern.header = { static_cast<DISPLAYCONFIG_DEVICE_INFO_TYPE>(15), sizeof(modern),
+				              path.targetInfo.adapterId, path.targetInfo.id };
+			const bool modern_known = DisplayConfigGetDeviceInfo(&modern.header) == ERROR_SUCCESS;
+			static const bool reliable_legacy = LegacyHdrFlagReliable();
+			const bool target_hdr =
+				modern_known ? modern.mode == 2 : reliable_legacy && color_known && color.advancedColorEnabled;
+			const bool mode_known = modern_known ? modern.mode == 0 || modern.mode == 2
+			                                     : color_known && (!color.advancedColorEnabled || reliable_legacy);
 			auto at = std::find_if(list.begin(), list.end(),
-			                       [&](const Output& o) { return o.name == source.viewGdiDeviceName; });
+			                       [&](const Output& output) { return output.name == source.viewGdiDeviceName; });
 			if (at == list.end())
 			{
 				list.push_back({});
@@ -285,17 +286,17 @@ std::vector<Output> ActiveOutputs()
 			at->label += target.monitorFriendlyDeviceName;
 			identities[index].push_back(std::wstring(target.monitorDevicePath) + L":" + std::to_wstring(color.value) +
 			                            L":" +
-			                            std::to_wstring(modernKnown ? modern.mode
-			                                            : targetHdr ? 2u
-			                                                        : 0u));
-			at->supported = at->supported && colorKnown && modeKnown && target.monitorDevicePath[0];
-			at->hdr = at->hdr || targetHdr;
-			at->safe = at->safe && modeKnown && !targetHdr;
-			if (targetHdr)
+			                            std::to_wstring(modern_known ? modern.mode
+			                                            : target_hdr ? 2u
+			                                                         : 0u));
+			at->supported = at->supported && color_known && mode_known && target.monitorDevicePath[0];
+			at->hdr = at->hdr || target_hdr;
+			at->safe = at->safe && mode_known && !target_hdr;
+			if (target_hdr)
 			{
 				DISPLAYCONFIG_SDR_WHITE_LEVEL white {};
-				white.header = { DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL, sizeof(white), p.targetInfo.adapterId,
-					             p.targetInfo.id };
+				white.header = { DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL, sizeof(white),
+					             path.targetInfo.adapterId, path.targetInfo.id };
 				if (DisplayConfigGetDeviceInfo(&white.header) == ERROR_SUCCESS)
 					at->white = white.SDRWhiteLevel * 0.08;
 				else
@@ -304,7 +305,7 @@ std::vector<Output> ActiveOutputs()
 		}
 		// Enumerate adapters once for the entire topology, rather than once
 		// for each independent output group.
-		std::vector<std::wstring> nvidiaSources;
+		std::vector<std::wstring> nvidia_sources;
 		for (DWORD a = 0;; ++a)
 		{
 			DISPLAY_DEVICEW adapter {};
@@ -312,7 +313,7 @@ std::vector<Output> ActiveOutputs()
 			if (!EnumDisplayDevicesW(nullptr, a, &adapter, 0))
 				break;
 			if (std::wstring(adapter.DeviceString).find(L"NVIDIA") != std::wstring::npos)
-				nvidiaSources.emplace_back(adapter.DeviceName);
+				nvidia_sources.emplace_back(adapter.DeviceName);
 		}
 		for (size_t i = 0; i < list.size(); ++i)
 		{
@@ -321,7 +322,8 @@ std::vector<Output> ActiveOutputs()
 			std::sort(ids.begin(), ids.end());
 			for (const auto& id : ids)
 				output.identity += id + L"\n";
-			output.nvidia = std::find(nvidiaSources.begin(), nvidiaSources.end(), output.name) != nvidiaSources.end();
+			output.nvidia =
+				std::find(nvidia_sources.begin(), nvidia_sources.end(), output.name) != nvidia_sources.end();
 			if (output.hdr)
 				output.supported =
 					output.supported && output.nvidia && ids.size() == 1 && output.white >= 1 && output.white <= 10000;
@@ -341,45 +343,45 @@ double EvaluateOutputCode(double code, int channel, const Output& output, const 
 {
 	const auto warm = [&](double value)
 	{
-		if (settings.nightWarmth <= 0)
+		if (settings.NightWarmth <= 0)
 			return value;
-		const double gain = std::exp2(-settings.nightWarmth * .5 * channel);
+		const double gain = std::exp2(-settings.NightWarmth * .5 * channel);
 		return output.hdr ? color::NitsToPq(color::PqToNits(value) * gain)
 		                  : color::SrgbEncode(color::SrgbDecode(value) * gain);
 	};
-	if (settings.order.empty())
+	if (settings.Order.empty())
 	{
-		const double amount = settings.bypass ? 0 : settings.contrast;
-		const bool sdrFix = !output.hdr && settings.hdrFix && settings.applyInSdr;
-		if (sdrFix && settings.correctionFirst)
-			code = color::SrgbEncode(std::pow(code, settings.gamma));
-		code = output.hdr ? color::ApplyHdrEffectsInOrder(code, output.white, settings.gamma, amount, settings.pivot,
-		                                                  settings.hdrFix, settings.correctionFirst)
-		                  : color::ApplyContrast(code, amount, settings.pivot);
-		if (sdrFix && !settings.correctionFirst)
-			code = color::SrgbEncode(std::pow(code, settings.gamma));
-		if (!settings.bypass)
+		const double amount = settings.Bypass ? 0 : settings.Contrast;
+		const bool sdr_fix = !output.hdr && settings.HdrFix && settings.ApplyInSdr;
+		if (sdr_fix && settings.CorrectionFirst)
+			code = color::SrgbEncode(std::pow(code, settings.Gamma));
+		code = output.hdr ? color::ApplyHdrEffectsInOrder(code, output.white, settings.Gamma, amount, settings.Pivot,
+		                                                  settings.HdrFix, settings.CorrectionFirst)
+		                  : color::ApplyContrast(code, amount, settings.Pivot);
+		if (sdr_fix && !settings.CorrectionFirst)
+			code = color::SrgbEncode(std::pow(code, settings.Gamma));
+		if (!settings.Bypass)
 			for (int stage = 2; stage <= 7; ++stage)
-				code = color::ApplyStageToCode(code, channel, stage, settings.adjustments, output.hdr, output.white);
+				code = color::ApplyStageToCode(code, channel, stage, settings.Adjustments, output.hdr, output.white);
 		return warm(code);
 	}
-	for (int stage : settings.order)
+	for (int stage : settings.Order)
 	{
-		if (stage == 1 && settings.hdrFix)
+		if (stage == 1 && settings.HdrFix)
 		{
 			if (output.hdr)
-				code = color::HdrGammaCurve(output.white, settings.gamma).Map(code);
-			else if (settings.applyInSdr)
-				code = color::SrgbEncode(std::pow(code, settings.gamma));
+				code = color::HdrGammaCurve(output.white, settings.Gamma).Map(code);
+			else if (settings.ApplyInSdr)
+				code = color::SrgbEncode(std::pow(code, settings.Gamma));
 		}
-		else if (!settings.bypass)
+		else if (!settings.Bypass)
 		{
 			if (stage == 0)
-				code = output.hdr ? color::ApplyHdrContrastAndGamma(code, output.white, settings.gamma,
-				                                                    settings.contrast, settings.pivot, false)
-				                  : color::ApplyContrast(code, settings.contrast, settings.pivot);
+				code = output.hdr ? color::ApplyHdrContrastAndGamma(code, output.white, settings.Gamma,
+				                                                    settings.Contrast, settings.Pivot, false)
+				                  : color::ApplyContrast(code, settings.Contrast, settings.Pivot);
 			else
-				code = color::ApplyStageToCode(code, channel, stage, settings.adjustments, output.hdr, output.white);
+				code = color::ApplyStageToCode(code, channel, stage, settings.Adjustments, output.hdr, output.white);
 		}
 	}
 	return warm(code);
@@ -387,21 +389,21 @@ double EvaluateOutputCode(double code, int channel, const Output& output, const 
 
 Ramp BuildGammaRamp(const Ramp& baseline, const Output& output, const Settings& settings)
 {
-	color::RequireRange(settings.nightWarmth, 0, 1);
-	color::RequireRange(settings.contrast, -.25, .25);
-	color::RequireRange(settings.pivot, .2, .8);
-	color::RequireRange(settings.gamma, 1, 4);
-	color::Validate(settings.adjustments);
-	if (!settings.order.empty())
+	color::RequireRange(settings.NightWarmth, 0, 1);
+	color::RequireRange(settings.Contrast, -.25, .25);
+	color::RequireRange(settings.Pivot, .2, .8);
+	color::RequireRange(settings.Gamma, 1, 4);
+	color::Validate(settings.Adjustments);
+	if (!settings.Order.empty())
 	{
 		std::array<bool, 8> seen {};
-		for (int stage : settings.order)
+		for (int stage : settings.Order)
 		{
 			if (stage < 0 || stage > 7 || seen[stage])
 				throw std::invalid_argument("Invalid effect order");
 			seen[stage] = true;
 		}
-		if (settings.order.size() != 8)
+		if (settings.Order.size() != 8)
 			throw std::invalid_argument("Incomplete effect order");
 	}
 	Ramp ramp {};
@@ -412,27 +414,28 @@ Ramp BuildGammaRamp(const Ramp& baseline, const Output& output, const Settings& 
 				std::clamp(EvaluateOutputCode(static_cast<double>(i) / 255, static_cast<int>(c), output, settings), 0.0,
 			               1.0) *
 				255;
-			const auto lo = static_cast<size_t>(std::floor(at)), hi = std::min(lo + 1, size_t { 255 });
-			ramp[c][i] = static_cast<std::uint16_t>(
-				std::lround(baseline[c][lo] + (static_cast<int>(baseline[c][hi]) - baseline[c][lo]) * (at - lo)));
+			const auto lower = static_cast<size_t>(std::floor(at)), upper = std::min(lower + 1, size_t { 255 });
+			ramp[c][i] = static_cast<std::uint16_t>(std::lround(
+				baseline[c][lower] + (static_cast<int>(baseline[c][upper]) - baseline[c][lower]) * (at - lower)));
 		}
 	return ramp;
 }
 
-Ramp CompositionBaseline(const Ramp& captured, const Output& output, const Ramp* carriedCorrection,
-                         const Ramp* carriedBaseline, const Output* carriedOutput, bool resetToIdentity)
+Ramp CompositionBaseline(const Ramp& captured, const Output& output, const Ramp* carried_correction,
+                         const Ramp* carried_baseline, const Output* carried_output, bool reset_to_identity)
 {
 	const auto neutral = IdentityRamp();
-	if (resetToIdentity)
+	if (reset_to_identity)
 		return neutral;
-	if (carriedCorrection && carriedBaseline && carriedOutput && !DisplayTargetsFromIdentity(output.identity).empty() &&
-	    DisplayTargetsFromIdentity(output.identity) == DisplayTargetsFromIdentity(carriedOutput->identity) &&
-	    MaxRampDifference(captured, *carriedCorrection) <= 2)
+	if (carried_correction && carried_baseline && carried_output &&
+	    !DisplayTargetsFromIdentity(output.identity).empty() &&
+	    DisplayTargetsFromIdentity(output.identity) == DisplayTargetsFromIdentity(carried_output->identity) &&
+	    MaxRampDifference(captured, *carried_correction) <= 2)
 	{
 		// Neutral calibration has the same meaning in either mode. Nonneutral
 		// calibration is reusable only within the same SDR/HDR interpretation.
-		if (output.hdr == carriedOutput->hdr || MaxRampDifference(*carriedBaseline, neutral) <= 2)
-			return *carriedBaseline;
+		if (output.hdr == carried_output->hdr || MaxRampDifference(*carried_baseline, neutral) <= 2)
+			return *carried_baseline;
 		throw std::runtime_error(
 			"Display mode changed with a non-neutral calibration. Its new calibration cannot be inferred from the retained correction");
 	}
@@ -461,10 +464,10 @@ struct Session::Impl
 		if (!running)
 			return 0;
 		finishing = true;
-		SetEvent(done.h);
-		const DWORD waited = WaitForSingleObject(child.h, 5000);
+		SetEvent(done.handle);
+		const DWORD waited = WaitForSingleObject(child.handle, 5000);
 		DWORD code = 15;
-		GetExitCodeProcess(child.h, &code);
+		GetExitCodeProcess(child.handle, &code);
 		if (waited != WAIT_OBJECT_0)
 			return 15;
 		lease.reset();
@@ -478,85 +481,85 @@ Session::Session() = default;
 Session::~Session() = default;
 bool Session::IsActive() const
 {
-	return impl_ && impl_->running && !impl_->finishing;
+	return _impl && _impl->running && !_impl->finishing;
 }
 
 bool Session::HasSameDisplayMode(const Output& output) const
 {
-	return IsActive() && output.identity == impl_->snapshot.identity;
+	return IsActive() && output.identity == _impl->snapshot.identity;
 }
 
 void Session::InheritCarryOver(const Session& other)
 {
-	if (IsActive() || !other.checkCarryOver_)
+	if (IsActive() || !other._check_carry_over)
 		return;
-	previousCorrection_ = other.previousCorrection_;
-	previousBaseline_ = other.previousBaseline_;
-	previousOutput_ = other.previousOutput_;
-	checkCarryOver_ = true;
+	_previous_correction = other._previous_correction;
+	_previous_baseline = other._previous_baseline;
+	_previous_output = other._previous_output;
+	_check_carry_over = true;
 }
 
-void Session::Start(const Output& requested, const Settings& settings, bool resetToIdentity)
+void Session::Start(const Output& requested, const Settings& settings, bool reset_to_identity)
 {
-	if (impl_ && impl_->running)
+	if (_impl && _impl->running)
 		throw std::runtime_error("The previous correction or its restoration is still running");
 	const auto current = ActiveOutputs();
-	const auto found =
-		std::find_if(current.begin(), current.end(), [&](const Output& o) { return o.identity == requested.identity; });
+	const auto found = std::find_if(current.begin(), current.end(),
+	                                [&](const Output& output) { return output.identity == requested.identity; });
 	if (found == current.end())
 		throw std::runtime_error("Display configuration changed before activation");
 	const Output output = *found;
 	if (!output.supported)
 		throw std::runtime_error("This display mode is not supported by the live backend");
 	auto session = std::make_unique<Impl>();
-	session->lease = writerLeases.Acquire(LeaseName);
+	session->lease = writer_leases.Acquire(WRITER_LEASE_NAME);
 	if (output.name.size() >= std::size(session->snapshot.source) ||
 	    output.identity.size() >= std::size(session->snapshot.identity))
 		throw std::runtime_error("Display identity is too long");
 	std::copy(output.name.begin(), output.name.end(), session->snapshot.source);
 	std::copy(output.identity.begin(), output.identity.end(), session->snapshot.identity);
 	DC dc(output.name);
-	if (!dc.h || !GetDeviceGammaRamp(dc.h, &session->snapshot.baseline))
+	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &session->snapshot.baseline))
 		throw std::runtime_error("Cannot capture baseline calibration");
 	const Ramp captured = session->snapshot.baseline;
-	session->baseline = CompositionBaseline(captured, output, checkCarryOver_ ? &previousCorrection_ : nullptr,
-	                                        checkCarryOver_ ? &previousBaseline_ : nullptr,
-	                                        checkCarryOver_ ? &previousOutput_ : nullptr, resetToIdentity);
+	session->baseline = CompositionBaseline(captured, output, _check_carry_over ? &_previous_correction : nullptr,
+	                                        _check_carry_over ? &_previous_baseline : nullptr,
+	                                        _check_carry_over ? &_previous_output : nullptr, reset_to_identity);
 	session->output = output;
-	const bool ownCarryOver =
-		checkCarryOver_ && !DisplayTargetsFromIdentity(output.identity).empty() &&
-		DisplayTargetsFromIdentity(output.identity) == DisplayTargetsFromIdentity(previousOutput_.identity) &&
-		MaxRampDifference(captured, previousCorrection_) <= 2;
+	const bool own_carry_over =
+		_check_carry_over && !DisplayTargetsFromIdentity(output.identity).empty() &&
+		DisplayTargetsFromIdentity(output.identity) == DisplayTargetsFromIdentity(_previous_output.identity) &&
+		MaxRampDifference(captured, _previous_correction) <= 2;
 	// For our own stale ramp, restore the saved clean calibration, not the
 	// stale correction. For an external HDR fix, preserve exactly what we found.
-	if (ownCarryOver || resetToIdentity)
+	if (own_carry_over || reset_to_identity)
 		session->snapshot.baseline = session->baseline;
 	session->file = NewTempFilePath();
 	SaveSnapshot(session->file, session->snapshot);
 	static LONG serial = 0;
 	const auto key = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()) + L"-" +
 	                 std::to_wstring(InterlockedIncrement(&serial));
-	const auto readyName = L"Local\\LutLive-ready-" + key, doneName = L"Local\\LutLive-done-" + key,
-			   mapName = L"Local\\LutLive-map-" + key;
-	session->ready.h = CreateEventW(nullptr, TRUE, FALSE, readyName.c_str());
-	session->done.h = CreateEventW(nullptr, TRUE, FALSE, doneName.c_str());
-	session->mapping.h =
-		CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared), mapName.c_str());
-	if (!session->ready.h || !session->done.h || !session->mapping.h)
+	const auto ready_name = L"Local\\LutLive-ready-" + key, done_name = L"Local\\LutLive-done-" + key,
+			   map_name = L"Local\\LutLive-map-" + key;
+	session->ready.handle = CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str());
+	session->done.handle = CreateEventW(nullptr, TRUE, FALSE, done_name.c_str());
+	session->mapping.handle =
+		CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared), map_name.c_str());
+	if (!session->ready.handle || !session->done.handle || !session->mapping.handle)
 		throw std::runtime_error("Cannot initialize recovery helper");
-	session->view = std::make_unique<View>(session->mapping.h);
-	if (!session->view->p)
+	session->view = std::make_unique<View>(session->mapping.handle);
+	if (!session->view->shared)
 		throw std::runtime_error("Cannot map recovery state");
-	::new (session->view->p) Shared {};
-	if (ownCarryOver || resetToIdentity)
+	::new (session->view->shared) Shared {};
+	if (own_carry_over || reset_to_identity)
 	{
-		session->view->p->last = captured;
-		InterlockedExchange(&session->view->p->applied, 1);
+		session->view->shared->last = captured;
+		InterlockedExchange(&session->view->shared->applied, 1);
 	}
 	const auto exe = ExecutablePath();
 	auto command = QuoteArgument(exe) + L" --live-guard " + QuoteArgument(session->file) + L" " +
-	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(readyName) + L" " +
-	               QuoteArgument(doneName) + L" " + QuoteArgument(mapName);
+	               std::to_wstring(GetCurrentProcessId()) + L" " + QuoteArgument(ready_name) + L" " +
+	               QuoteArgument(done_name) + L" " + QuoteArgument(map_name);
 	STARTUPINFOW startup {};
 	startup.cb = sizeof(startup);
 	startup.dwFlags = STARTF_FORCEOFFFEEDBACK;
@@ -564,14 +567,14 @@ void Session::Start(const Output& requested, const Settings& settings, bool rese
 	if (!CreateProcessW(exe.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr,
 	                    &startup, &process))
 		throw std::runtime_error("Cannot start recovery helper");
-	session->child.h = process.hProcess;
+	session->child.handle = process.hProcess;
 	CloseHandle(process.hThread);
 	session->running = true;
-	HANDLE wait[] = { session->ready.h, session->child.h };
+	HANDLE wait[] = { session->ready.handle, session->child.handle };
 	if (WaitForMultipleObjects(2, wait, FALSE, 5000) != WAIT_OBJECT_0)
 		throw std::runtime_error("Recovery helper did not become ready");
-	impl_ = std::move(session);
-	checkCarryOver_ = false;
+	_impl = std::move(session);
+	_check_carry_over = false;
 	try
 	{
 		Update(output, settings);
@@ -587,29 +590,29 @@ void Session::Update(const Output& output, const Settings& settings)
 {
 	if (!HasSameDisplayMode(output))
 		throw std::runtime_error("Display mode changed; re-enable after checking the new configuration");
-	if (WaitForSingleObject(impl_->child.h, 0) != WAIT_TIMEOUT)
+	if (WaitForSingleObject(_impl->child.handle, 0) != WAIT_TIMEOUT)
 		throw std::runtime_error("Recovery helper stopped; disabling corrections");
-	const auto currentOutput = FindOutputForSnapshot(impl_->snapshot);
-	if (currentOutput.name.empty() || !currentOutput.supported)
+	const auto current_output = FindOutputForSnapshot(_impl->snapshot);
+	if (current_output.name.empty() || !current_output.supported)
 		throw std::runtime_error("Display configuration changed or is unsupported");
-	DC dc(currentOutput.name);
+	DC dc(current_output.name);
 	Ramp current {};
-	if (!dc.h || !GetDeviceGammaRamp(dc.h, &current))
+	if (!dc.handle || !GetDeviceGammaRamp(dc.handle, &current))
 		throw std::runtime_error("Cannot read active calibration");
-	auto* shared = impl_->view->p;
+	auto* shared = _impl->view->shared;
 	const bool applied = InterlockedCompareExchange(&shared->applied, 0, 0) != 0;
-	if (!IsRampOurs(current, impl_->snapshot.baseline, shared->last, shared->candidate, applied, false))
+	if (!IsRampOurs(current, _impl->snapshot.baseline, shared->last, shared->candidate, applied, false))
 		throw std::runtime_error("Another calibration changed the ramp; its adjustment will be preserved");
-	const Ramp next = BuildGammaRamp(impl_->baseline, currentOutput, settings);
+	const Ramp next = BuildGammaRamp(_impl->baseline, current_output, settings);
 	if (MaxRampDifference(current, next) == 0)
 		return;
 	shared->candidate = next;
 	MemoryBarrier();
 	InterlockedExchange(&shared->pending, 1);
-	const bool accepted = SetDeviceGammaRamp(dc.h, &shared->candidate) != FALSE;
+	const bool accepted = SetDeviceGammaRamp(dc.handle, &shared->candidate) != FALSE;
 	// Some drivers report failure despite retaining the ramp. The verified
 	// readback, rather than that return value alone, decides whether it worked.
-	if (!GetDeviceGammaRamp(dc.h, &current))
+	if (!GetDeviceGammaRamp(dc.handle, &current))
 		throw std::runtime_error("Cannot verify the requested correction");
 	if (MaxRampDifference(current, next) > 2)
 		throw std::runtime_error(accepted ? "Driver did not retain the requested correction"
@@ -618,53 +621,54 @@ void Session::Update(const Output& output, const Settings& settings)
 	MemoryBarrier();
 	InterlockedExchange(&shared->applied, 1);
 	InterlockedExchange(&shared->pending, 0);
-	std::ofstream log(impl_->file + L".session.txt", std::ios::app);
+	std::ofstream log(_impl->file + L".session.txt", std::ios::app);
 	log.imbue(std::locale::classic());
-	log << "tick=" << GetTickCount64() << " hdr=" << currentOutput.hdr << " white_nits=" << currentOutput.white
-		<< " contrast=" << settings.contrast << " pivot=" << settings.pivot << " gamma=" << settings.gamma
-		<< " hdr_fix=" << settings.hdrFix << " bypass=" << settings.bypass
+	log << "tick=" << GetTickCount64() << " hdr=" << current_output.hdr << " white_nits=" << current_output.white
+		<< " contrast=" << settings.Contrast << " pivot=" << settings.Pivot << " gamma=" << settings.Gamma
+		<< " hdr_fix=" << settings.HdrFix << " bypass=" << settings.Bypass
 		<< " readback_max_error=" << MaxRampDifference(current, next) << '\n';
 }
 
 int Session::Stop()
 {
-	if (!impl_)
+	if (!_impl)
 		return 0;
-	const int code = impl_->Finish();
-	if (code == 11 && impl_->view && impl_->view->p && impl_->view->p->applied &&
-	    MaxRampDifference(impl_->view->p->last, impl_->snapshot.baseline) > 2)
+	const int code = _impl->Finish();
+	if (code == 11 && _impl->view && _impl->view->shared && _impl->view->shared->applied &&
+	    MaxRampDifference(_impl->view->shared->last, _impl->snapshot.baseline) > 2)
 	{
-		previousCorrection_ = impl_->view->p->last;
-		previousBaseline_ = impl_->baseline;
-		previousOutput_ = impl_->output;
-		checkCarryOver_ = true;
+		_previous_correction = _impl->view->shared->last;
+		_previous_baseline = _impl->baseline;
+		_previous_output = _impl->output;
+		_check_carry_over = true;
 	}
-	if (!impl_->running)
-		impl_.reset();
+	if (!_impl->running)
+		_impl.reset();
 	return code;
 }
 
-int RunRecoveryGuardian(const wchar_t* file, DWORD parentId, const wchar_t* readyName, const wchar_t* doneName,
-                        const wchar_t* mapName, bool probe)
+int RunRecoveryGuardian(const wchar_t* file, DWORD parent_id, const wchar_t* ready_name, const wchar_t* done_name,
+                        const wchar_t* map_name, bool probe)
 {
 	try
 	{
 		const auto snapshot = LoadSnapshot(file);
-		Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parentId));
-		Handle ready(OpenEventW(EVENT_MODIFY_STATE, FALSE, readyName));
-		Handle done(OpenEventW(SYNCHRONIZE, FALSE, doneName));
-		Handle mapping(OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, mapName));
-		View view(mapping.h);
-		Handle lease(probe ? nullptr : OpenMutexW(SYNCHRONIZE, FALSE, LeaseName));
-		if (!parent.h || !ready.h || !done.h || !mapping.h || !view.p || (!probe && !lease.h))
+		Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parent_id));
+		Handle ready(OpenEventW(EVENT_MODIFY_STATE, FALSE, ready_name));
+		Handle done(OpenEventW(SYNCHRONIZE, FALSE, done_name));
+		Handle mapping(OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, map_name));
+		View view(mapping.handle);
+		Handle lease(probe ? nullptr : OpenMutexW(SYNCHRONIZE, FALSE, WRITER_LEASE_NAME));
+		if (!parent.handle || !ready.handle || !done.handle || !mapping.handle || !view.shared ||
+		    (!probe && !lease.handle))
 			return 16;
-		SetEvent(ready.h);
-		HANDLE wait[] = { parent.h, done.h };
+		SetEvent(ready.handle);
+		HANDLE wait[] = { parent.handle, done.handle };
 		if (WaitForMultipleObjects(2, wait, FALSE, INFINITE) == WAIT_FAILED)
 			return 17;
-		const int code = probe ? 0 : RestoreSnapshot(snapshot, view.p);
-		const std::wstring resultFile = std::wstring(file) + L".result.txt";
-		std::ofstream log(resultFile);
+		const int code = probe ? 0 : RestoreSnapshot(snapshot, view.shared);
+		const std::wstring result_file = std::wstring(file) + L".result.txt";
+		std::ofstream log(result_file);
 		log << "Live restoration result=" << code
 			<< "\n0=baseline restored; 10=external ramp preserved; 11=display mode changed; other=restoration error\n";
 		return code;
@@ -715,13 +719,13 @@ int WriterLeaseSelfTest()
 		if (!blocked())
 			return 3;
 		Handle recovery(OpenMutexW(SYNCHRONIZE, FALSE, name.c_str()));
-		if (!recovery.h)
+		if (!recovery.handle)
 			return 4;
 		second.reset();
 		if (!blocked())
 			return 5;
-		CloseHandle(recovery.h);
-		recovery.h = nullptr;
+		CloseHandle(recovery.handle);
+		recovery.handle = nullptr;
 		auto next = other.Acquire(name.c_str());
 		if (!next)
 			return 6;
@@ -733,7 +737,7 @@ int WriterLeaseSelfTest()
 	}
 }
 
-int RecoverySelfTest(const wchar_t* exe, bool crashParent)
+int RecoverySelfTest(const wchar_t* exe, bool crash_parent)
 {
 	try
 	{
@@ -743,32 +747,33 @@ int RecoverySelfTest(const wchar_t* exe, bool crashParent)
 		wcscpy_s(snapshot.identity, L"probe-identity");
 		SaveSnapshot(file, snapshot);
 		const auto key = std::to_wstring(GetCurrentProcessId()) + L"-probe-" + std::to_wstring(GetTickCount64());
-		const auto rn = L"Local\\" + key + L"-ready", dn = L"Local\\" + key + L"-done", mn = L"Local\\" + key + L"-map";
-		Handle ready(CreateEventW(nullptr, TRUE, FALSE, rn.c_str())),
-			done(CreateEventW(nullptr, TRUE, FALSE, dn.c_str()));
+		const auto ready_name = L"Local\\" + key + L"-ready", done_name = L"Local\\" + key + L"-done",
+				   mutex_name = L"Local\\" + key + L"-map";
+		Handle ready(CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str())),
+			done(CreateEventW(nullptr, TRUE, FALSE, done_name.c_str()));
 		Handle mapping(
-			CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared), mn.c_str()));
-		if (!ready.h || !done.h || !mapping.h)
+			CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared), mutex_name.c_str()));
+		if (!ready.handle || !done.handle || !mapping.handle)
 			return 1;
 		Handle owner;
-		DWORD parentId = GetCurrentProcessId();
-		if (crashParent)
+		DWORD parent_id = GetCurrentProcessId();
+		if (crash_parent)
 		{
-			auto ownerCommand = QuoteArgument(exe) + L" --live-probe-owner";
-			STARTUPINFOW ownerStart {};
-			ownerStart.cb = sizeof(ownerStart);
-			ownerStart.dwFlags = STARTF_FORCEOFFFEEDBACK;
-			PROCESS_INFORMATION ownerProcess {};
-			if (!CreateProcessW(exe, ownerCommand.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr,
-			                    &ownerStart, &ownerProcess))
+			auto owner_command = QuoteArgument(exe) + L" --live-probe-owner";
+			STARTUPINFOW owner_start {};
+			owner_start.cb = sizeof(owner_start);
+			owner_start.dwFlags = STARTF_FORCEOFFFEEDBACK;
+			PROCESS_INFORMATION owner_process {};
+			if (!CreateProcessW(exe, owner_command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr,
+			                    &owner_start, &owner_process))
 				return 5;
-			owner.h = ownerProcess.hProcess;
-			CloseHandle(ownerProcess.hThread);
-			parentId = ownerProcess.dwProcessId;
+			owner.handle = owner_process.hProcess;
+			CloseHandle(owner_process.hThread);
+			parent_id = owner_process.dwProcessId;
 		}
 		auto command = QuoteArgument(exe) + L" --live-guard-probe " + QuoteArgument(file) + L" " +
-		               std::to_wstring(parentId) + L" " + QuoteArgument(rn) + L" " + QuoteArgument(dn) + L" " +
-		               QuoteArgument(mn);
+		               std::to_wstring(parent_id) + L" " + QuoteArgument(ready_name) + L" " + QuoteArgument(done_name) +
+		               L" " + QuoteArgument(mutex_name);
 		STARTUPINFOW startup {};
 		startup.cb = sizeof(startup);
 		startup.dwFlags = STARTF_FORCEOFFFEEDBACK;
@@ -776,25 +781,25 @@ int RecoverySelfTest(const wchar_t* exe, bool crashParent)
 		if (!CreateProcessW(exe, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup,
 		                    &process))
 		{
-			if (owner.h)
-				TerminateProcess(owner.h, 1);
+			if (owner.handle)
+				TerminateProcess(owner.handle, 1);
 			return 2;
 		}
 		Handle child(process.hProcess), thread(process.hThread);
-		HANDLE wait[] = { ready.h, child.h };
+		HANDLE wait[] = { ready.handle, child.handle };
 		const bool started = WaitForMultipleObjects(2, wait, FALSE, 5000) == WAIT_OBJECT_0;
-		const bool waiting = started && WaitForSingleObject(child.h, 0) == WAIT_TIMEOUT;
+		const bool waiting = started && WaitForSingleObject(child.handle, 0) == WAIT_TIMEOUT;
 		// Only terminate the disposable process created by this test. Probe mode
 		// exercises parent-death recovery without reading or writing any LUT.
-		if (crashParent)
-			TerminateProcess(owner.h, 1);
+		if (crash_parent)
+			TerminateProcess(owner.handle, 1);
 		else
-			SetEvent(done.h);
-		const DWORD finished = WaitForSingleObject(child.h, 5000);
+			SetEvent(done.handle);
+		const DWORD finished = WaitForSingleObject(child.handle, 5000);
 		DWORD code = 19;
-		GetExitCodeProcess(child.h, &code);
+		GetExitCodeProcess(child.handle, &code);
 		if (finished != WAIT_OBJECT_0)
-			SetEvent(done.h);
+			SetEvent(done.handle);
 		DeleteFileW(file.c_str());
 		DeleteFileW((file + L".result.txt").c_str());
 		return waiting && finished == WAIT_OBJECT_0 && code == 0 ? 0 : 3;

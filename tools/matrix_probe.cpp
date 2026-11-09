@@ -21,35 +21,35 @@ void Memory(const wchar_t* stage)
 
 void Displays()
 {
-	UINT32 pc = 0, mc = 0;
-	LONG result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pc, &mc);
+	UINT32 path_count = 0, mode_count = 0;
+	LONG result = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count, &mode_count);
 	if (result)
 	{
 		std::wcout << L"display_query_error=" << result << L'\n';
 		return;
 	}
-	std::vector<DISPLAYCONFIG_PATH_INFO> paths(pc);
-	std::vector<DISPLAYCONFIG_MODE_INFO> modes(mc);
-	result = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pc, paths.data(), &mc, modes.data(), nullptr);
+	std::vector<DISPLAYCONFIG_PATH_INFO> paths(path_count);
+	std::vector<DISPLAYCONFIG_MODE_INFO> modes(mode_count);
+	result = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &path_count, paths.data(), &mode_count, modes.data(), nullptr);
 	if (result)
 	{
 		std::wcout << L"display_query_error=" << result << L'\n';
 		return;
 	}
-	std::wcout << L"active_display_paths=" << pc << L'\n';
-	for (UINT32 i = 0; i < pc; ++i)
+	std::wcout << L"active_display_paths=" << path_count << L'\n';
+	for (UINT32 i = 0; i < path_count; ++i)
 	{
-		const auto& p = paths[i];
+		const auto& path = paths[i];
 		DISPLAYCONFIG_TARGET_DEVICE_NAME name {};
-		name.header = { DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, sizeof(name), p.targetInfo.adapterId,
-			            p.targetInfo.id };
+		name.header = { DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, sizeof(name), path.targetInfo.adapterId,
+			            path.targetInfo.id };
 		const auto named = DisplayConfigGetDeviceInfo(&name.header);
 		DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color {};
-		color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), p.targetInfo.adapterId,
-			             p.targetInfo.id };
+		color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), path.targetInfo.adapterId,
+			             path.targetInfo.id };
 		const auto queried = DisplayConfigGetDeviceInfo(&color.header);
 		std::wcout << L"display[" << i << L"]=" << (named ? L"unknown" : name.monitorFriendlyDeviceName)
-				   << L" source_id=" << p.sourceInfo.id;
+				   << L" source_id=" << path.sourceInfo.id;
 		if (!queried)
 			std::wcout << L" advanced_color_supported=" << color.advancedColorSupported << L" advanced_color_enabled="
 					   << color.advancedColorEnabled << L" bits_per_channel=" << color.bitsPerColorChannel;
@@ -100,9 +100,9 @@ int wmain(int argc, wchar_t** argv)
 	QueryPerformanceCounter(&start);
 	SetLastError(ERROR_SUCCESS);
 	const bool initialized = init() != FALSE;
-	const DWORD initError = initialized ? 0 : GetLastError();
+	const DWORD init_error = initialized ? 0 : GetLastError();
 	QueryPerformanceCounter(&end);
-	std::wcout << std::fixed << std::setprecision(3) << L"initialize_ok=" << initialized << L" error=" << initError
+	std::wcout << std::fixed << std::setprecision(3) << L"initialize_ok=" << initialized << L" error=" << init_error
 			   << L" elapsed_ms=" << (end.QuadPart - start.QuadPart) * 1000.0 / frequency.QuadPart << L'\n';
 	if (!initialized)
 	{
@@ -113,8 +113,8 @@ int wmain(int argc, wchar_t** argv)
 	MAGCOLOREFFECT matrix {};
 	SetLastError(ERROR_SUCCESS);
 	const bool readable = read(&matrix) != FALSE;
-	const auto readError = readable ? 0 : GetLastError();
-	std::wcout << L"matrix_read_ok=" << readable << L" error=" << readError << L'\n';
+	const auto read_error = readable ? 0 : GetLastError();
+	std::wcout << L"matrix_read_ok=" << readable << L" error=" << read_error << L'\n';
 	if (readable)
 	{
 		bool identity = true;
@@ -132,8 +132,8 @@ int wmain(int argc, wchar_t** argv)
 	}
 	float scale = 0;
 	int x = 0, y = 0;
-	const bool zoomRead = zoom(&scale, &x, &y) != FALSE;
-	std::wcout << L"magnification_read_ok=" << zoomRead << L" scale=" << scale << L" offset_x=" << x << L" offset_y="
+	const bool zoom_read = zoom(&scale, &x, &y) != FALSE;
+	std::wcout << L"magnification_read_ok=" << zoom_read << L" scale=" << scale << L" offset_x=" << x << L" offset_y="
 			   << y << L'\n';
 	const bool stopped = done() != FALSE;
 	std::wcout << L"uninitialize_ok=" << stopped << L'\n';

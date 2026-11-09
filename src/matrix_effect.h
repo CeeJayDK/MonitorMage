@@ -5,7 +5,7 @@
 #include <array>
 namespace matrix_effect
 {
-constexpr UINT Changed = WM_APP + 40;
+constexpr UINT MESSAGE_MATRIX_CHANGED = WM_APP + 40;
 // Value 3 was the retired Windows color-filter block; retain report numbering.
 enum class State : LONG
 {
@@ -22,7 +22,7 @@ class Controller
 	friend int SelfTest();
 	friend int Benchmark(const wchar_t*);
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	std::unique_ptr<Impl> _impl;
 
 public:
 	Controller();

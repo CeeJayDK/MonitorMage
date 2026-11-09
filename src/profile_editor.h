@@ -13,7 +13,7 @@ struct Look
 };
 
 HWND ShowProfileEditor(HWND owner, HINSTANCE instance, const applications::Configuration& config,
-                       const std::vector<Look>& looks, const std::filesystem::path& lastApplication,
+                       const std::vector<Look>& looks, const std::filesystem::path& last_application,
                        std::function<bool(const applications::Configuration&)> apply, bool hidden = false);
 void RefreshAppearance();
 HWND ProfileEditorHandle();

@@ -9,23 +9,23 @@ namespace matrix_color
 using Matrix = std::array<std::array<float, 5>, 5>;
 inline Matrix IdentityMatrix()
 {
-	Matrix m {};
+	Matrix matrix {};
 	for (int i = 0; i < 5; ++i)
-		m[i][i] = 1;
-	return m;
+		matrix[i][i] = 1;
+	return matrix;
 }
 
 // Row-vector convention used by MAGCOLOREFFECT. These are encoded-RGB
 // experiments, not a claim about linear-light luminance or HDR colorimetry.
 inline Matrix SaturationMatrix(float strength)
 {
-	if (!std::isfinite(strength) || strength < 0 || strength > color::SaturationMaximum / 100.f)
+	if (!std::isfinite(strength) || strength < 0 || strength > color::SATURATION_MAXIMUM / 100.f)
 		throw std::invalid_argument("Invalid saturation");
-	constexpr float weights[] { .2126f, .7152f, .0722f };
+	constexpr float LUMINANCE_WEIGHTS[] { .2126f, .7152f, .0722f };
 	auto m = IdentityMatrix();
 	for (int input = 0; input < 3; ++input)
 		for (int output = 0; output < 3; ++output)
-			m[input][output] = weights[input] * (1 - strength) + (input == output ? strength : 0);
+			m[input][output] = LUMINANCE_WEIGHTS[input] * (1 - strength) + (input == output ? strength : 0);
 	return m;
 }
 

@@ -1,5 +1,5 @@
 #pragma once
 namespace color
 {
-inline constexpr int SaturationMaximum = 300;
+inline constexpr int SATURATION_MAXIMUM = 300;
 }

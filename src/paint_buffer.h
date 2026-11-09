@@ -8,96 +8,96 @@ namespace paint
 // dirty rectangle. Shared WM_PRINT DCs and native BeginPaint DCs both work.
 class Buffer
 {
-	HDC target_ = nullptr, memory_ = nullptr;
-	HBITMAP bitmap_ = nullptr;
-	HGDIOBJ previous_ = nullptr;
-	RECT area_ {};
-	int saved_ = 0;
-	bool active_ = false, committed_ = false;
+	HDC _target = nullptr, _memory = nullptr;
+	HBITMAP _bitmap = nullptr;
+	HGDIOBJ _previous = nullptr;
+	RECT _area {};
+	int _saved = 0;
+	bool _active = false, _committed = false;
 
 public:
-	Buffer(HDC target, const RECT& bounds) : target_(target)
+	Buffer(HDC target, const RECT& bounds) : _target(target)
 	{
-		if (!target_ || (saved_ = SaveDC(target_)) == 0)
+		if (!_target || (_saved = SaveDC(_target)) == 0)
 			return;
-		IntersectClipRect(target_, bounds.left, bounds.top, bounds.right, bounds.bottom);
+		IntersectClipRect(_target, bounds.left, bounds.top, bounds.right, bounds.bottom);
 		RECT clip {};
-		const int type = GetClipBox(target_, &clip);
+		const int type = GetClipBox(_target, &clip);
 		if (type == NULLREGION)
 			return;
 		if (type == ERROR)
 			clip = bounds;
-		if (!IntersectRect(&area_, &bounds, &clip))
+		if (!IntersectRect(&_area, &bounds, &clip))
 			return;
-		active_ = true;
-		const int w = area_.right - area_.left, h = area_.bottom - area_.top;
-		memory_ = CreateCompatibleDC(target_);
-		if (memory_)
-			bitmap_ = CreateCompatibleBitmap(target_, w, h);
-		if (bitmap_)
+		_active = true;
+		const int w = _area.right - _area.left, h = _area.bottom - _area.top;
+		_memory = CreateCompatibleDC(_target);
+		if (_memory)
+			_bitmap = CreateCompatibleBitmap(_target, w, h);
+		if (_bitmap)
 		{
-			previous_ = SelectObject(memory_, bitmap_);
-			if (previous_ && previous_ != HGDI_ERROR)
+			_previous = SelectObject(_memory, _bitmap);
+			if (_previous && _previous != HGDI_ERROR)
 			{
-				SetViewportOrgEx(memory_, -area_.left, -area_.top, nullptr);
-				IntersectClipRect(memory_, area_.left, area_.top, area_.right, area_.bottom);
+				SetViewportOrgEx(_memory, -_area.left, -_area.top, nullptr);
+				IntersectClipRect(_memory, _area.left, _area.top, _area.right, _area.bottom);
 				return;
 			}
-			DeleteObject(bitmap_);
-			bitmap_ = nullptr;
+			DeleteObject(_bitmap);
+			_bitmap = nullptr;
 		}
-		if (memory_)
+		if (_memory)
 		{
-			DeleteDC(memory_);
-			memory_ = nullptr;
+			DeleteDC(_memory);
+			_memory = nullptr;
 		}
 	}
 	Buffer(const Buffer&) = delete;
 	Buffer& operator=(const Buffer&) = delete;
-	explicit operator bool() const { return active_; }
-	bool IsBuffered() const { return memory_ != nullptr; }
-	HDC DeviceContext() const { return memory_ ? memory_ : target_; }
+	explicit operator bool() const { return _active; }
+	bool IsBuffered() const { return _memory != nullptr; }
+	HDC DeviceContext() const { return _memory ? _memory : _target; }
 	SIZE BitmapSize() const
 	{
 		BITMAP info {};
-		if (bitmap_)
-			GetObjectW(bitmap_, sizeof(info), &info);
+		if (_bitmap)
+			GetObjectW(_bitmap, sizeof(info), &info);
 		return { info.bmWidth, info.bmHeight };
 	}
 	size_t ByteCount() const
 	{
 		BITMAP info {};
-		if (bitmap_)
-			GetObjectW(bitmap_, sizeof(info), &info);
+		if (_bitmap)
+			GetObjectW(_bitmap, sizeof(info), &info);
 		return static_cast<size_t>(info.bmWidthBytes) * info.bmHeight;
 	}
 	void Commit()
 	{
-		if (committed_)
+		if (_committed)
 			return;
-		committed_ = true;
-		if (active_ && memory_)
-			BitBlt(target_, area_.left, area_.top, area_.right - area_.left, area_.bottom - area_.top, memory_,
-			       area_.left, area_.top, SRCCOPY);
+		_committed = true;
+		if (_active && _memory)
+			BitBlt(_target, _area.left, _area.top, _area.right - _area.left, _area.bottom - _area.top, _memory,
+			       _area.left, _area.top, SRCCOPY);
 	}
 	void Finish()
 	{
 		Commit();
-		if (bitmap_)
+		if (_bitmap)
 		{
-			SelectObject(memory_, previous_);
-			DeleteObject(bitmap_);
-			bitmap_ = nullptr;
+			SelectObject(_memory, _previous);
+			DeleteObject(_bitmap);
+			_bitmap = nullptr;
 		}
-		if (memory_)
+		if (_memory)
 		{
-			DeleteDC(memory_);
-			memory_ = nullptr;
+			DeleteDC(_memory);
+			_memory = nullptr;
 		}
-		if (saved_)
+		if (_saved)
 		{
-			RestoreDC(target_, saved_);
-			saved_ = 0;
+			RestoreDC(_target, _saved);
+			_saved = 0;
 		}
 	}
 	~Buffer() { Finish(); }

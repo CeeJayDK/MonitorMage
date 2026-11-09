@@ -14,7 +14,7 @@ int wmain(int argc, wchar_t** argv)
 				                     L"03 - Faded tone" };
 			lut1d::Channels channels;
 			color::Adjustments warmth;
-			warmth.balance[3] = 18;
+			warmth.Balance[color::BALANCE_WARMTH] = 18;
 			for (int i = 0; i < 1024; ++i)
 			{
 				const double x = i / 1023.0;

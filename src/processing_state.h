@@ -7,41 +7,41 @@ namespace live
 // leave a stale active/paused indication. The expensive scan runs on changes.
 class ProcessingState
 {
-	Settings settings_;
-	bool valid_ = false, hdr_ = false, result_ = false;
-	double white_ = 0;
+	Settings _settings;
+	bool _valid = false, _hdr = false, _result = false;
+	double _white = 0;
 
 public:
 	bool IsProcessing(bool session, const Output& output, const Settings& settings)
 	{
 		if (!session)
 		{
-			valid_ = false;
+			_valid = false;
 			return false;
 		}
-		if (valid_ && hdr_ == output.hdr && white_ == output.white && settings_.contrast == settings.contrast &&
-		    settings_.pivot == settings.pivot && settings_.gamma == settings.gamma &&
-		    settings_.hdrFix == settings.hdrFix && settings_.bypass == settings.bypass &&
-		    settings_.correctionFirst == settings.correctionFirst && settings_.applyInSdr == settings.applyInSdr &&
-		    settings_.order == settings.order && settings_.nightWarmth == settings.nightWarmth &&
-		    settings_.adjustments == settings.adjustments)
-			return result_;
-		settings_ = settings;
-		hdr_ = output.hdr;
-		white_ = output.white;
-		valid_ = true;
-		result_ = false;
-		for (int c = 0; c < 3 && !result_; ++c)
+		if (_valid && _hdr == output.hdr && _white == output.white && _settings.Contrast == settings.Contrast &&
+		    _settings.Pivot == settings.Pivot && _settings.Gamma == settings.Gamma &&
+		    _settings.HdrFix == settings.HdrFix && _settings.Bypass == settings.Bypass &&
+		    _settings.CorrectionFirst == settings.CorrectionFirst && _settings.ApplyInSdr == settings.ApplyInSdr &&
+		    _settings.Order == settings.Order && _settings.NightWarmth == settings.NightWarmth &&
+		    _settings.Adjustments == settings.Adjustments)
+			return _result;
+		_settings = settings;
+		_hdr = output.hdr;
+		_white = output.white;
+		_valid = true;
+		_result = false;
+		for (int c = 0; c < 3 && !_result; ++c)
 			for (int i = 0; i < 256; ++i)
 			{
 				const double x = i / 255.0;
 				if (std::abs(EvaluateOutputCode(x, c, output, settings) - x) > 1e-7)
 				{
-					result_ = true;
+					_result = true;
 					break;
 				}
 			}
-		return result_;
+		return _result;
 	}
 };
 }

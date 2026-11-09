@@ -10,37 +10,37 @@ namespace night
 {
 struct Settings
 {
-	bool enabled = false, scheduled = false;
-	int strength = 35, start = 21 * 60, end = 7 * 60, fade = 10;
-	std::set<std::wstring> excluded;
+	bool Enabled = false, Scheduled = false;
+	int Strength = 35, Start = 21 * 60, End = 7 * 60, Fade = 10;
+	std::set<std::wstring> Excluded;
 };
 
 struct Phase
 {
 	double level = 0;
-	unsigned nextMs = 0;
+	unsigned next_ms = 0;
 };
 
 // Local clock seconds. Only fades need repeated updates; plateaus sleep until
 // their next boundary. The OS time-change notification handles clock edits.
-inline Phase CurrentPhase(const Settings& s, double seconds)
+inline Phase CurrentPhase(const Settings& settings, double seconds)
 {
-	if (!s.enabled || s.strength <= 0)
+	if (!settings.Enabled || settings.Strength <= 0)
 		return {};
-	if (!s.scheduled)
-		return { s.strength / 100., 0 };
-	constexpr double day = 86400;
-	const double duration = std::fmod((s.end - s.start) * 60. + day, day);
+	if (!settings.Scheduled)
+		return { settings.Strength / 100., 0 };
+	constexpr double SECONDS_PER_DAY = 86400;
+	const double duration = std::fmod((settings.End - settings.Start) * 60. + SECONDS_PER_DAY, SECONDS_PER_DAY);
 	if (duration == 0)
 		return {};
-	const double elapsed = std::fmod(seconds - s.start * 60. + day, day);
+	const double elapsed = std::fmod(seconds - settings.Start * 60. + SECONDS_PER_DAY, SECONDS_PER_DAY);
 	if (elapsed >= duration)
-		return { 0, static_cast<unsigned>(std::max(1000., std::ceil((day - elapsed) * 1000))) };
-	const double fade = std::min(s.fade * 60., duration / 2);
+		return { 0, static_cast<unsigned>(std::max(1000., std::ceil((SECONDS_PER_DAY - elapsed) * 1000))) };
+	const double fade = std::min(settings.Fade * 60., duration / 2);
 	const double scale = fade > 0 ? std::min({ 1., elapsed / fade, (duration - elapsed) / fade }) : 1.;
 	const bool fading = fade > 0 && (elapsed < fade || elapsed >= duration - fade);
 	const double next = fading ? 5 : std::max(1., duration - fade - elapsed);
-	return { s.strength / 100. * scale, static_cast<unsigned>(std::ceil(next * 1000)) };
+	return { settings.Strength / 100. * scale, static_cast<unsigned>(std::ceil(next * 1000)) };
 }
 
 inline std::wstring FormatTime(int minute)
@@ -87,22 +87,22 @@ inline std::set<std::wstring> DisplayKeys(const std::wstring& identity)
 	return keys;
 }
 
-inline bool IsDisplayIncluded(const Settings& s, const std::wstring& identity)
+inline bool IsDisplayIncluded(const Settings& settings, const std::wstring& identity)
 {
 	for (const auto& key : DisplayKeys(identity))
-		if (s.excluded.count(key))
+		if (settings.Excluded.count(key))
 			return false;
 	return true;
 }
 
-inline void SetDisplayIncluded(Settings& s, const std::wstring& identity, bool value)
+inline void SetDisplayIncluded(Settings& settings, const std::wstring& identity, bool value)
 {
 	for (const auto& key : DisplayKeys(identity))
 	{
 		if (value)
-			s.excluded.erase(key);
+			settings.Excluded.erase(key);
 		else
-			s.excluded.insert(key);
+			settings.Excluded.insert(key);
 	}
 }
 }

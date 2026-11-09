@@ -17,7 +17,8 @@ namespace lut1d
 namespace
 {
 using Microsoft::WRL::ComPtr;
-constexpr size_t MaxBytes = 16 * 1024 * 1024, MaxSource = 262144, MaxStored = 4096, MaxPixels = 4 * 1024 * 1024;
+constexpr size_t MAX_FILE_BYTES = 16 * 1024 * 1024, MAX_SOURCE_ENTRIES = 262144, MAX_STORED_ENTRIES = 4096,
+				 MAX_PIXELS = 4 * 1024 * 1024;
 [[noreturn]] void ThrowLutError(const char* text)
 {
 	throw std::runtime_error(text);
@@ -31,7 +32,7 @@ void Require(bool value, const char* text)
 
 std::string StripBomAndComments(const std::string& text)
 {
-	Require(text.size() <= MaxBytes && text.find('\0') == std::string::npos,
+	Require(text.size() <= MAX_FILE_BYTES && text.find('\0') == std::string::npos,
 	        "LUT text exceeds 16 MiB or contains invalid text");
 	std::istringstream in(text.substr(text.compare(0, 3, "\xef\xbb\xbf") == 0 ? 3 : 0));
 	std::string line, result;
@@ -78,23 +79,24 @@ double ParseNumber(const std::string& text)
 
 size_t ParseSampleCount(const std::string& text)
 {
-	const double v = ParseNumber(text);
-	Require(v >= 2 && v <= MaxSource && v == std::floor(v), "LUT length must be 2 to 262144 samples");
-	return static_cast<size_t>(v);
+	const double value = ParseNumber(text);
+	Require(value >= 2 && value <= MAX_SOURCE_ENTRIES && value == std::floor(value),
+	        "LUT length must be 2 to 262144 samples");
+	return static_cast<size_t>(value);
 }
 
 void ValidateSource(const Channels& values)
 {
 	const auto n = values[0].size();
-	Require(n >= 2 && n <= MaxSource, "Invalid LUT sample count");
+	Require(n >= 2 && n <= MAX_SOURCE_ENTRIES, "Invalid LUT sample count");
 	for (const auto& channel : values)
 	{
 		Require(channel.size() == n, "Unequal LUT channel lengths");
 		double previous = -INFINITY;
-		for (double v : channel)
+		for (double value : channel)
 		{
-			Require(std::isfinite(v) && v >= previous, "LUT curves must be finite and nondecreasing");
-			previous = v;
+			Require(std::isfinite(value) && value >= previous, "LUT curves must be finite and nondecreasing");
+			previous = value;
 		}
 	}
 }
@@ -104,7 +106,7 @@ Channels NormalizeChannels(const Channels& values, double low = 0, double high =
 {
 	ValidateSource(values);
 	Require(std::isfinite(low) && std::isfinite(high) && high > low, "Invalid LUT input range");
-	const size_t n = values[0].size(), stored = std::min(n, MaxStored);
+	const size_t n = values[0].size(), stored = std::min(n, MAX_STORED_ENTRIES);
 	Channels out;
 	if (!positions.empty())
 	{
@@ -143,7 +145,7 @@ Channels NormalizeChannels(const Channels& values, double low = 0, double high =
 		}
 	}
 	color::Adjustments check;
-	check.imported = out;
+	check.Imported = out;
 	color::Validate(check);
 	return out;
 }
@@ -161,7 +163,7 @@ std::string ReadTextFile(const std::filesystem::path& path)
 	Require(static_cast<bool>(input), "Cannot open LUT file");
 	input.seekg(0, std::ios::end);
 	const auto size = input.tellg();
-	Require(size >= 0 && static_cast<uint64_t>(size) <= MaxBytes, "LUT file exceeds 16 MiB");
+	Require(size >= 0 && static_cast<uint64_t>(size) <= MAX_FILE_BYTES, "LUT file exceeds 16 MiB");
 	input.seekg(0);
 	std::string text(static_cast<size_t>(size), '\0');
 	Require(static_cast<bool>(input.read(text.data(), static_cast<std::streamsize>(text.size()))),
@@ -197,7 +199,7 @@ struct Image
 
 Image ReadImageFile(const std::filesystem::path& path)
 {
-	Require(std::filesystem::file_size(path) <= MaxBytes, "Image LUT exceeds 16 MiB");
+	Require(std::filesystem::file_size(path) <= MAX_FILE_BYTES, "Image LUT exceeds 16 MiB");
 	Apartment apartment;
 	ComPtr<IWICImagingFactory> factory;
 	ThrowIfFailed(
@@ -219,7 +221,7 @@ Image ReadImageFile(const std::filesystem::path& path)
 	Image image;
 	ThrowIfFailed(frame->GetSize(&image.width, &image.height), "Cannot inspect image dimensions");
 	const size_t pixels = static_cast<size_t>(image.width) * image.height;
-	Require(image.width && image.height && image.width <= 262144 && image.height <= 262144 && pixels <= MaxPixels,
+	Require(image.width && image.height && image.width <= 262144 && image.height <= 262144 && pixels <= MAX_PIXELS,
 	        "Image LUT exceeds four million pixels or has invalid dimensions");
 	WICPixelFormatGUID format {};
 	ThrowIfFailed(frame->GetPixelFormat(&format), "Cannot inspect image pixel format");
@@ -251,9 +253,10 @@ Image ReadImageFile(const std::filesystem::path& path)
 			Require(std::isfinite(raw[i * 4 + 3]) && raw[i * 4 + 3] == 1, "Image LUT must be fully opaque");
 			for (size_t c = 0; c < 3; ++c)
 			{
-				const double v = raw[i * 4 + c];
-				Require(std::isfinite(v) && v >= 0 && v <= 1, "Image LUT values must be finite and normalized to 0..1");
-				image.pixels[i][c] = v;
+				const double value = raw[i * 4 + c];
+				Require(std::isfinite(value) && value >= 0 && value <= 1,
+				        "Image LUT values must be finite and normalized to 0..1");
+				image.pixels[i][c] = value;
 			}
 		}
 	}
@@ -351,7 +354,7 @@ Loaded LutFromImage(const std::filesystem::path& path)
 	const auto count = channels[0].size();
 	auto out = NormalizeChannels(channels);
 	return { std::move(out), layout + L", " + std::to_wstring(count) + L" source samples" +
-		                         (count > MaxStored ? L" (resampled to 4096)" : L"") };
+		                         (count > MAX_STORED_ENTRIES ? L" (resampled to 4096)" : L"") };
 }
 
 void WriteImage(const std::filesystem::path& path, const Channels& values, bool tiff)
@@ -390,7 +393,7 @@ void WriteImage(const std::filesystem::path& path, const Channels& values, bool 
 	ThrowIfFailed(encoder->Commit(), "Cannot finish image encoding");
 	STATSTG stat {};
 	ThrowIfFailed(stream->Stat(&stat, STATFLAG_NONAME), "Cannot measure encoded image");
-	Require(stat.cbSize.QuadPart <= MaxBytes, "Encoded image is too large");
+	Require(stat.cbSize.QuadPart <= MAX_FILE_BYTES, "Encoded image is too large");
 	LARGE_INTEGER start {};
 	ThrowIfFailed(stream->Seek(start, STREAM_SEEK_SET, nullptr), "Cannot rewind image output");
 	std::string bytes(static_cast<size_t>(stat.cbSize.QuadPart), '\0');
@@ -440,10 +443,10 @@ Channels DecodeCube(const std::string& text)
 			else
 			{
 				Require(row.size() == 4, "Invalid LUT domain");
-				const double v = ParseNumber(row[1]);
-				Require(ParseNumber(row[2]) == v && ParseNumber(row[3]) == v,
+				const double value = ParseNumber(row[1]);
+				Require(ParseNumber(row[2]) == value && ParseNumber(row[3]) == value,
 				        "Different channel domains are not supported");
-				(key == "DOMAIN_MIN" ? low : high) = v;
+				(key == "DOMAIN_MIN" ? low : high) = value;
 			}
 			continue;
 		}
@@ -499,14 +502,14 @@ Channels DecodeSpi(const std::string& text)
 	Channels values;
 	for (size_t sample = 0; sample < n; ++sample)
 	{
-		std::array<double, 3> v {};
+		std::array<double, 3> value {};
 		for (size_t c = 0; c < components; ++c)
 		{
 			Require(i < words.size(), "Incomplete spi1d data");
-			v[c] = ParseNumber(words[i++]);
+			value[c] = ParseNumber(words[i++]);
 		}
 		for (size_t c = 0; c < 3; ++c)
-			values[c].push_back(v[components == 1 ? 0 : c]);
+			values[c].push_back(value[components == 1 ? 0 : c]);
 	}
 	Require(i < words.size() && words[i++] == "}" && i == words.size(), "Extra or incomplete spi1d data");
 	return NormalizeChannels(values, low, high);
@@ -632,8 +635,8 @@ Channels DecodeCsv(const std::string& text)
 		{
 			columns = row.size();
 			const auto first = ToLower(row[0]);
-			const bool hasHeader = first == "input" || first == "x" || first == "red" || first == "r";
-			if (hasHeader)
+			const bool has_header = first == "input" || first == "x" || first == "red" || first == "r";
+			if (has_header)
 			{
 				for (const auto& field : row)
 					header.push_back(ToLower(field));
@@ -642,13 +645,13 @@ Channels DecodeCsv(const std::string& text)
 				Require(columns >= offset + 3, "CSV header is incomplete");
 				for (size_t c = 0; c < 3; ++c)
 				{
-					const std::string shortName = c == 0   ? "r"
-					                              : c == 1 ? "g"
-					                                       : "b",
+					const std::string short_name = c == 0   ? "r"
+					                               : c == 1 ? "g"
+					                                        : "b",
 									  name = c == 0   ? "red"
 					                         : c == 1 ? "green"
 					                                  : "blue";
-					Require(header[offset + c] == shortName || header[offset + c] == name ||
+					Require(header[offset + c] == short_name || header[offset + c] == name ||
 					            header[offset + c] == "output_" + name,
 					        "CSV channels must be ordered red, green, blue");
 				}
@@ -669,7 +672,7 @@ Channels DecodeCsv(const std::string& text)
 			positions.push_back(ParseNumber(row[0]));
 		for (size_t c = 0; c < 3; ++c)
 			values[c].push_back(ParseNumber(row[offset + c]));
-		Require(values[0].size() <= MaxSource, "Too many CSV samples");
+		Require(values[0].size() <= MAX_SOURCE_ENTRIES, "Too many CSV samples");
 	}
 	return NormalizeChannels(values, 0, 1, positions);
 }
@@ -712,40 +715,40 @@ Loaded Read(const std::filesystem::path& path)
 void Write(const std::filesystem::path& path, const Channels& channels)
 {
 	color::Adjustments check;
-	check.imported = channels;
+	check.Imported = channels;
 	color::Validate(check);
 	Require(!channels[0].empty(), "Cannot export an empty LUT");
-	const auto ext = ToLower(path.extension().string());
-	if (ext == ".png" || ext == ".tif" || ext == ".tiff")
+	const auto extension = ToLower(path.extension().string());
+	if (extension == ".png" || extension == ".tif" || extension == ".tiff")
 	{
-		WriteImage(path, channels, ext != ".png");
+		WriteImage(path, channels, extension != ".png");
 		return;
 	}
 	std::ostringstream out;
 	out.imbue(std::locale::classic());
 	out << std::setprecision(17);
 	const size_t n = channels[0].size();
-	if (ext == ".cube")
+	if (extension == ".cube")
 		out << "TITLE \"MonitorMage creative look\"\nLUT_1D_SIZE " << n << "\nDOMAIN_MIN 0 0 0\nDOMAIN_MAX 1 1 1\n";
-	else if (ext == ".spi1d")
+	else if (extension == ".spi1d")
 		out << "Version 1\nFrom 0 1\nLength " << n << "\nComponents 3\n{\n";
-	else if (ext == ".cal")
+	else if (extension == ".cal")
 		out << "CAL\nDESCRIPTOR \"MonitorMage creative curves (not measured calibration)\"\nDEVICE_CLASS \"DISPLAY\"\nCOLOR_REP \"RGB\"\nNUMBER_OF_FIELDS 4\nBEGIN_DATA_FORMAT\nRGB_I RGB_R RGB_G RGB_B\nEND_DATA_FORMAT\nNUMBER_OF_SETS "
 			<< n << "\nBEGIN_DATA\n";
-	else if (ext == ".csv")
+	else if (extension == ".csv")
 		out << "input,red,green,blue\n";
 	else
 		ThrowLutError("Unsupported LUT export format");
 	for (size_t i = 0; i < n; ++i)
 	{
-		const char separator = ext == ".csv" ? ',' : ' ';
-		if (ext == ".csv" || ext == ".cal")
+		const char separator = extension == ".csv" ? ',' : ' ';
+		if (extension == ".csv" || extension == ".cal")
 			out << i / static_cast<double>(n - 1) << separator;
 		out << channels[0][i] << separator << channels[1][i] << separator << channels[2][i] << '\n';
 	}
-	if (ext == ".spi1d")
+	if (extension == ".spi1d")
 		out << "}\n";
-	if (ext == ".cal")
+	if (extension == ".cal")
 		out << "END_DATA\n";
 	presets::WriteBytes(path, out.str(), true);
 }

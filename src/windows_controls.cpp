@@ -5,7 +5,7 @@ namespace windows_controls
 {
 namespace
 {
-constexpr auto Key = L"Software\\Microsoft\\ColorFiltering";
+constexpr auto COLOR_FILTER_REGISTRY_KEY = L"Software\\Microsoft\\ColorFiltering";
 struct Value
 {
 	DWORD data = 0;
@@ -60,7 +60,7 @@ State ReadColorFilterState()
 			return state;
 		}
 		HKEY key = nullptr;
-		const auto result = RegOpenKeyExW(HKEY_CURRENT_USER, Key, 0, KEY_QUERY_VALUE, &key);
+		const auto result = RegOpenKeyExW(HKEY_CURRENT_USER, COLOR_FILTER_REGISTRY_KEY, 0, KEY_QUERY_VALUE, &key);
 		if (result == ERROR_FILE_NOT_FOUND)
 		{
 			state.available = true;
@@ -96,15 +96,15 @@ State ReadColorFilterState()
 
 Controller::~Controller()
 {
-	if (process_)
-		CloseHandle(process_);
+	if (_process)
+		CloseHandle(_process);
 }
 
 void Controller::StopWaiting()
 {
-	if (process_)
-		CloseHandle(process_);
-	process_ = nullptr;
+	if (_process)
+		CloseHandle(_process);
+	_process = nullptr;
 }
 
 Completion CheckCompletion(const State& observed, bool on, DWORD filter, bool exited, DWORD code)
@@ -131,7 +131,7 @@ const wchar_t* CompletionNotice(Completion value)
 	}
 }
 
-void Controller::Set(const State& expected, bool on, DWORD filter, bool selectingFilter)
+void Controller::Set(const State& expected, bool on, DWORD filter, bool selecting_filter)
 {
 	if (IsBusy())
 		throw std::runtime_error("Windows is already updating color filters");
@@ -143,7 +143,8 @@ void Controller::Set(const State& expected, bool on, DWORD filter, bool selectin
 	const auto exe = ColorFilterBrokerPath();
 	auto command = L"\"" + exe + L"\" /colorfiltershortcut /resettransferkeys";
 	HKEY key = nullptr;
-	if (RegCreateKeyExW(HKEY_CURRENT_USER, Key, 0, nullptr, 0, KEY_QUERY_VALUE | KEY_SET_VALUE, nullptr, &key, nullptr))
+	if (RegCreateKeyExW(HKEY_CURRENT_USER, COLOR_FILTER_REGISTRY_KEY, 0, nullptr, 0, KEY_QUERY_VALUE | KEY_SET_VALUE,
+	                    nullptr, &key, nullptr))
 		throw std::runtime_error("Windows color filter settings could not be opened");
 	Value active, kind;
 	bool captured = false;
@@ -154,7 +155,7 @@ void Controller::Set(const State& expected, bool on, DWORD filter, bool selectin
 		captured = true;
 		// A toggle preserves the latest Windows filter choice, even if our
 		// visible snapshot is stale. Only a dropdown selection changes type.
-		if (!selectingFilter)
+		if (!selecting_filter)
 		{
 			if (kind.data > 5)
 				throw std::runtime_error("Windows uses an unrecognized color filter setting");
@@ -170,12 +171,12 @@ void Controller::Set(const State& expected, bool on, DWORD filter, bool selectin
 		                    &startup, &process))
 			throw std::runtime_error("Windows could not apply the color filter; use Windows settings");
 		CloseHandle(process.hThread);
-		process_ = process.hProcess;
-		expectedOn_ = on;
-		expectedFilter_ = filter;
-		attempts_ = 0;
-		deadline_ = GetTickCount64() + 6000;
-		notice_.clear();
+		_process = process.hProcess;
+		_expected_on = on;
+		_expected_filter = filter;
+		_attempts = 0;
+		_deadline = GetTickCount64() + 6000;
+		_notice.clear();
 	}
 	catch (...)
 	{
@@ -192,21 +193,21 @@ void Controller::Set(const State& expected, bool on, DWORD filter, bool selectin
 
 bool Controller::Poll()
 {
-	if (!process_)
+	if (!_process)
 		return true;
-	const bool exited = WaitForSingleObject(process_, 0) == WAIT_OBJECT_0;
-	if (!exited && GetTickCount64() < deadline_)
+	const bool exited = WaitForSingleObject(_process, 0) == WAIT_OBJECT_0;
+	if (!exited && GetTickCount64() < _deadline)
 		return false;
 	// The broker can finish before Windows publishes its final saved state.
 	// Give it three timer turns to settle; never keep polling while idle.
-	if (exited && ++attempts_ < 3)
+	if (exited && ++_attempts < 3)
 		return false;
 	DWORD code = STILL_ACTIVE;
-	GetExitCodeProcess(process_, &code);
+	GetExitCodeProcess(_process, &code);
 	StopWaiting();
 	const auto state = ReadColorFilterState();
-	const auto result = CheckCompletion(state, expectedOn_, expectedFilter_, exited, code);
-	notice_ = CompletionNotice(result);
+	const auto result = CheckCompletion(state, _expected_on, _expected_filter, exited, code);
+	_notice = CompletionNotice(result);
 	if (result == Completion::Unreadable)
 		throw std::runtime_error("Windows color filter settings could not be read");
 	return true;

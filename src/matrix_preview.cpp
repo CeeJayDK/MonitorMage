@@ -17,11 +17,11 @@ namespace matrix_preview
 {
 namespace
 {
-constexpr DWORD Magic = 0x4d435032;
-constexpr UINT Timer = 1;
-constexpr int Mode = 301, Duration = 302, Start = 303, Stop = 304, Reports = 305, Status = 306, Note = 307,
-			  Swatches = 308, Shortcut = 309, SetShortcut = 310, ShortcutLabel = 311;
-constexpr int HotkeyA = 0x4d31, HotkeyB = 0x4d32;
+constexpr DWORD SHARED_MEMORY_MAGIC = 0x4d435032;
+constexpr UINT TIMER_PREVIEW = 1;
+constexpr int ID_MODE = 301, ID_DURATION = 302, ID_START = 303, ID_STOP = 304, ID_REPORTS = 305, ID_STATUS = 306,
+			  ID_NOTE = 307, ID_SWATCHES = 308, ID_SHORTCUT = 309, ID_SET_SHORTCUT = 310, ID_SHORTCUT_LABEL = 311;
+constexpr int HOTKEY_A = 0x4d31, HOTKEY_B = 0x4d32;
 enum CancelReason : LONG
 {
 	NoReason,
@@ -54,22 +54,22 @@ enum Result : LONG
 
 struct Shared
 {
-	DWORD magic = Magic;
+	DWORD magic = SHARED_MEMORY_MAGIC;
 	int mode = 0;
 	DWORD seconds = 15;
-	volatile LONG phase = Starting, result = None, cancelReason = NoReason;
-	ULONGLONG appliedAt = 0;
+	volatile LONG phase = Starting, result = None, cancel_reason = NoReason;
+	ULONGLONG applied_at = 0;
 	DWORD error = 0;
 };
 
 struct Handle
 {
-	HANDLE h = nullptr;
-	explicit Handle(HANDLE value = nullptr) : h(value) {}
+	HANDLE handle = nullptr;
+	explicit Handle(HANDLE value = nullptr) : handle(value) {}
 	~Handle()
 	{
-		if (h && h != INVALID_HANDLE_VALUE)
-			CloseHandle(h);
+		if (handle && handle != INVALID_HANDLE_VALUE)
+			CloseHandle(handle);
 	}
 	Handle(const Handle&) = delete;
 	Handle& operator=(const Handle&) = delete;
@@ -77,16 +77,16 @@ struct Handle
 
 struct Mapping
 {
-	Shared* p = nullptr;
+	Shared* shared = nullptr;
 	explicit Mapping(HANDLE h)
 	{
 		if (h)
-			p = static_cast<Shared*>(MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared)));
+			shared = static_cast<Shared*>(MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Shared)));
 	}
 	~Mapping()
 	{
-		if (p)
-			UnmapViewOfFile(p);
+		if (shared)
+			UnmapViewOfFile(shared);
 	}
 };
 
@@ -130,14 +130,14 @@ using Api = matrix_color::WindowsApi;
 struct Fake final : matrix_color::Api
 {
 	matrix_color::Matrix value = matrix_color::IdentityMatrix();
-	bool Read(matrix_color::Matrix& m) override
+	bool Read(matrix_color::Matrix& matrix) override
 	{
-		m = value;
+		matrix = value;
 		return true;
 	}
-	bool Write(const matrix_color::Matrix& m) override
+	bool Write(const matrix_color::Matrix& matrix) override
 	{
-		value = m;
+		value = matrix;
 		return true;
 	}
 };
@@ -159,39 +159,39 @@ void LogMatrix(std::ostringstream& log, const char* name, const matrix_color::Ma
 	log << name << "=\n";
 	for (const auto& row : matrix)
 	{
-		for (float v : row)
-			log << v << ' ';
+		for (float value : row)
+			log << value << ' ';
 		log << '\n';
 	}
 }
 
 void LogDisplayInfo(std::ostringstream& log)
 {
-	UINT32 pc = 0, mc = 0;
-	if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pc, &mc))
+	UINT32 path_count = 0, mode_count = 0;
+	if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count, &mode_count))
 		return;
-	std::vector<DISPLAYCONFIG_PATH_INFO> paths(pc);
-	std::vector<DISPLAYCONFIG_MODE_INFO> modes(mc);
-	if (QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pc, paths.data(), &mc, modes.data(), nullptr))
+	std::vector<DISPLAYCONFIG_PATH_INFO> paths(path_count);
+	std::vector<DISPLAYCONFIG_MODE_INFO> modes(mode_count);
+	if (QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &path_count, paths.data(), &mode_count, modes.data(), nullptr))
 		return;
 	log << "desktop_resolution=" << GetSystemMetrics(SM_CXSCREEN) << 'x' << GetSystemMetrics(SM_CYSCREEN) << '\n';
 	DWORD foreground = 0;
 	GetWindowThreadProcessId(GetForegroundWindow(), &foreground);
 	log << "foreground_pid=" << foreground << '\n';
-	log << "display_paths=" << pc << '\n';
-	for (UINT32 i = 0; i < pc; ++i)
+	log << "display_paths=" << path_count << '\n';
+	for (UINT32 i = 0; i < path_count; ++i)
 	{
-		const auto& p = paths[i];
+		const auto& path = paths[i];
 		DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color {};
-		color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), p.targetInfo.adapterId,
-			             p.targetInfo.id };
+		color.header = { DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO, sizeof(color), path.targetInfo.adapterId,
+			             path.targetInfo.id };
 		const auto error = DisplayConfigGetDeviceInfo(&color.header);
-		log << "display[" << i << "] source=" << p.sourceInfo.id << " target=" << p.targetInfo.id
+		log << "display[" << i << "] source=" << path.sourceInfo.id << " target=" << path.targetInfo.id
 			<< " advanced_color_query=" << error;
-		if (p.sourceInfo.modeInfoIdx < mc &&
-		    modes[p.sourceInfo.modeInfoIdx].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
-			log << " resolution=" << modes[p.sourceInfo.modeInfoIdx].sourceMode.width << 'x'
-				<< modes[p.sourceInfo.modeInfoIdx].sourceMode.height;
+		if (path.sourceInfo.modeInfoIdx < mode_count &&
+		    modes[path.sourceInfo.modeInfoIdx].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE)
+			log << " resolution=" << modes[path.sourceInfo.modeInfoIdx].sourceMode.width << 'x'
+				<< modes[path.sourceInfo.modeInfoIdx].sourceMode.height;
 		if (!error)
 			log << " supported=" << color.advancedColorSupported << " enabled=" << color.advancedColorEnabled
 				<< " bits_per_channel=" << color.bitsPerColorChannel;
@@ -201,28 +201,28 @@ void LogDisplayInfo(std::ostringstream& log)
 
 ULONGLONG ProcessCpuTime()
 {
-	FILETIME c {}, e {}, k {}, u {};
-	if (!GetProcessTimes(GetCurrentProcess(), &c, &e, &k, &u))
+	FILETIME creation_time {}, exit_time {}, kernel_time {}, user_time {};
+	if (!GetProcessTimes(GetCurrentProcess(), &creation_time, &exit_time, &kernel_time, &user_time))
 		return 0;
-	ULARGE_INTEGER a {}, b {};
-	a.LowPart = k.dwLowDateTime;
-	a.HighPart = k.dwHighDateTime;
-	b.LowPart = u.dwLowDateTime;
-	b.HighPart = u.dwHighDateTime;
-	return a.QuadPart + b.QuadPart;
+	ULARGE_INTEGER kernel_ticks {}, user_ticks {};
+	kernel_ticks.LowPart = kernel_time.dwLowDateTime;
+	kernel_ticks.HighPart = kernel_time.dwHighDateTime;
+	user_ticks.LowPart = user_time.dwLowDateTime;
+	user_ticks.HighPart = user_time.dwHighDateTime;
+	return kernel_ticks.QuadPart + user_ticks.QuadPart;
 }
 
 struct Session
 {
 	Handle mapping, cancel, process;
 	std::unique_ptr<Mapping> view;
-	bool IsBusy() const { return process.h && WaitForSingleObject(process.h, 0) == WAIT_TIMEOUT; }
+	bool IsBusy() const { return process.handle && WaitForSingleObject(process.handle, 0) == WAIT_TIMEOUT; }
 	void Stop(CancelReason reason = SessionEnd)
 	{
-		if (view && view->p)
-			InterlockedCompareExchange(&view->p->cancelReason, reason, NoReason);
-		if (cancel.h)
-			SetEvent(cancel.h);
+		if (view && view->shared)
+			InterlockedCompareExchange(&view->shared->cancel_reason, reason, NoReason);
+		if (cancel.handle)
+			SetEvent(cancel.handle);
 	}
 	~Session() { Stop(); }
 };
@@ -231,17 +231,17 @@ std::unique_ptr<Session> LaunchWorker(int mode, DWORD seconds, DWORD parent, boo
 {
 	auto result = std::make_unique<Session>();
 	const auto token = std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64());
-	result->mapping.h = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared),
-	                                       SharedObjectName(token.c_str(), L"-map").c_str());
-	if (!result->mapping.h || GetLastError() == ERROR_ALREADY_EXISTS)
+	result->mapping.handle = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(Shared),
+	                                            SharedObjectName(token.c_str(), L"-map").c_str());
+	if (!result->mapping.handle || GetLastError() == ERROR_ALREADY_EXISTS)
 		throw std::runtime_error("Preview session unavailable");
-	result->view = std::make_unique<Mapping>(result->mapping.h);
-	result->cancel.h = CreateEventW(nullptr, TRUE, FALSE, SharedObjectName(token.c_str(), L"-cancel").c_str());
-	if (!result->view->p || !result->cancel.h)
+	result->view = std::make_unique<Mapping>(result->mapping.handle);
+	result->cancel.handle = CreateEventW(nullptr, TRUE, FALSE, SharedObjectName(token.c_str(), L"-cancel").c_str());
+	if (!result->view->shared || !result->cancel.handle)
 		throw std::runtime_error("Cannot prepare preview");
-	*result->view->p = Shared {};
-	result->view->p->mode = mode;
-	result->view->p->seconds = seconds;
+	*result->view->shared = Shared {};
+	result->view->shared->mode = mode;
+	result->view->shared->seconds = seconds;
 	auto command = QuoteArgument(ExecutablePath().wstring()) +
 	               (fake ? L" --matrix-worker-probe " : L" --matrix-worker ") + std::to_wstring(parent) + L" " + token;
 	STARTUPINFOW start { sizeof(start) };
@@ -251,21 +251,21 @@ std::unique_ptr<Session> LaunchWorker(int mode, DWORD seconds, DWORD parent, boo
 	if (!CreateProcessW(ExecutablePath().c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
 	                    nullptr, &start, &process))
 		throw std::runtime_error("Cannot start preview worker");
-	result->process.h = process.hProcess;
+	result->process.handle = process.hProcess;
 	CloseHandle(process.hThread);
 	return result;
 }
 
-HWND previewWindow = nullptr;
+HWND preview_window = nullptr;
 bool standalone = false;
 struct Window
 {
 	HWND mode = nullptr, duration = nullptr, start = nullptr, stop = nullptr, status = nullptr;
 	HFONT font = nullptr;
 	std::unique_ptr<Session> session;
-	bool closing = false, testing = false, probe = false, hotkeyRegistered = false;
+	bool closing = false, testing = false, probe = false, hotkey_registered = false;
 	WORD shortcut = MAKEWORD('M', HOTKEYF_CONTROL | HOTKEYF_ALT | HOTKEYF_SHIFT);
-	int hotkeyId = HotkeyA;
+	int hotkey_id = HOTKEY_A;
 };
 
 Window* GetWindowState(HWND h)
@@ -275,7 +275,7 @@ Window* GetWindowState(HWND h)
 
 void SetStatusText(HWND window, const wchar_t* text)
 {
-	SetWindowTextW(GetDlgItem(window, Status), text);
+	SetWindowTextW(GetDlgItem(window, ID_STATUS), text);
 }
 
 bool BindPreviewHotkey(HWND window, Window& state, WORD value)
@@ -287,16 +287,16 @@ bool BindPreviewHotkey(HWND window, Window& state, WORD value)
 	    !(flags & (HOTKEYF_CONTROL | HOTKEYF_ALT | HOTKEYF_SHIFT)) ||
 	    (flags & ~(HOTKEYF_CONTROL | HOTKEYF_ALT | HOTKEYF_SHIFT | HOTKEYF_EXT)))
 		return false;
-	if (state.hotkeyRegistered && state.shortcut == value)
+	if (state.hotkey_registered && state.shortcut == value)
 		return true;
-	const int next = state.hotkeyRegistered ? (state.hotkeyId == HotkeyA ? HotkeyB : HotkeyA) : HotkeyA;
+	const int next = state.hotkey_registered ? (state.hotkey_id == HOTKEY_A ? HOTKEY_B : HOTKEY_A) : HOTKEY_A;
 	if (!RegisterHotKey(window, next, mods, key))
 		return false;
-	if (state.hotkeyRegistered)
-		UnregisterHotKey(window, state.hotkeyId);
+	if (state.hotkey_registered)
+		UnregisterHotKey(window, state.hotkey_id);
 	state.shortcut = value;
-	state.hotkeyId = next;
-	state.hotkeyRegistered = true;
+	state.hotkey_id = next;
+	state.hotkey_registered = true;
 	return true;
 }
 
@@ -306,8 +306,8 @@ void UpdateButtons(Window& state, bool active)
 	EnableWindow(state.mode, !active);
 	EnableWindow(state.duration, !active);
 	EnableWindow(state.stop, active);
-	EnableWindow(GetDlgItem(GetParent(state.start), Shortcut), !active);
-	EnableWindow(GetDlgItem(GetParent(state.start), SetShortcut), !active);
+	EnableWindow(GetDlgItem(GetParent(state.start), ID_SHORTCUT), !active);
+	EnableWindow(GetDlgItem(GetParent(state.start), ID_SET_SHORTCUT), !active);
 	if (active && GetForegroundWindow() == GetAncestor(state.start, GA_ROOT))
 		SetFocus(state.stop);
 }
@@ -315,11 +315,11 @@ void UpdateButtons(Window& state, bool active)
 void FinishPreview(HWND window, Window& state)
 {
 	DWORD code = 1;
-	GetExitCodeProcess(state.session->process.h, &code);
-	const auto result = state.session->view->p->result;
-	const auto error = state.session->view->p->error;
+	GetExitCodeProcess(state.session->process.handle, &code);
+	const auto result = state.session->view->shared->result;
+	const auto error = state.session->view->shared->error;
 	state.session.reset();
-	KillTimer(window, Timer);
+	KillTimer(window, TIMER_PREVIEW);
 	UpdateButtons(state, false);
 	if (result == Restored && code == 0)
 		SetStatusText(window, L"Preview ended. Previous colors restored.");
@@ -352,43 +352,44 @@ void LayoutPreviewWindow(HWND window, Window& state)
 	if (state.font)
 		DeleteObject(state.font);
 	state.font = ui::CreateUiFont(dpi);
-	for (int id : { Note, Mode, Duration, Start, Stop, Reports, Status, Shortcut, SetShortcut, ShortcutLabel })
+	for (int id : { ID_NOTE, ID_MODE, ID_DURATION, ID_START, ID_STOP, ID_REPORTS, ID_STATUS, ID_SHORTCUT,
+	                ID_SET_SHORTCUT, ID_SHORTCUT_LABEL })
 		SendDlgItemMessageW(window, id, WM_SETFONT, reinterpret_cast<WPARAM>(state.font), TRUE);
 	const auto place = [&](int id, int x, int y, int w, int h)
 	{
 		MoveWindow(GetDlgItem(window, id), px(x), px(y), px(w), px(h), TRUE);
 	};
-	place(Note, 18, 14, 484, 48);
-	place(Mode, 18, 72, 282, 160);
-	place(Duration, 314, 72, 188, 120);
-	place(Swatches, 18, 164, 484, 30);
-	place(Start, 18, 112, 232, 32);
-	place(Stop, 266, 112, 236, 32);
-	place(Status, 18, 208, 484, 48);
-	place(ShortcutLabel, 18, 268, 66, 28);
-	place(Shortcut, 90, 268, 250, 28);
-	place(SetShortcut, 354, 268, 148, 28);
-	place(Reports, 314, 310, 188, 30);
+	place(ID_NOTE, 18, 14, 484, 48);
+	place(ID_MODE, 18, 72, 282, 160);
+	place(ID_DURATION, 314, 72, 188, 120);
+	place(ID_SWATCHES, 18, 164, 484, 30);
+	place(ID_START, 18, 112, 232, 32);
+	place(ID_STOP, 266, 112, 236, 32);
+	place(ID_STATUS, 18, 208, 484, 48);
+	place(ID_SHORTCUT_LABEL, 18, 268, 66, 28);
+	place(ID_SHORTCUT, 90, 268, 250, 28);
+	place(ID_SET_SHORTCUT, 354, 268, 148, 28);
+	place(ID_REPORTS, 314, 310, 188, 30);
 	ui::ApplyWindowFrameTheme(window);
 }
 
-LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
+LRESULT CALLBACK PreviewWindowProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param)
 {
 	auto state = GetWindowState(window);
 	LRESULT themed = 0;
-	if (ui::HandleThemeMessage(window, msg, wp, lp, themed))
+	if (ui::HandleThemeMessage(window, message, w_param, l_param, themed))
 		return themed;
-	switch (msg)
+	switch (message)
 	{
 		case WM_CREATE:
 		{
 			auto created = std::make_unique<Window>();
 			state = created.get();
-			state->testing = reinterpret_cast<LPCREATESTRUCTW>(lp)->lpCreateParams != nullptr;
+			state->testing = reinterpret_cast<LPCREATESTRUCTW>(l_param)->lpCreateParams != nullptr;
 			ui::FixedWindowSize(window, 520, 358);
 			SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
 			created.release();
-			previewWindow = window;
+			preview_window = window;
 			const auto child = [&](const wchar_t* cls, const wchar_t* text, DWORD flags, int id)
 			{
 				if (wcscmp(cls, L"COMBOBOX") == 0)
@@ -402,41 +403,41 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 			child(
 				L"STATIC",
 				L"Temporary test on all displays. It stops automatically.\nEscape or Stop ends it early. Shortcut starts/stops it inside a game.",
-				SS_NOPREFIX, Note);
-			state->mode = child(L"COMBOBOX", L"Preview effect", WS_TABSTOP | CBS_DROPDOWNLIST, Mode);
+				SS_NOPREFIX, ID_NOTE);
+			state->mode = child(L"COMBOBOX", L"Preview effect", WS_TABSTOP | CBS_DROPDOWNLIST, ID_MODE);
 			for (const auto* text : { L"Grayscale", L"Half saturation", L"Saturation +20%" })
 				SendMessageW(state->mode, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
 			SendMessageW(state->mode, CB_SETCURSEL, 0, 0);
-			state->duration = child(L"COMBOBOX", L"Preview duration", WS_TABSTOP | CBS_DROPDOWNLIST, Duration);
+			state->duration = child(L"COMBOBOX", L"Preview duration", WS_TABSTOP | CBS_DROPDOWNLIST, ID_DURATION);
 			for (const auto* text : { L"15 seconds", L"30 seconds" })
 				SendMessageW(state->duration, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text));
 			SendMessageW(state->duration, CB_SETCURSEL, 0, 0);
-			state->start = child(L"BUTTON", L"Preview", WS_TABSTOP | BS_PUSHBUTTON, Start);
-			state->stop = child(L"BUTTON", L"Stop", WS_TABSTOP | BS_DEFPUSHBUTTON, Stop);
+			state->start = child(L"BUTTON", L"Preview", WS_TABSTOP | BS_PUSHBUTTON, ID_START);
+			state->stop = child(L"BUTTON", L"Stop", WS_TABSTOP | BS_DEFPUSHBUTTON, ID_STOP);
 			EnableWindow(state->stop, FALSE);
-			child(L"STATIC", L"Color swatches", SS_OWNERDRAW, Swatches);
-			state->status = child(L"STATIC", L"Ready. No preview is running.", SS_NOPREFIX, Status);
-			child(L"BUTTON", L"Open reports", WS_TABSTOP | BS_PUSHBUTTON, Reports);
-			child(L"STATIC", L"Shortcut", SS_CENTERIMAGE, ShortcutLabel);
-			auto shortcut = child(HOTKEY_CLASSW, L"Preview shortcut", WS_TABSTOP, Shortcut);
+			child(L"STATIC", L"Color swatches", SS_OWNERDRAW, ID_SWATCHES);
+			state->status = child(L"STATIC", L"Ready. No preview is running.", SS_NOPREFIX, ID_STATUS);
+			child(L"BUTTON", L"Open reports", WS_TABSTOP | BS_PUSHBUTTON, ID_REPORTS);
+			child(L"STATIC", L"Shortcut", SS_CENTERIMAGE, ID_SHORTCUT_LABEL);
+			auto shortcut = child(HOTKEY_CLASSW, L"Preview shortcut", WS_TABSTOP, ID_SHORTCUT);
 			SendMessageW(shortcut, HKM_SETHOTKEY, state->shortcut, 0);
-			child(L"BUTTON", L"Set shortcut", WS_TABSTOP | BS_PUSHBUTTON, SetShortcut);
+			child(L"BUTTON", L"Set shortcut", WS_TABSTOP | BS_PUSHBUTTON, ID_SET_SHORTCUT);
 			ui::SetHelpText(shortcut, L"Preview shortcut");
-			ui::SetHelpText(GetDlgItem(window, SetShortcut), L"Set preview shortcut");
+			ui::SetHelpText(GetDlgItem(window, ID_SET_SHORTCUT), L"Set preview shortcut");
 			if (!state->testing && !BindPreviewHotkey(window, *state, state->shortcut))
 				SetStatusText(window, L"Shortcut unavailable. Choose another and click Set shortcut.");
 			ui::SetHelpText(state->mode, L"Preview effect");
 			ui::SetHelpText(state->duration, L"Preview duration");
 			ui::SetHelpText(state->start, L"Start timed preview");
 			ui::SetHelpText(state->stop, L"Stop and restore colors");
-			ui::SetHelpText(GetDlgItem(window, Reports), L"Open preview reports");
+			ui::SetHelpText(GetDlgItem(window, ID_REPORTS), L"Open preview reports");
 			LayoutPreviewWindow(window, *state);
 			return 0;
 		}
 		case WM_DRAWITEM:
 		{
-			const auto item = reinterpret_cast<DRAWITEMSTRUCT*>(lp);
-			if (item->CtlID != Swatches)
+			const auto item = reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
+			if (item->CtlID != ID_SWATCHES)
 				break;
 			FillRect(item->hDC, &item->rcItem, ui::BackgroundBrush());
 			constexpr COLORREF colors[] { RGB(0, 0, 0),     RGB(128, 128, 128), RGB(255, 255, 255), RGB(210, 45, 45),
@@ -453,7 +454,7 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 			return TRUE;
 		}
 		case WM_HOTKEY:
-			if (state->testing || !state->hotkeyRegistered || static_cast<int>(wp) != state->hotkeyId)
+			if (state->testing || !state->hotkey_registered || static_cast<int>(w_param) != state->hotkey_id)
 				return 0;
 			if (state->closing)
 				return 0;
@@ -465,36 +466,36 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 				SetStatusText(window, L"Stopping preview...");
 			}
 			else
-				SendMessageW(window, WM_COMMAND, Start, 0);
+				SendMessageW(window, WM_COMMAND, ID_START, 0);
 			return 0;
 		case WM_COMMAND:
-			if (LOWORD(wp) == SetShortcut && !state->testing && !state->session)
+			if (LOWORD(w_param) == ID_SET_SHORTCUT && !state->testing && !state->session)
 			{
-				const WORD value = static_cast<WORD>(SendDlgItemMessageW(window, Shortcut, HKM_GETHOTKEY, 0, 0));
+				const WORD value = static_cast<WORD>(SendDlgItemMessageW(window, ID_SHORTCUT, HKM_GETHOTKEY, 0, 0));
 				if (BindPreviewHotkey(window, *state, value))
 					SetStatusText(window, L"Shortcut ready. It works while the game has focus.");
 				else
 				{
-					SendDlgItemMessageW(window, Shortcut, HKM_SETHOTKEY, state->shortcut, 0);
+					SendDlgItemMessageW(window, ID_SHORTCUT, HKM_SETHOTKEY, state->shortcut, 0);
 					SetStatusText(window, L"Shortcut unavailable. Choose another combination.");
 				}
 				return 0;
 			}
-			if (LOWORD(wp) == Mode && HIWORD(wp) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_MODE && HIWORD(w_param) == CBN_SELCHANGE)
 			{
 				SetStatusText(window, SendMessageW(state->mode, CB_GETCURSEL, 0, 0) == 2
 				                          ? L"Saturation +20% may clip strong colors."
 				                          : L"Ready. No preview is running.");
 				return 0;
 			}
-			if (LOWORD(wp) == Start && !state->session && !state->testing)
+			if (LOWORD(w_param) == ID_START && !state->session && !state->testing)
 			{
 				try
 				{
 					const int mode = static_cast<int>(SendMessageW(state->mode, CB_GETCURSEL, 0, 0));
 					const DWORD seconds = SendMessageW(state->duration, CB_GETCURSEL, 0, 0) == 1 ? 30 : 15;
 					state->session = LaunchWorker(mode, seconds, GetCurrentProcessId(), state->probe);
-					if (!SetTimer(window, Timer, 100, nullptr))
+					if (!SetTimer(window, TIMER_PREVIEW, 100, nullptr))
 					{
 						state->session->Stop();
 						throw std::runtime_error("Cannot monitor preview");
@@ -513,7 +514,7 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 				}
 				return 0;
 			}
-			if (LOWORD(wp) == Stop || LOWORD(wp) == IDCANCEL || LOWORD(wp) == IDOK)
+			if (LOWORD(w_param) == ID_STOP || LOWORD(w_param) == IDCANCEL || LOWORD(w_param) == IDOK)
 			{
 				if (state->session)
 				{
@@ -522,7 +523,7 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 				}
 				return 0;
 			}
-			if (LOWORD(wp) == Reports)
+			if (LOWORD(w_param) == ID_REPORTS)
 			{
 				try
 				{
@@ -537,17 +538,17 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 			}
 			break;
 		case WM_TIMER:
-			if (wp == Timer && state->session)
+			if (w_param == TIMER_PREVIEW && state->session)
 			{
 				if (!state->session->IsBusy())
 				{
 					FinishPreview(window, *state);
 					return 0;
 				}
-				const auto shared = state->session->view->p;
+				const auto shared = state->session->view->shared;
 				if (InterlockedCompareExchange(&shared->phase, 0, 0) == Applied)
 				{
-					const auto elapsed = (GetTickCount64() - shared->appliedAt) / 1000;
+					const auto elapsed = (GetTickCount64() - shared->applied_at) / 1000;
 					const auto left = elapsed < shared->seconds ? shared->seconds - elapsed : 0;
 					const auto text = L"Previewing. Restoring colors in " + std::to_wstring(left) + L" seconds.";
 					wchar_t current[160] {};
@@ -562,7 +563,7 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 		case WM_SETTINGCHANGE:
 			if (state && state->session)
 			{
-				state->session->Stop(msg == WM_DISPLAYCHANGE ? DisplayChange : SettingsChange);
+				state->session->Stop(message == WM_DISPLAYCHANGE ? DisplayChange : SettingsChange);
 				SetStatusText(window, L"Display settings changed. Stopping preview...");
 			}
 			return 0;
@@ -578,43 +579,43 @@ LRESULT CALLBACK PreviewWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 			return 0;
 		case WM_DPICHANGED:
 		{
-			const auto r = reinterpret_cast<RECT*>(lp);
+			const auto r = reinterpret_cast<RECT*>(l_param);
 			SetWindowPos(window, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top,
 			             SWP_NOZORDER | SWP_NOACTIVATE);
 			LayoutPreviewWindow(window, *state);
 			return 0;
 		}
 		case WM_DESTROY:
-			KillTimer(window, Timer);
-			if (state->hotkeyRegistered)
-				UnregisterHotKey(window, state->hotkeyId);
+			KillTimer(window, TIMER_PREVIEW);
+			if (state->hotkey_registered)
+				UnregisterHotKey(window, state->hotkey_id);
 			if (state->session)
 				state->session->Stop();
 			if (state->font)
 				DeleteObject(state->font);
 			delete state;
 			SetWindowLongPtrW(window, GWLP_USERDATA, 0);
-			previewWindow = nullptr;
+			preview_window = nullptr;
 			if (standalone)
 				PostQuitMessage(0);
 			return 0;
 	}
-	return DefWindowProcW(window, msg, wp, lp);
+	return DefWindowProcW(window, message, w_param, l_param);
 }
 }
 
-int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
+int RunWorkerProcess(DWORD parent_id, const wchar_t* token, bool fake)
 {
-	if (!parentId || !IsValidToken(token))
+	if (!parent_id || !IsValidToken(token))
 		return 2;
-	Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parentId));
+	Handle parent(OpenProcess(SYNCHRONIZE, FALSE, parent_id));
 	Handle cancel(OpenEventW(SYNCHRONIZE, FALSE, SharedObjectName(token, L"-cancel").c_str()));
 	Handle mapping(OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, SharedObjectName(token, L"-map").c_str()));
-	Mapping view(mapping.h);
-	if (!parent.h || !cancel.h || !view.p || view.p->magic != Magic || view.p->seconds < 1 || view.p->seconds > 30 ||
-	    view.p->mode < 0 || view.p->mode > 2)
+	Mapping view(mapping.handle);
+	if (!parent.handle || !cancel.handle || !view.shared || view.shared->magic != SHARED_MEMORY_MAGIC ||
+	    view.shared->seconds < 1 || view.shared->seconds > 30 || view.shared->mode < 0 || view.shared->mode > 2)
 		return 3;
-	auto& shared = *view.p;
+	auto& shared = *view.shared;
 	Api api;
 	Fake mock;
 	matrix_color::Api& backend = fake ? static_cast<matrix_color::Api&>(mock) : api;
@@ -625,14 +626,14 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 	std::ostringstream log;
 	const auto end = [&](Result result, DWORD error)
 	{
-		if (result == Failed && !attempted && !shared.appliedAt)
+		if (result == Failed && !attempted && !shared.applied_at)
 			result = NotStarted;
 		log << "final_result=" << result << " error=" << error
 			<< " (1=restored,2=external,3=failed,4=blocked,5=not_started,6=stopped,7=report_failed)\n";
 		try
 		{
 			if (!fake)
-				WriteLog(file.h, log);
+				WriteLog(file.handle, log);
 		}
 		catch (...)
 		{
@@ -651,9 +652,9 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 			std::filesystem::create_directories(ReportFolder());
 			const auto path = ReportFolder() / (L"preview-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
 			                                    std::to_wstring(GetTickCount64()) + L".txt");
-			file.h = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW,
-			                     FILE_ATTRIBUTE_NORMAL, nullptr);
-			if (file.h == INVALID_HANDLE_VALUE)
+			file.handle = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_NEW,
+			                          FILE_ATTRIBUTE_NORMAL, nullptr);
+			if (file.handle == INVALID_HANDLE_VALUE)
 				return end(Failed, GetLastError());
 			log << "MonitorMage timed matrix preview\nmode=" << shared.mode << " seconds=" << shared.seconds
 				<< "\nEncoded-RGB experiment; not an HDR colorimetric transform.\n";
@@ -661,7 +662,7 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 			const auto filters = windows_controls::ReadColorFilterState();
 			log << "windows_filters available=" << filters.available << " on=" << filters.on
 				<< " type=" << filters.filter << '\n';
-			WriteLog(file.h, log);
+			WriteLog(file.handle, log);
 			const bool initialized = api.Open();
 			log << "initialize_ok=" << initialized << '\n';
 			if (!initialized)
@@ -675,25 +676,26 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 			return end(Failed, GetLastError());
 		if (matrix_color::MaxDifference(baseline, matrix_color::IdentityMatrix()) > 1e-5f)
 			return end(Blocked, 2);
-		if (WaitForSingleObject(parent.h, 0) != WAIT_TIMEOUT || WaitForSingleObject(cancel.h, 0) == WAIT_OBJECT_0)
+		if (WaitForSingleObject(parent.handle, 0) != WAIT_TIMEOUT ||
+		    WaitForSingleObject(cancel.handle, 0) == WAIT_OBJECT_0)
 			return end(Restored, 0);
 		LogMatrix(log, "baseline", baseline);
 		LogMatrix(log, "requested", target);
 		if (!fake)
-			WriteLog(file.h, log);
+			WriteLog(file.handle, log);
 		attempted = true;
-		const auto cpuStart = ProcessCpuTime(), start = GetTickCount64();
+		const auto cpu_start = ProcessCpuTime(), start = GetTickCount64();
 		const bool accepted = backend.Write(target);
 		matrix_color::Matrix readback {};
 		const bool verified = backend.Read(readback) && matrix_color::MaxDifference(readback, target) < 1e-5f;
 		log << "set_return=" << accepted << " readback_matches=" << verified << '\n';
 		if (!verified)
 			throw std::runtime_error("Preview readback mismatch");
-		shared.appliedAt = GetTickCount64();
+		shared.applied_at = GetTickCount64();
 		InterlockedExchange(&shared.phase, Applied);
 		if (!fake)
-			WriteLog(file.h, log);
-		HANDLE wait[] { parent.h, cancel.h };
+			WriteLog(file.handle, log);
+		HANDLE wait[] { parent.handle, cancel.handle };
 		const auto deadline = GetTickCount64() + shared.seconds * 1000;
 		DWORD wake = WAIT_TIMEOUT;
 		for (;;)
@@ -711,17 +713,17 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 				DispatchMessageW(&message);
 			}
 		}
-		log << "cancel_reason=" << InterlockedCompareExchange(&shared.cancelReason, 0, 0)
+		log << "cancel_reason=" << InterlockedCompareExchange(&shared.cancel_reason, 0, 0)
 			<< " (0=none,1=button,2=shortcut,3=display_change,4=settings_change,5=window_close,6=session_end)\n";
 		log << "wait_result=" << wake << " elapsed_ms=" << GetTickCount64() - start
-			<< " worker_cpu_ms=" << (ProcessCpuTime() - cpuStart) / 10000.0 << '\n';
+			<< " worker_cpu_ms=" << (ProcessCpuTime() - cpu_start) / 10000.0 << '\n';
 		const auto restored = matrix_color::RestoreBaseline(backend, baseline, target);
 		attempted = false;
 		const bool cleaned = fake || api.Close();
 		log << "restore_result=" << static_cast<int>(restored) << " uninitialize_ok=" << cleaned
 			<< "\nRestoration is API readback, not a visual measurement.\nWorker CPU excludes DWM/GPU rendering cost.\n";
 		if (!fake)
-			WriteLog(file.h, log);
+			WriteLog(file.handle, log);
 		return end(!cleaned                                                ? Failed
 		           : restored == matrix_color::Restoration::Restored       ? Restored
 		           : restored == matrix_color::Restoration::ExternalChange ? External
@@ -739,7 +741,7 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 		try
 		{
 			if (!fake)
-				WriteLog(file.h, log);
+				WriteLog(file.handle, log);
 		}
 		catch (...)
 		{
@@ -755,29 +757,30 @@ int RunWorkerProcess(DWORD parentId, const wchar_t* token, bool fake)
 
 void ShowPreviewWindow(HWND owner, bool hidden)
 {
-	if (previewWindow)
+	if (preview_window)
 	{
 		if (!hidden)
 		{
-			ShowWindow(previewWindow, SW_SHOW);
-			SetForegroundWindow(previewWindow);
+			ShowWindow(preview_window, SW_SHOW);
+			SetForegroundWindow(preview_window);
 		}
 		return;
 	}
-	WNDCLASSW cls {};
-	cls.hInstance = GetModuleHandleW(nullptr);
-	cls.lpszClassName = L"MonitorMageMatrixPreview";
-	cls.lpfnWndProc = PreviewWindowProc;
-	cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-	cls.hbrBackground = ui::BackgroundBrush();
-	RegisterClassW(&cls);
+	WNDCLASSW window_class {};
+	window_class.hInstance = GetModuleHandleW(nullptr);
+	window_class.lpszClassName = L"MonitorMageMatrixPreview";
+	window_class.lpfnWndProc = PreviewWindowProc;
+	window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+	window_class.hbrBackground = ui::BackgroundBrush();
+	RegisterClassW(&window_class);
 	const UINT dpi = owner ? GetDpiForWindow(owner) : GetDpiForSystem();
 	RECT rect { 0, 0, MulDiv(520, dpi, 96), MulDiv(358, dpi, 96) };
 	ui::AdjustThemedWindowRect(rect, dpi);
-	const auto h = CreateWindowExW(WS_EX_CONTROLPARENT, cls.lpszClassName, L"MonitorMage - Matrix preview",
-	                               WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, CW_USEDEFAULT,
-	                               CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top, owner, nullptr,
-	                               cls.hInstance, reinterpret_cast<void*>(static_cast<INT_PTR>(hidden ? 1 : 0)));
+	const auto h =
+		CreateWindowExW(WS_EX_CONTROLPARENT, window_class.lpszClassName, L"MonitorMage - Matrix preview",
+	                    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN, CW_USEDEFAULT, CW_USEDEFAULT,
+	                    rect.right - rect.left, rect.bottom - rect.top, owner, nullptr, window_class.hInstance,
+	                    reinterpret_cast<void*>(static_cast<INT_PTR>(hidden ? 1 : 0)));
 	if (h && hidden)
 		GetWindowState(h)->testing = true;
 	if (h && !hidden)
@@ -789,13 +792,13 @@ void ShowPreviewWindow(HWND owner, bool hidden)
 
 HWND PreviewWindowHandle()
 {
-	return previewWindow;
+	return preview_window;
 }
 
 bool HandleDialogMessage(MSG& message)
 {
-	return previewWindow && GetAncestor(message.hwnd, GA_ROOT) == previewWindow &&
-	       IsDialogMessageW(previewWindow, &message) != FALSE;
+	return preview_window && GetAncestor(message.hwnd, GA_ROOT) == preview_window &&
+	       IsDialogMessageW(preview_window, &message) != FALSE;
 }
 
 int RunStandalone(HINSTANCE)
@@ -804,7 +807,7 @@ int RunStandalone(HINSTANCE)
 	INITCOMMONCONTROLSEX controls { sizeof(controls), ICC_STANDARD_CLASSES };
 	InitCommonControlsEx(&controls);
 	ShowPreviewWindow(nullptr);
-	if (!previewWindow)
+	if (!preview_window)
 		return 1;
 	MSG message {};
 	while (GetMessageW(&message, nullptr, 0, 0) > 0)
@@ -832,16 +835,16 @@ int SelfTest(const wchar_t*)
 				return 2;
 		for (int mode = 0; mode < 3; ++mode)
 		{
-			const auto m = matrix_color::PreviewMatrix(mode);
+			const auto matrix = matrix_color::PreviewMatrix(mode);
 			for (int output = 0; output < 3; ++output)
 			{
 				float neutral = 0;
 				for (int input = 0; input < 3; ++input)
-					neutral += m[input][output];
+					neutral += matrix[input][output];
 				if (std::abs(neutral - 1) > 1e-6f)
 					return 3;
 			}
-			if (m[3][3] != 1 || m[4][4] != 1)
+			if (matrix[3][3] != 1 || matrix[4][4] != 1)
 				return 4;
 		}
 		bool rejected = false;
@@ -870,41 +873,41 @@ int SelfTest(const wchar_t*)
 		{
 			matrix_color::Matrix value = matrix_color::PreviewMatrix(2);
 			int reads = 0, writes = 0;
-			bool firstReadFails = false, dropWrite = false, falseReturn = false;
-			bool Read(matrix_color::Matrix& m) override
+			bool first_read_fails = false, drop_write = false, false_return = false;
+			bool Read(matrix_color::Matrix& matrix) override
 			{
-				if (firstReadFails && reads++ == 0)
+				if (first_read_fails && reads++ == 0)
 					return false;
-				m = value;
+				matrix = value;
 				return true;
 			}
-			bool Write(const matrix_color::Matrix& m) override
+			bool Write(const matrix_color::Matrix& matrix) override
 			{
 				++writes;
-				if (!dropWrite)
-					value = m;
-				return !falseReturn && !dropWrite;
+				if (!drop_write)
+					value = matrix;
+				return !false_return && !drop_write;
 			}
 		};
 		Fault unreadable;
-		unreadable.firstReadFails = true;
+		unreadable.first_read_fails = true;
 		if (matrix_color::RestoreBaseline(unreadable, identity, ours) != matrix_color::Restoration::Restored ||
 		    unreadable.writes != 1)
 			return 16;
 		Fault refused;
-		refused.dropWrite = true;
+		refused.drop_write = true;
 		if (matrix_color::RestoreBaseline(refused, identity, ours) != matrix_color::Restoration::Failed)
 			return 17;
-		Fault falseFlag;
-		falseFlag.falseReturn = true;
-		if (matrix_color::RestoreBaseline(falseFlag, identity, ours) != matrix_color::Restoration::Restored)
+		Fault false_flag;
+		false_flag.false_return = true;
+		if (matrix_color::RestoreBaseline(false_flag, identity, ours) != matrix_color::Restoration::Restored)
 			return 18;
 		const auto applied = [](Session& session)
 		{
 			const auto deadline = GetTickCount64() + 5000;
 			while (GetTickCount64() < deadline)
 			{
-				if (InterlockedCompareExchange(&session.view->p->phase, 0, 0) == Applied)
+				if (InterlockedCompareExchange(&session.view->shared->phase, 0, 0) == Applied)
 					return true;
 				if (!session.IsBusy())
 					return false;
@@ -914,11 +917,11 @@ int SelfTest(const wchar_t*)
 		};
 		const auto ended = [](Session& session)
 		{
-			if (WaitForSingleObject(session.process.h, 5000) != WAIT_OBJECT_0)
+			if (WaitForSingleObject(session.process.handle, 5000) != WAIT_OBJECT_0)
 				return false;
 			DWORD code = 99;
-			GetExitCodeProcess(session.process.h, &code);
-			return code == 0 && session.view->p->phase == Finished && session.view->p->result == Restored;
+			GetExitCodeProcess(session.process.handle, &code);
+			return code == 0 && session.view->shared->phase == Finished && session.view->shared->result == Restored;
 		};
 		auto cancel = LaunchWorker(0, 30, GetCurrentProcessId(), true);
 		if (!applied(*cancel))
@@ -941,12 +944,12 @@ int SelfTest(const wchar_t*)
 			return 11;
 		struct DisposableOwner
 		{
-			HANDLE h;
+			HANDLE handle;
 			~DisposableOwner()
 			{
-				if (WaitForSingleObject(h, 0) == WAIT_TIMEOUT)
-					TerminateProcess(h, 0);
-				CloseHandle(h);
+				if (WaitForSingleObject(handle, 0) == WAIT_TIMEOUT)
+					TerminateProcess(handle, 0);
+				CloseHandle(handle);
 			}
 		};
 		DisposableOwner owner { process.hProcess };
@@ -954,20 +957,20 @@ int SelfTest(const wchar_t*)
 		auto orphan = LaunchWorker(2, 30, process.dwProcessId, true);
 		const bool started = applied(*orphan);
 		// Only the disposable child created immediately above is terminated.
-		TerminateProcess(owner.h, 0);
+		TerminateProcess(owner.handle, 0);
 		if (!started || !ended(*orphan))
 			return 12;
 		orphan.reset();
 		INITCOMMONCONTROLSEX controls { sizeof(controls), ICC_STANDARD_CLASSES };
 		InitCommonControlsEx(&controls);
 		ShowPreviewWindow(nullptr, true);
-		if (!previewWindow)
+		if (!preview_window)
 			return 13;
-		auto state = GetWindowState(previewWindow);
+		auto state = GetWindowState(preview_window);
 		state->testing = true;
 		UpdateButtons(*state, false);
-		SendMessageW(previewWindow, WM_COMMAND, Start, 0);
-		if (state->session || !*ui::HelpTextForRegion(state->start) || state->hotkeyRegistered)
+		SendMessageW(preview_window, WM_COMMAND, ID_START, 0);
+		if (state->session || !*ui::HelpTextForRegion(state->start) || state->hotkey_registered)
 			return 14;
 		state->testing = false;
 		state->probe = true;
@@ -976,7 +979,7 @@ int SelfTest(const wchar_t*)
 		for (int key = VK_F20; key <= VK_F24; ++key)
 		{
 			chosen = MAKEWORD(key, HOTKEYF_CONTROL | HOTKEYF_ALT | HOTKEYF_SHIFT);
-			if (BindPreviewHotkey(previewWindow, *state, chosen))
+			if (BindPreviewHotkey(preview_window, *state, chosen))
 			{
 				bound = true;
 				break;
@@ -991,41 +994,41 @@ int SelfTest(const wchar_t*)
 		bool collided = false;
 		for (int key = VK_F13; key <= VK_F19; ++key)
 		{
-			const auto blockedShortcut = MAKEWORD(key, HOTKEYF_CONTROL | HOTKEYF_SHIFT);
+			const auto blocked_shortcut = MAKEWORD(key, HOTKEYF_CONTROL | HOTKEYF_SHIFT);
 			if (RegisterHotKey(collision, 1, MOD_CONTROL | MOD_SHIFT | MOD_NOREPEAT, key))
 			{
-				collided = !BindPreviewHotkey(previewWindow, *state, blockedShortcut) && state->shortcut == chosen;
+				collided = !BindPreviewHotkey(preview_window, *state, blocked_shortcut) && state->shortcut == chosen;
 				UnregisterHotKey(collision, 1);
 				break;
 			}
 		}
 		DestroyWindow(collision);
-		if (!collided || BindPreviewHotkey(previewWindow, *state, MAKEWORD(VK_F12, HOTKEYF_CONTROL)))
+		if (!collided || BindPreviewHotkey(preview_window, *state, MAKEWORD(VK_F12, HOTKEYF_CONTROL)))
 			return 21;
-		SendMessageW(previewWindow, WM_HOTKEY, state->hotkeyId, 0);
+		SendMessageW(preview_window, WM_HOTKEY, state->hotkey_id, 0);
 		if (!state->session || !applied(*state->session))
 			return 22;
-		SendMessageW(previewWindow, WM_HOTKEY, state->hotkeyId, 0);
-		if (!ended(*state->session) || state->session->view->p->cancelReason != ShortcutPress)
+		SendMessageW(preview_window, WM_HOTKEY, state->hotkey_id, 0);
+		if (!ended(*state->session) || state->session->view->shared->cancel_reason != ShortcutPress)
 			return 23;
-		SendMessageW(previewWindow, WM_TIMER, Timer, 0);
+		SendMessageW(preview_window, WM_TIMER, TIMER_PREVIEW, 0);
 		if (state->session)
 			return 24;
 		RECT normal {};
-		GetWindowRect(previewWindow, &normal);
-		SetWindowPos(previewWindow, nullptr, 0, 0, 100, 100, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-		if (!ui::WindowNeedsSizeRepair(previewWindow))
+		GetWindowRect(preview_window, &normal);
+		SetWindowPos(preview_window, nullptr, 0, 0, 100, 100, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+		if (!ui::WindowNeedsSizeRepair(preview_window))
 			return 25;
-		SendMessageW(previewWindow, WM_SYSCOMMAND, SC_RESTORE, 0);
+		SendMessageW(preview_window, WM_SYSCOMMAND, SC_RESTORE, 0);
 		RECT repaired {};
-		GetWindowRect(previewWindow, &repaired);
+		GetWindowRect(preview_window, &repaired);
 		if (repaired.right - repaired.left != normal.right - normal.left ||
 		    repaired.bottom - repaired.top != normal.bottom - normal.top)
 			return 26;
-		DestroyWindow(previewWindow);
-		if (!RegisterHotKey(nullptr, HotkeyA, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, LOBYTE(chosen)))
+		DestroyWindow(preview_window);
+		if (!RegisterHotKey(nullptr, HOTKEY_A, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, LOBYTE(chosen)))
 			return 27;
-		UnregisterHotKey(nullptr, HotkeyA);
+		UnregisterHotKey(nullptr, HOTKEY_A);
 		return 0;
 	}
 	catch (...)

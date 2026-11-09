@@ -10,7 +10,7 @@ struct MenuItem
 {
 	UINT id;
 	std::wstring text, shortcut;
-	bool checked = false, separatorBefore = false, enabled = true;
+	bool checked = false, separator_before = false, enabled = true;
 	Glyph glyph = Glyph::None;
 };
 

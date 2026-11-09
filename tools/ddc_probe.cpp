@@ -25,9 +25,9 @@ std::string ToUtf8(const std::wstring& s)
 	if (s.empty())
 		return {};
 	int n = WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), nullptr, 0, nullptr, nullptr);
-	std::string r(n, 0);
-	WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), r.data(), n, nullptr, nullptr);
-	return r;
+	std::string utf8_text(n, 0);
+	WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), utf8_text.data(), n, nullptr, nullptr);
+	return utf8_text;
 }
 
 void Line(const std::string& s)
@@ -40,10 +40,11 @@ void Topology()
 {
 	try
 	{
-		for (const auto& o : live::ActiveOutputs())
+		for (const auto& output : live::ActiveOutputs())
 		{
-			Line("output=" + ToUtf8(o.name) + " label=" + ToUtf8(o.label) + " hdr=" + std::to_string(o.hdr));
-			Line("identity=" + ToUtf8(o.identity));
+			Line("output=" + ToUtf8(output.name) + " label=" + ToUtf8(output.label) +
+			     " hdr=" + std::to_string(output.hdr));
+			Line("identity=" + ToUtf8(output.identity));
 		}
 	}
 	catch (const std::exception& e)
@@ -199,8 +200,8 @@ int wmain(int argc, wchar_t** argv)
 		}
 		return 13;
 	}
-	const bool powerOff = mode == L"--pulse-samsung-off";
-	const bool pulse = powerOff || mode == L"--pulse-samsung";
+	const bool power_off = mode == L"--pulse-samsung-off";
+	const bool pulse = power_off || mode == L"--pulse-samsung";
 	if ((!pulse && (argc != 3 || mode != L"--inspect")) || (pulse && argc != 4))
 		return 1;
 	const std::filesystem::path path(argv[2]);
@@ -235,14 +236,14 @@ int wmain(int argc, wchar_t** argv)
 		Line("refused=Samsung could not be uniquely identified by capabilities");
 		return 6;
 	}
-	const auto readyName = L"Local\\MonitorMageDdcWake-" + std::to_wstring(GetCurrentProcessId());
-	HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, readyName.c_str());
+	const auto ready_name = L"Local\\MonitorMageDdcWake-" + std::to_wstring(GetCurrentProcessId());
+	HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, ready_name.c_str());
 	if (!ready)
 		return 7;
 	wchar_t exe[32768] {};
 	GetModuleFileNameW(nullptr, exe, 32768);
 	auto command = QuoteArgument(exe) + L" --wake-samsung " + QuoteArgument(argv[3]) + L" " +
-	               QuoteArgument(path.wstring() + L".wake.txt") + L" " + QuoteArgument(readyName);
+	               QuoteArgument(path.wstring() + L".wake.txt") + L" " + QuoteArgument(ready_name);
 	STARTUPINFOW startup { sizeof(startup) };
 	startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_FORCEOFFFEEDBACK;
 	startup.wShowWindow = SW_HIDE;
@@ -263,10 +264,10 @@ int wmain(int argc, wchar_t** argv)
 		CloseHandle(child.hProcess);
 		return 9;
 	}
-	Line(powerOff ? "wake_helper_ready=1; requesting power off for ten seconds"
-	              : "wake_helper_ready=1; requesting standby for ten seconds");
-	const BOOL accepted = SetVCPFeature(target.handle, 0xd6, powerOff ? 5 : 4);
-	Line("power_value=" + std::to_string(powerOff ? 5 : 4) + " accepted=" + std::to_string(accepted != FALSE) +
+	Line(power_off ? "wake_helper_ready=1; requesting power off for ten seconds"
+	               : "wake_helper_ready=1; requesting standby for ten seconds");
+	const BOOL accepted = SetVCPFeature(target.handle, 0xd6, power_off ? 5 : 4);
+	Line("power_value=" + std::to_string(power_off ? 5 : 4) + " accepted=" + std::to_string(accepted != FALSE) +
 	     " error=" + std::to_string(accepted ? 0 : GetLastError()));
 	Sleep(1500);
 	Line("after_1_5_seconds:");

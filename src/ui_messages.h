@@ -16,7 +16,7 @@ inline std::wstring FriendlyError(std::string_view detail)
 		std::string_view detail;
 		const wchar_t* text;
 	};
-	static constexpr Message messages[] = {
+	static constexpr Message MESSAGES[] = {
 		{ "Driver rejected the correction",
 		  L"The display driver could not apply these settings. Try a smaller adjustment." },
 		{ "Cannot verify the requested correction",
@@ -92,7 +92,7 @@ inline std::wstring FriendlyError(std::string_view detail)
 		{ "The Windows request was sent but could not be monitored; check Windows settings",
 		  L"The color filter change was requested, but MonitorMage could not check the result. Check Windows color filter settings." },
 	};
-	for (const auto& message : messages)
+	for (const auto& message : MESSAGES)
 		if (detail == message.detail)
 			return message.text;
 	if (detail == "Driver did not retain the requested correction")

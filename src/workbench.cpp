@@ -49,91 +49,94 @@
 
 namespace
 {
-constexpr int SidebarWidth = 194;
-constexpr int PaneOffset = SidebarWidth - 186;
-constexpr int ClientWidth = 768 + PaneOffset;
-constexpr int ClientHeight = 552;
-constexpr UINT TrayMessage = WM_APP + 1;
-constexpr UINT ForegroundMessage = WM_APP + 2;
-constexpr int Layers = 101, Contrast = 102, Pivot = 103, White = 104, Gamma = 105;
-constexpr int Reset = 106, Export = 107, Open = 108, Exit = 109;
-constexpr int GammaOther = 110;
-constexpr int SourceChoice = 111, TestContrast = 112;
-constexpr int Bypass = 113, HdrFix = 114;
-constexpr int Shortcut = 115, SetShortcut = 116;
-constexpr int PresetChoice = 117, SavePreset = 118, SavePresetAs = 119, OpenPreset = 120, Autosave = 121;
-constexpr int RevertPreset = 122;
-constexpr int ApplicationProfiles = 123;
-constexpr int ActiveLook = 124;
-constexpr int SettingsPage = 125, FontChoice = 126, CurveChannel = 127, Import1D = 128, Export1D = 129,
-			  AdjustmentBase = 200;
-constexpr int ToggleWindowsHdr = 130;
-constexpr int MonitorStatus = 131;
-constexpr int OutputInfo = 139;
-constexpr int ColorFilterChoice = 142, ColorFilterSettings = 143;
-constexpr UINT_PTR ColorFilterTimer = 907;
-constexpr UINT_PTR NightTimer = 908;
-constexpr UINT_PTR MatrixRecoveryTimer = 909;
-matrix_effect::Recovery matrixRecovery;
-constexpr int NightSchedule = 148, NightStart = 149, NightEnd = 150, NightInclude = 151, NightDisplay = 152;
-constexpr int MonitorMode = 133;
-constexpr int MonitorProfile = 138;
-constexpr int WebsiteLink = 153;
-constexpr int StartWithWindows = 134;
-constexpr int StartMinimized = 154;
-constexpr int CorrectionLayers = 135;
-constexpr int OrderHint = 136;
-constexpr int SelectedEffectToggle = 137;
-constexpr int WindowsCorrectionLayers = 146, SaturationReport = 147;
-constexpr UINT_PTR ApplyTimer = 901, DisplayTimer = 902;
-constexpr UINT_PTR IdleTimer = 903;
-constexpr UINT_PTR PresetTimer = 904;
-constexpr UINT_PTR ForegroundTimer = 905;
-constexpr UINT_PTR HdrTimer = 906;
-hdr::State hdrState;
-hdr::State hdrTransition;
-bool hdrPending = false, hdrDesired = false, hdrResume = false;
-unsigned hdrAttempts = 0;
-std::wstring hdrSource;
-HINSTANCE instance;
-app_icons::Cache iconCache;
-HWND window, layers, contrastSlider, pivotSlider, whiteSlider, gammaChoice, gammaOther, canvas;
-HWND correctionLayers, windowsLayers, effectsLabel;
-HWND selectedEffectToggle, saturationReportButton;
-HWND title, description, amountLabel, pivotLabel, whiteLabel, gammaLabel, status, resetButton, exportButton, listLabel;
-HWND sourceChoice, testNote;
-HWND monitorMode, monitorProfile, websiteLink;
-HWND bypassButton, hdrFixControl;
-HWND shortcutControl, shortcutButton, shortcutLabel;
-HWND presetLabel, presetChoice, savePresetButton, saveAsButton, openPresetButton, autosaveControl;
-HWND revertPresetButton;
-HWND profilesButton;
-HWND activeLookLabel, orderHint;
-HWND settingsButton, fontChoice, fontLabel, curveChannel, importButton, export1DButton;
-HWND hdrButton, powerButton, monitorTips, infoButton;
-HWND monitorSettingsButton;
-HWND versionLabel, startupControl, startMinimizedControl;
-HWND filterChoice, filterSettingsButton, correctionNote;
-windows_controls::State filterState;
-night::Settings nightConfig;
-night::Outputs nightOutputs;
-double nightLevel = 0;
-std::wstring nightMessage;
-HWND nightSchedule, nightStart, nightEnd, nightInclude, nightStartLabel, nightEndLabel, nightDisplay;
-windows_controls::Controller filterController;
-bool filterError = false;
-std::wstring filterMessage;
-bool startupEnabled = false;
-bool startMinimized = false;
-bool editorReady = false, runtimeReady = false, deferEditor = false;
-unsigned editorSyncDepth = 0;
+constexpr int SIDEBAR_WIDTH = 194;
+constexpr int PANE_OFFSET = SIDEBAR_WIDTH - 186;
+constexpr int CLIENT_WIDTH = 768 + PANE_OFFSET;
+constexpr int CLIENT_HEIGHT = 552;
+constexpr UINT MESSAGE_TRAY = WM_APP + 1;
+constexpr UINT MESSAGE_FOREGROUND = WM_APP + 2;
+constexpr int ID_EFFECT_LIST = 101, ID_CONTRAST = 102, ID_PIVOT = 103, ID_WHITE = 104, ID_GAMMA = 105;
+constexpr int ID_RESET = 106, ID_EXPORT = 107, ID_OPEN = 108, ID_EXIT = 109;
+constexpr int ID_GAMMA_OTHER = 110;
+constexpr int ID_SOURCE_CHOICE = 111, ID_TEST_CONTRAST = 112;
+constexpr int ID_BYPASS = 113, ID_HDR_FIX = 114;
+constexpr int ID_SHORTCUT = 115, ID_SET_SHORTCUT = 116;
+constexpr int ID_PRESET_CHOICE = 117, ID_SAVE_PRESET = 118, ID_SAVE_PRESET_AS = 119, ID_OPEN_PRESET = 120,
+			  ID_AUTOSAVE = 121;
+constexpr int ID_REVERT_PRESET = 122;
+constexpr int ID_APPLICATION_PROFILES = 123;
+constexpr int ID_ACTIVE_LOOK = 124;
+constexpr int ID_SETTINGS_PAGE = 125, ID_FONT_CHOICE = 126, ID_CURVE_CHANNEL = 127, ID_IMPORT_1D = 128,
+			  ID_EXPORT_1D = 129, ID_ADJUSTMENT_BASE = 200;
+constexpr int ID_TOGGLE_WINDOWS_HDR = 130;
+constexpr int ID_MONITOR_STATUS = 131;
+constexpr int ID_OUTPUT_INFO = 139;
+constexpr int ID_COLOR_FILTER_CHOICE = 142, ID_COLOR_FILTER_SETTINGS = 143;
+constexpr UINT_PTR TIMER_COLOR_FILTER = 907;
+constexpr UINT_PTR TIMER_NIGHT = 908;
+constexpr UINT_PTR TIMER_MATRIX_RECOVERY = 909;
+matrix_effect::Recovery matrix_recovery;
+constexpr int ID_NIGHT_SCHEDULE = 148, ID_NIGHT_START = 149, ID_NIGHT_END = 150, ID_NIGHT_INCLUDE = 151,
+			  ID_NIGHT_DISPLAY = 152;
+constexpr int ID_MONITOR_MODE = 133;
+constexpr int ID_MONITOR_PROFILE = 138;
+constexpr int ID_WEBSITE_LINK = 153;
+constexpr int ID_START_WITH_WINDOWS = 134;
+constexpr int ID_START_MINIMIZED = 154;
+constexpr int ID_CORRECTION_LAYERS = 135;
+constexpr int ID_ORDER_HINT = 136;
+constexpr int ID_SELECTED_EFFECT_TOGGLE = 137;
+constexpr int ID_WINDOWS_CORRECTION_LAYERS = 146, ID_SATURATION_REPORT = 147;
+constexpr UINT_PTR TIMER_APPLY = 901, TIMER_DISPLAY = 902;
+constexpr UINT_PTR TIMER_IDLE = 903;
+constexpr UINT_PTR TIMER_PRESET = 904;
+constexpr UINT_PTR TIMER_FOREGROUND = 905;
+constexpr UINT_PTR TIMER_HDR = 906;
+hdr::State hdr_state;
+hdr::State hdr_transition;
+bool hdr_pending = false, hdr_desired = false, hdr_resume = false;
+unsigned hdr_attempts = 0;
+std::wstring hdr_source;
+HINSTANCE app_instance;
+app_icons::Cache icon_cache;
+HWND main_window, effect_list, contrast_slider, pivot_slider, white_slider, gamma_choice, gamma_other, curve_canvas;
+HWND correction_list, windows_effect_list, effects_label;
+HWND selected_effect_toggle, saturation_report_button;
+HWND effect_title, effect_description, amount_label, pivot_label, white_label, gamma_label, status_label, reset_button,
+	export_button, corrections_heading;
+HWND source_choice, test_note;
+HWND monitor_mode, monitor_profile, website_link;
+HWND bypass_button, hdr_fix_control;
+HWND shortcut_control, shortcut_button, shortcut_label;
+HWND preset_label, preset_choice, save_preset_button, save_as_button, open_preset_button, autosave_control;
+HWND revert_preset_button;
+HWND profiles_button;
+HWND active_look_label, order_hint;
+HWND settings_button, font_choice, font_label, curve_channel, import_button, export_1d_button;
+HWND hdr_button, power_button, monitor_tips, info_button;
+HWND monitor_settings_button;
+HWND version_label, startup_control, start_minimized_control;
+HWND filter_choice, filter_settings_button, correction_note;
+windows_controls::State filter_state;
+night::Settings night_config;
+night::Outputs night_outputs;
+double night_level = 0;
+std::wstring night_message;
+HWND night_schedule, night_start, night_end, night_include, night_start_label, night_end_label, night_display;
+windows_controls::Controller filter_controller;
+bool filter_error = false;
+std::wstring filter_message;
+bool startup_enabled = false;
+bool start_minimized = false;
+bool editor_ready = false, runtime_ready = false, defer_editor = false;
+unsigned editor_sync_depth = 0;
 struct EditorSync
 {
-	EditorSync() { ++editorSyncDepth; }
-	~EditorSync() { --editorSyncDepth; }
+	EditorSync() { ++editor_sync_depth; }
+	~EditorSync() { --editor_sync_depth; }
 };
 
-int selectedSource = 0;
+int selected_source = 0;
 void CreateEditorIfNeeded();
 void EnsureCommonControls()
 {
@@ -148,110 +151,116 @@ void EnsureCommonControls()
 void UpdateTray();
 int SelectedSourceIndex()
 {
-	return sourceChoice ? static_cast<int>(SendMessageW(sourceChoice, CB_GETCURSEL, 0, 0)) : selectedSource;
+	return source_choice ? static_cast<int>(SendMessageW(source_choice, CB_GETCURSEL, 0, 0)) : selected_source;
 }
 
 void SelectSource(int index)
 {
-	selectedSource = index;
-	if (sourceChoice)
-		SendMessageW(sourceChoice, CB_SETCURSEL, index, 0);
+	selected_source = index;
+	if (source_choice)
+		SendMessageW(source_choice, CB_SETCURSEL, index, 0);
 }
 
-bool closing = false;
+bool is_closing = false;
 void LayoutMonitorControls();
-std::array<HWND, 5> adjustmentSliders {}, adjustmentLabels {}, adjustmentValues {};
-HWND amountValue, pivotValue, whiteValue;
-bool settingsPage = false;
-int adjustmentPage = -1, editingChannel = 0, draggedPoint = -1, keyboardPoint = 4;
-std::vector<int> effectOrder { 0, 2, 3, 4, 5, 6, 7, 1 };
+std::array<HWND, 5> adjustment_sliders {}, adjustment_labels {}, adjustment_values {};
+HWND amount_value, pivot_value, white_value;
+bool settings_page = false;
+int adjustment_page = -1, editing_channel = 0, dragged_point = -1, keyboard_point = 4;
+std::vector<int> effect_order {
+	effect::ContrastCurves,    effect::ColorBalance, effect::MidtoneGamma,  effect::Levels,
+	effect::ShadowsHighlights, effect::CustomCurves, effect::Imported1dLut, effect::HdrGamma
+};
 int SelectedPresetRole();
-applications::Configuration appConfig;
-applications::Focus appFocus;
-applications::Action profileAction = applications::Action::Look;
-HWINEVENTHOOK foregroundHook = nullptr;
-HWND pendingForeground = nullptr;
-bool correctionsRequested = false;
-bool powerSuspended = false;
-std::wstring profilePausedIdentity, profileMessage;
-std::array<std::vector<presets::Draft>, 2> presetLibrary;
-std::array<size_t, 2> presetIndex {};
-size_t regularLookIndex = 0;
-bool applicationContextActive = false;
-bool autosave = false;
-bool sliderDragging = false, lookDirtyBeforeDrag = false;
-bool presetUiTest = false;
-bool profileUiTest = false, effectUiTest = false, surfaceUiTest = false;
-std::wstring testSettingsPath;
-std::wstring presetMessage;
-WORD activeShortcut = MAKEWORD(VK_F8, HOTKEYF_CONTROL | HOTKEYF_ALT);
-WORD preferredShortcut = activeShortcut;
-int activeHotkeyId = 1;
-DWORD hotkeyError = 0;
-std::wstring hotkeyMessage;
-HANDLE activeTest = nullptr;
+applications::Configuration profile_configuration;
+applications::Focus foreground_program;
+applications::Action profile_action = applications::Action::Look;
+HWINEVENTHOOK foreground_hook = nullptr;
+HWND pending_foreground = nullptr;
+bool corrections_requested = false;
+bool power_suspended = false;
+std::wstring profile_paused_identity, profile_message;
+std::array<std::vector<presets::Draft>, 2> preset_library;
+std::array<size_t, 2> preset_index {};
+size_t regular_look_index = 0;
+bool application_context_active = false;
+bool autosave_enabled = false;
+bool slider_dragging = false, look_dirty_before_drag = false;
+bool preset_ui_test = false;
+bool profile_ui_test = false, effect_ui_test = false, surface_ui_test = false;
+std::wstring test_settings_path;
+std::wstring preset_message;
+WORD active_shortcut = MAKEWORD(VK_F8, HOTKEYF_CONTROL | HOTKEYF_ALT);
+WORD preferred_shortcut = active_shortcut;
+int active_hotkey_id = 1;
+DWORD hotkey_error = 0;
+std::wstring hotkey_message;
+HANDLE active_test = nullptr;
 using Source = live::Output;
-std::vector<Source> sources;
-live::Session liveSession;
-matrix_effect::Controller matrixSession;
-std::wstring matrixMessage;
-live::Output liveOutput;
-bool contrastEnabled = true, correctionFirst = false;
-bool bypassed = false, hdrFixEnabled = true, hotkeyRegistered = false, resumeAfterWake = false;
-std::wstring liveMessage = L"Off. Turn on MonitorMage to apply your adjustments.";
-bool liveError = false, statusError = false;
-bool graphStatusVisible = false;
-bool displayRetryPending = false, modeResetPending = false;
-int displayAttempts = 0;
-std::wstring lastPresetError;
-HFONT font, hintFont;
-plot::Scratch curveScratch;
-size_t lastGraphPaintBytes = 0;
-unsigned graphLayoutVersion = 0;
-std::array<RECT, 3> graphAuditDamage {};
-unsigned graphAuditCount = 0;
+std::vector<Source> display_sources;
+live::Session live_session;
+matrix_effect::Controller matrix_session;
+std::wstring matrix_message;
+live::Output live_output;
+bool contrast_enabled = true, correction_first = false;
+bool bypassed = false, hdr_fix_enabled = true, hotkey_registered = false, resume_after_wake = false;
+std::wstring live_message = L"Off. Turn on MonitorMage to apply your adjustments.";
+bool live_error = false, status_error = false;
+bool graph_status_visible = false;
+bool display_retry_pending = false, mode_reset_pending = false;
+int display_attempts = 0;
+std::wstring last_preset_error;
+HFONT ui_font, hint_font;
+plot::Scratch curve_scratch;
+size_t last_graph_paint_bytes = 0;
+unsigned graph_layout_version = 0;
+std::array<RECT, 3> graph_audit_damage {};
+unsigned graph_audit_count = 0;
 void InvalidateGraph();
-NOTIFYICONDATAW tray {};
-UINT explorerRestart;
-bool trayInstalled = false;
-bool renderOnly = false;
-std::wstring idleReport;
-ULONGLONG idleCpuStart = 0, idleStart = 0;
-DWORD idleFaultStart = 0;
-int dpi = 96, selected = 0, contrastPosition = 0, pivotPosition = 50, whitePosition = 200, gammaPosition = 0;
+NOTIFYICONDATAW tray_icon {};
+UINT taskbar_created_message;
+bool tray_installed = false;
+bool render_only = false;
+std::wstring idle_report;
+ULONGLONG idle_cpu_start = 0, idle_start = 0;
+DWORD idle_fault_start = 0;
+int dpi = 96, selected_effect = effect::ContrastCurves, contrast_position = 0, pivot_position = 50,
+	white_position = 200, gamma_position = 0;
 
 int SelectedPresetRole()
 {
-	return selected == 1 ? 1 : 0;
+	return selected_effect == effect::HdrGamma ? preset_role::Correction : preset_role::Look;
 }
 
-int ProcessingOrderIndex(int role)
+int ProcessingOrderIndex(int effect)
 {
-	return static_cast<int>(std::find(effectOrder.begin(), effectOrder.end(), role) - effectOrder.begin());
+	return static_cast<int>(std::find(effect_order.begin(), effect_order.end(), effect) - effect_order.begin());
 }
 
 std::vector<int> CreativeOrder()
 {
-	auto result = effectOrder;
+	auto result = effect_order;
 	result.erase(std::remove(result.begin(), result.end(), 1), result.end());
 	result.push_back(10);
 	result.push_back(11);
 	return result;
 }
 
-HWND EffectListForRole(int role)
+HWND EffectListForRole(int effect)
 {
-	return (role == 8 || role == 9) ? windowsLayers : role == 1 ? correctionLayers : layers;
+	return (effect == effect::ColorFilters || effect == effect::NightLight) ? windows_effect_list
+	       : effect == effect::HdrGamma                                     ? correction_list
+	                                                                        : effect_list;
 }
 
-int EffectListRow(int role)
+int EffectListRow(int effect)
 {
-	if (role == 8 || role == 9)
-		return role - 8;
-	if (role == 1)
+	if (effect == effect::ColorFilters || effect == effect::NightLight)
+		return effect - effect::FirstWindows;
+	if (effect == effect::HdrGamma)
 		return 0;
 	const auto order = CreativeOrder();
-	return static_cast<int>(std::find(order.begin(), order.end(), role) - order.begin());
+	return static_cast<int>(std::find(order.begin(), order.end(), effect) - order.begin());
 }
 
 int ScaleForDpi(int value)
@@ -261,8 +270,8 @@ int ScaleForDpi(int value)
 
 std::wstring SettingsFilePath()
 {
-	if (!testSettingsPath.empty())
-		return testSettingsPath;
+	if (!test_settings_path.empty())
+		return test_settings_path;
 	wchar_t path[32768] {};
 	const DWORD length = GetModuleFileNameW(nullptr, path, static_cast<DWORD>(std::size(path)));
 	if (!length || length >= std::size(path))
@@ -275,28 +284,28 @@ std::wstring SettingsFilePath()
 void RefreshInterface();
 void RefreshColorFilters()
 {
-	filterState = windows_controls::ReadColorFilterState();
+	filter_state = windows_controls::ReadColorFilterState();
 }
 
-void ChangeWindowsFilter(bool on, DWORD filter, bool selectingFilter = false)
+void ChangeWindowsFilter(bool on, DWORD filter, bool selecting_filter = false)
 {
-	if (renderOnly || filterController.IsBusy())
+	if (render_only || filter_controller.IsBusy())
 		return;
 	try
 	{
-		filterController.Set(filterState, on, filter, selectingFilter);
-		filterError = false;
-		filterMessage = L"Windows is applying the color filter...";
-		if (!SetTimer(window, ColorFilterTimer, 150, nullptr))
+		filter_controller.Set(filter_state, on, filter, selecting_filter);
+		filter_error = false;
+		filter_message = L"Windows is applying the color filter...";
+		if (!SetTimer(main_window, TIMER_COLOR_FILTER, 150, nullptr))
 		{
-			filterController.StopWaiting();
+			filter_controller.StopWaiting();
 			throw std::runtime_error("The Windows request was sent but could not be monitored; check Windows settings");
 		}
 	}
 	catch (const std::exception& error)
 	{
-		filterMessage = ui::messages::FriendlyError(error.what());
-		filterError = true;
+		filter_message = ui::messages::FriendlyError(error.what());
+		filter_error = true;
 	}
 	RefreshColorFilters();
 	RefreshInterface();
@@ -309,37 +318,38 @@ void ApplyApplicationProfile(bool force = false);
 void ManualLookOverride();
 bool IsLookBypassed();
 bool IsHdrFixActive();
-presets::Kind PresetKindForRole(int role)
+presets::Kind PresetKindForRole(int preset_role)
 {
-	return role == 0 ? presets::Kind::Look : presets::Kind::Correction;
+	return preset_role == preset_role::Look ? presets::Kind::Look : presets::Kind::Correction;
 }
 
-presets::Draft& CurrentPreset(int role)
+presets::Draft& CurrentPreset(int preset_role)
 {
-	return presetLibrary[role][presetIndex[role]];
+	return preset_library[preset_role][preset_index[preset_role]];
 }
 
-std::filesystem::path PresetFolder(int role)
+std::filesystem::path PresetFolder(int preset_role)
 {
 	return std::filesystem::path(SettingsFilePath()).parent_path() / L"presets" /
-	       (role == 0 ? L"looks" : L"corrections");
+	       (preset_role == preset_role::Look ? L"looks" : L"corrections");
 }
 
 void ShowPresetError(const std::exception& error)
 {
-	presetMessage = ui::messages::FriendlyError(error.what());
-	lastPresetError = presetMessage;
+	preset_message = ui::messages::FriendlyError(error.what());
+	last_preset_error = preset_message;
 }
 
 bool PersistPresetChoices()
 {
-	if (renderOnly && !presetUiTest)
+	if (render_only && !preset_ui_test)
 		return false;
 	const auto path = SettingsFilePath();
-	std::wstring text = L"[Hotkey]\r\nBypass=" + std::to_wstring(preferredShortcut) + L"\r\n\r\n[Presets]\r\n";
-	for (int role = 0; role < 2; ++role)
+	std::wstring text = L"[Hotkey]\r\nBypass=" + std::to_wstring(preferred_shortcut) + L"\r\n\r\n[Presets]\r\n";
+	for (int preset_role = preset_role::Look; preset_role < preset_role::Count; ++preset_role)
 	{
-		auto stored = role == 0 ? presetLibrary[0][regularLookIndex].path : CurrentPreset(role).path;
+		auto stored = preset_role == preset_role::Look ? preset_library[preset_role::Look][regular_look_index].path
+		                                               : CurrentPreset(preset_role).path;
 		if (!stored.empty())
 		{
 			const auto relative = stored.lexically_relative(std::filesystem::path(path).parent_path());
@@ -347,29 +357,29 @@ bool PersistPresetChoices()
 				stored = relative;
 		}
 		const auto value = stored.wstring();
-		text += (role == 0 ? L"Look=" : L"Correction=") + value + L"\r\n";
+		text += (preset_role == preset_role::Look ? L"Look=" : L"Correction=") + value + L"\r\n";
 	}
-	text += autosave ? L"Autosave=1\r\n" : L"Autosave=0\r\n";
-	text += L"\r\n[Startup]\r\nMinimized=" + std::to_wstring(startMinimized) + L"\r\n";
-	text += L"\r\n[NightLight]\r\nEnabled=" + std::to_wstring(nightConfig.enabled) + L"\r\nScheduled=" +
-	        std::to_wstring(nightConfig.scheduled) + L"\r\nStrength=" + std::to_wstring(nightConfig.strength) +
-	        L"\r\nStart=" + std::to_wstring(nightConfig.start) + L"\r\nEnd=" + std::to_wstring(nightConfig.end) +
-	        L"\r\nFade=" + std::to_wstring(nightConfig.fade) + L"\r\nExcluded=";
-	for (const auto& key : nightConfig.excluded)
+	text += autosave_enabled ? L"Autosave=1\r\n" : L"Autosave=0\r\n";
+	text += L"\r\n[Startup]\r\nMinimized=" + std::to_wstring(start_minimized) + L"\r\n";
+	text += L"\r\n[NightLight]\r\nEnabled=" + std::to_wstring(night_config.Enabled) + L"\r\nScheduled=" +
+	        std::to_wstring(night_config.Scheduled) + L"\r\nStrength=" + std::to_wstring(night_config.Strength) +
+	        L"\r\nStart=" + std::to_wstring(night_config.Start) + L"\r\nEnd=" + std::to_wstring(night_config.End) +
+	        L"\r\nFade=" + std::to_wstring(night_config.Fade) + L"\r\nExcluded=";
+	for (const auto& key : night_config.Excluded)
 		text += key + L",";
 	text += L"\r\n";
-	text += L"\r\n[Effects]\r\nCorrectionFirst=" + std::wstring(correctionFirst ? L"1" : L"0") + L"\r\n";
+	text += L"\r\n[Effects]\r\nCorrectionFirst=" + std::wstring(correction_first ? L"1" : L"0") + L"\r\n";
 	text += L"Order=";
-	for (size_t i = 0; i < effectOrder.size(); ++i)
+	for (size_t i = 0; i < effect_order.size(); ++i)
 	{
 		if (i)
 			text += L",";
-		text += std::to_wstring(effectOrder[i]);
+		text += std::to_wstring(effect_order[i]);
 	}
 	text += L"\r\n\r\n[Appearance]\r\nFont=" + std::wstring(ui::FontFamily()) + L"\r\n";
 	try
 	{
-		text += applications::Encode(appConfig, path);
+		text += applications::Encode(profile_configuration, path);
 	}
 	catch (const std::exception& error)
 	{
@@ -398,10 +408,10 @@ bool PersistPresetChoices()
 	}
 }
 
-size_t FindPreset(int role, const std::filesystem::path& path)
+size_t FindPreset(int preset_role, const std::filesystem::path& path)
 {
 	const auto full = std::filesystem::absolute(path).lexically_normal().wstring();
-	auto& entries = presetLibrary[role];
+	auto& entries = preset_library[preset_role];
 	for (size_t i = 1; i < entries.size(); ++i)
 	{
 		const auto candidate = std::filesystem::absolute(entries[i].path).lexically_normal().wstring();
@@ -411,36 +421,37 @@ size_t FindPreset(int role, const std::filesystem::path& path)
 	return entries.size();
 }
 
-size_t ReadPreset(int role, const std::filesystem::path& path)
+size_t ReadPreset(int preset_role, const std::filesystem::path& path)
 {
-	const size_t index = FindPreset(role, path);
-	if (index < presetLibrary[role].size() && presetLibrary[role][index].loaded)
+	const size_t index = FindPreset(preset_role, path);
+	if (index < preset_library[preset_role].size() && preset_library[preset_role][index].loaded)
 		return index;
 	const auto data = presets::Read(path);
-	if (data.kind != PresetKindForRole(role))
-		throw std::runtime_error(role == 0 ? "This is a correction preset. Select HDR gamma correction to open it."
-		                                   : "This is a look preset. Select Contrast to open it.");
-	if (index == presetLibrary[role].size())
-		presetLibrary[role].push_back({ std::filesystem::absolute(path), data, data });
+	if (data.kind != PresetKindForRole(preset_role))
+		throw std::runtime_error(preset_role == preset_role::Look
+		                             ? "This is a correction preset. Select HDR gamma correction to open it."
+		                             : "This is a look preset. Select Contrast to open it.");
+	if (index == preset_library[preset_role].size())
+		preset_library[preset_role].push_back({ std::filesystem::absolute(path), data, data });
 	else
-		presetLibrary[role][index] = { std::filesystem::absolute(path), data, data };
+		preset_library[preset_role][index] = { std::filesystem::absolute(path), data, data };
 	// An already-open preset keeps its unsaved session draft.
 	return index;
 }
 
-void AddPresetToLibrary(int role, const std::filesystem::path& path)
+void AddPresetToLibrary(int preset_role, const std::filesystem::path& path)
 {
-	if (FindPreset(role, path) != presetLibrary[role].size())
+	if (FindPreset(preset_role, path) != preset_library[preset_role].size())
 		return;
-	const auto inactive = presets::InactivePreset(PresetKindForRole(role));
-	presetLibrary[role].push_back({ std::filesystem::absolute(path), inactive, inactive, false });
+	const auto inactive = presets::InactivePreset(PresetKindForRole(preset_role));
+	preset_library[preset_role].push_back({ std::filesystem::absolute(path), inactive, inactive, false });
 }
 
-void DiscoverPresets(int role)
+void DiscoverPresets(int preset_role)
 {
 	try
 	{
-		const auto folder = PresetFolder(role);
+		const auto folder = PresetFolder(preset_role);
 		if (!std::filesystem::exists(folder))
 			return;
 		std::vector<std::filesystem::path> paths;
@@ -449,7 +460,7 @@ void DiscoverPresets(int role)
 				paths.push_back(entry.path());
 		std::sort(paths.begin(), paths.end());
 		for (const auto& path : paths)
-			AddPresetToLibrary(role, path);
+			AddPresetToLibrary(preset_role, path);
 	}
 	catch (const std::exception& error)
 	{
@@ -459,38 +470,38 @@ void DiscoverPresets(int role)
 
 void LoadPresetControls()
 {
-	const auto& look = CurrentPreset(0).current;
-	const auto& correction = CurrentPreset(1).current;
-	contrastPosition = look.contrast;
-	pivotPosition = look.pivot;
-	contrastEnabled = look.contrastEnabled;
-	hdrFixEnabled = correction.hdrFix;
-	gammaPosition = correction.gamma == 22 ? 0 : 1;
-	if (!editorReady)
+	const auto& look = CurrentPreset(preset_role::Look).current;
+	const auto& correction = CurrentPreset(preset_role::Correction).current;
+	contrast_position = look.Contrast;
+	pivot_position = look.Pivot;
+	contrast_enabled = look.ContrastEnabled;
+	hdr_fix_enabled = correction.HdrFix;
+	gamma_position = correction.Gamma == 22 ? 0 : 1;
+	if (!editor_ready)
 		return;
-	SendMessageW(contrastSlider, TBM_SETPOS, TRUE, contrastPosition);
-	SendMessageW(pivotSlider, TBM_SETPOS, TRUE, pivotPosition);
-	SendMessageW(gammaChoice, BM_SETCHECK, gammaPosition == 0 ? BST_CHECKED : BST_UNCHECKED, 0);
-	SendMessageW(gammaOther, BM_SETCHECK, gammaPosition == 1 ? BST_CHECKED : BST_UNCHECKED, 0);
-	SendMessageW(hdrFixControl, BM_SETCHECK, correction.applyInSdr ? BST_CHECKED : BST_UNCHECKED, 0);
+	SendMessageW(contrast_slider, TBM_SETPOS, TRUE, contrast_position);
+	SendMessageW(pivot_slider, TBM_SETPOS, TRUE, pivot_position);
+	SendMessageW(gamma_choice, BM_SETCHECK, gamma_position == 0 ? BST_CHECKED : BST_UNCHECKED, 0);
+	SendMessageW(gamma_other, BM_SETCHECK, gamma_position == 1 ? BST_CHECKED : BST_UNCHECKED, 0);
+	SendMessageW(hdr_fix_control, BM_SETCHECK, correction.ApplyInSdr ? BST_CHECKED : BST_UNCHECKED, 0);
 }
 
 void InitializePresets()
 {
-	if (!renderOnly)
+	if (!render_only)
 	{
 		const auto path = SettingsFilePath();
-		nightConfig.enabled = GetPrivateProfileIntW(L"NightLight", L"Enabled", 0, path.c_str()) == 1;
-		nightConfig.scheduled = GetPrivateProfileIntW(L"NightLight", L"Scheduled", 0, path.c_str()) == 1;
-		nightConfig.strength =
+		night_config.Enabled = GetPrivateProfileIntW(L"NightLight", L"Enabled", 0, path.c_str()) == 1;
+		night_config.Scheduled = GetPrivateProfileIntW(L"NightLight", L"Scheduled", 0, path.c_str()) == 1;
+		night_config.Strength =
 			std::clamp(static_cast<int>(GetPrivateProfileIntW(L"NightLight", L"Strength", 35, path.c_str())), 0, 100);
-		nightConfig.start =
+		night_config.Start =
 			std::clamp(static_cast<int>(GetPrivateProfileIntW(L"NightLight", L"Start", 1260, path.c_str())), 0, 1439);
-		nightConfig.end =
+		night_config.End =
 			std::clamp(static_cast<int>(GetPrivateProfileIntW(L"NightLight", L"End", 420, path.c_str())), 0, 1439);
-		if (nightConfig.end == nightConfig.start)
-			nightConfig.end = (nightConfig.start + 600) % 1440;
-		nightConfig.fade =
+		if (night_config.End == night_config.Start)
+			night_config.End = (night_config.Start + 600) % 1440;
+		night_config.Fade =
 			std::clamp(static_cast<int>(GetPrivateProfileIntW(L"NightLight", L"Fade", 10, path.c_str())), 0, 60);
 		wchar_t excluded[8192] {};
 		GetPrivateProfileStringW(L"NightLight", L"Excluded", L"", excluded, 8192, path.c_str());
@@ -498,18 +509,18 @@ void InitializePresets()
 		std::wstring key;
 		while (std::getline(keys, key, L','))
 			if (key.size() == 16 && key.find_first_not_of(L"0123456789abcdef") == std::wstring::npos)
-				nightConfig.excluded.insert(key);
+				night_config.Excluded.insert(key);
 	}
-	for (int role = 0; role < 2; ++role)
+	for (int preset_role = preset_role::Look; preset_role < preset_role::Count; ++preset_role)
 	{
-		const auto data = presets::InactivePreset(PresetKindForRole(role));
-		presetLibrary[role].push_back({ {}, data, data });
-		if (renderOnly && !presetUiTest)
+		const auto data = presets::InactivePreset(PresetKindForRole(preset_role));
+		preset_library[preset_role].push_back({ {}, data, data });
+		if (render_only && !preset_ui_test)
 			continue;
 		try
 		{
-			const auto folder = PresetFolder(role);
-			if ((!deferEditor || editorReady) && std::filesystem::exists(folder))
+			const auto folder = PresetFolder(preset_role);
+			if ((!defer_editor || editor_ready) && std::filesystem::exists(folder))
 			{
 				std::vector<std::filesystem::path> paths;
 				for (const auto& entry : std::filesystem::directory_iterator(folder))
@@ -518,24 +529,24 @@ void InitializePresets()
 				std::sort(paths.begin(), paths.end());
 				for (const auto& path : paths)
 				{
-					AddPresetToLibrary(role, path);
+					AddPresetToLibrary(preset_role, path);
 				}
 			}
 			wchar_t path[32768] {};
-			GetPrivateProfileStringW(L"Presets", role == 0 ? L"Look" : L"Correction", L"", path,
+			GetPrivateProfileStringW(L"Presets", preset_role == preset_role::Look ? L"Look" : L"Correction", L"", path,
 			                         static_cast<DWORD>(std::size(path)), SettingsFilePath().c_str());
 			if (*path)
 			{
-				std::filesystem::path savedPath(path);
-				if (savedPath.is_relative())
-					savedPath = std::filesystem::path(SettingsFilePath()).parent_path() / savedPath;
-				presetIndex[role] = ReadPreset(role, savedPath);
+				std::filesystem::path saved_path(path);
+				if (saved_path.is_relative())
+					saved_path = std::filesystem::path(SettingsFilePath()).parent_path() / saved_path;
+				preset_index[preset_role] = ReadPreset(preset_role, saved_path);
 			}
 			else
 			{
 				const auto initial = folder / L"Off.lutpreset";
 				if (std::filesystem::exists(initial))
-					presetIndex[role] = ReadPreset(role, initial);
+					preset_index[preset_role] = ReadPreset(preset_role, initial);
 			}
 		}
 		catch (const std::exception& error)
@@ -543,13 +554,13 @@ void InitializePresets()
 			ShowPresetError(error);
 		}
 	}
-	if (!renderOnly || presetUiTest)
-		autosave = GetPrivateProfileIntW(L"Presets", L"Autosave", 0, SettingsFilePath().c_str()) == 1;
-	if (!renderOnly || presetUiTest)
-		startMinimized = GetPrivateProfileIntW(L"Startup", L"Minimized", 0, SettingsFilePath().c_str()) == 1;
-	if (!renderOnly || presetUiTest)
-		correctionFirst = GetPrivateProfileIntW(L"Effects", L"CorrectionFirst", 0, SettingsFilePath().c_str()) == 1;
-	if (!renderOnly || presetUiTest)
+	if (!render_only || preset_ui_test)
+		autosave_enabled = GetPrivateProfileIntW(L"Presets", L"Autosave", 0, SettingsFilePath().c_str()) == 1;
+	if (!render_only || preset_ui_test)
+		start_minimized = GetPrivateProfileIntW(L"Startup", L"Minimized", 0, SettingsFilePath().c_str()) == 1;
+	if (!render_only || preset_ui_test)
+		correction_first = GetPrivateProfileIntW(L"Effects", L"CorrectionFirst", 0, SettingsFilePath().c_str()) == 1;
+	if (!render_only || preset_ui_test)
 	{
 		wchar_t order[128] {};
 		GetPrivateProfileStringW(L"Effects", L"Order", L"", order, 128, SettingsFilePath().c_str());
@@ -565,14 +576,14 @@ void InitializePresets()
 				try
 				{
 					size_t consumed = 0;
-					int v = std::stoi(part, &consumed);
-					if (consumed != part.size() || v < 0 || v > 7 || seen[v])
+					int value = std::stoi(part, &consumed);
+					if (consumed != part.size() || value < 0 || value > 7 || seen[value])
 					{
 						valid = false;
 						break;
 					}
-					seen[v] = true;
-					candidate.push_back(v);
+					seen[value] = true;
+					candidate.push_back(value);
 				}
 				catch (...)
 				{
@@ -581,19 +592,20 @@ void InitializePresets()
 				}
 			}
 			if (valid && candidate.size() == 8)
-				effectOrder = candidate;
+				effect_order = candidate;
 		}
-		else if (correctionFirst)
-			effectOrder = { 1, 0, 2, 3, 4, 5, 6, 7 };
+		else if (correction_first)
+			effect_order = { effect::HdrGamma, effect::ContrastCurves,    effect::ColorBalance, effect::MidtoneGamma,
+				             effect::Levels,   effect::ShadowsHighlights, effect::CustomCurves, effect::Imported1dLut };
 		wchar_t family[80] {};
 		GetPrivateProfileStringW(L"Appearance", L"Font", L"Bahnschrift", family, 80, SettingsFilePath().c_str());
 		for (const wchar_t* candidate : { L"Bahnschrift", L"Segoe UI", L"Segoe UI Semilight" })
 			if (wcscmp(family, candidate) == 0)
 				ui::SetFontFamily(candidate);
 	}
-	correctionFirst = ProcessingOrderIndex(1) < ProcessingOrderIndex(0);
-	regularLookIndex = presetIndex[0];
-	SendMessageW(autosaveControl, BM_SETCHECK, autosave ? BST_CHECKED : BST_UNCHECKED, 0);
+	correction_first = ProcessingOrderIndex(effect::HdrGamma) < ProcessingOrderIndex(effect::ContrastCurves);
+	regular_look_index = preset_index[preset_role::Look];
+	SendMessageW(autosave_control, BM_SETCHECK, autosave_enabled ? BST_CHECKED : BST_UNCHECKED, 0);
 	LoadPresetControls();
 }
 
@@ -621,41 +633,41 @@ void SetControlVisible(HWND control, bool visible)
 
 void RefreshPresetChoice()
 {
-	if (!editorReady)
+	if (!editor_ready)
 		return;
-	if (sliderDragging)
+	if (slider_dragging)
 		return;
-	if (presetLibrary[SelectedPresetRole()].empty())
+	if (preset_library[SelectedPresetRole()].empty())
 		return;
-	SetTextIfChanged(presetLabel, selected != 1 ? L"Look preset" : L"Correction preset");
+	SetTextIfChanged(preset_label, selected_effect != effect::HdrGamma ? L"Look preset" : L"Correction preset");
 	std::vector<std::wstring> names;
-	for (const auto& entry : presetLibrary[SelectedPresetRole()])
+	for (const auto& entry : preset_library[SelectedPresetRole()])
 		names.push_back((entry.path.empty() ? std::wstring(L"Unsaved") : entry.path.stem().wstring()) +
 		                (entry.IsDirty() ? L" *" : L""));
-	bool changed = SendMessageW(presetChoice, CB_GETCOUNT, 0, 0) != static_cast<LRESULT>(names.size());
+	bool changed = SendMessageW(preset_choice, CB_GETCOUNT, 0, 0) != static_cast<LRESULT>(names.size());
 	for (size_t i = 0; !changed && i < names.size(); ++i)
 	{
-		const auto length = SendMessageW(presetChoice, CB_GETLBTEXTLEN, i, 0);
+		const auto length = SendMessageW(preset_choice, CB_GETLBTEXTLEN, i, 0);
 		std::wstring previous(static_cast<size_t>(length) + 1, L'\0');
-		SendMessageW(presetChoice, CB_GETLBTEXT, i, reinterpret_cast<LPARAM>(previous.data()));
+		SendMessageW(preset_choice, CB_GETLBTEXT, i, reinterpret_cast<LPARAM>(previous.data()));
 		previous.resize(static_cast<size_t>(length));
 		changed = previous != names[i];
 	}
 	if (changed)
 	{
-		SendMessageW(presetChoice, CB_RESETCONTENT, 0, 0);
+		SendMessageW(preset_choice, CB_RESETCONTENT, 0, 0);
 		for (const auto& name : names)
-			SendMessageW(presetChoice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name.c_str()));
+			SendMessageW(preset_choice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name.c_str()));
 	}
-	if (SendMessageW(presetChoice, CB_GETCURSEL, 0, 0) != static_cast<LRESULT>(presetIndex[SelectedPresetRole()]))
-		SendMessageW(presetChoice, CB_SETCURSEL, presetIndex[SelectedPresetRole()], 0);
+	if (SendMessageW(preset_choice, CB_GETCURSEL, 0, 0) != static_cast<LRESULT>(preset_index[SelectedPresetRole()]))
+		SendMessageW(preset_choice, CB_SETCURSEL, preset_index[SelectedPresetRole()], 0);
 	const auto& entry = CurrentPreset(SelectedPresetRole());
-	SetControlEnabled(revertPresetButton, entry.IsDirty());
+	SetControlEnabled(revert_preset_button, entry.IsDirty());
 }
 
-bool SaveExistingPreset(int role)
+bool SaveExistingPreset(int preset_role)
 {
-	auto& entry = CurrentPreset(role);
+	auto& entry = CurrentPreset(preset_role);
 	if (entry.path.empty())
 		return false;
 	try
@@ -664,7 +676,7 @@ bool SaveExistingPreset(int role)
 			throw std::runtime_error("This preset was changed outside MonitorMage. Use Save as to keep both versions.");
 		presets::Write(entry.path, entry.current, true);
 		entry.MarkSaved();
-		presetMessage.clear();
+		preset_message.clear();
 		return true;
 	}
 	catch (const std::exception& error)
@@ -674,60 +686,61 @@ bool SaveExistingPreset(int role)
 	}
 }
 
-void SavePresetAsPath(int role, const std::filesystem::path& path, bool replace)
+void SavePresetAsPath(int preset_role, const std::filesystem::path& path, bool replace)
 {
-	const size_t sourceIndex = presetIndex[role];
-	const auto data = CurrentPreset(role).current;
-	const size_t index = FindPreset(role, path);
-	if (index != presetLibrary[role].size() && index != sourceIndex && presetLibrary[role][index].IsDirty())
+	const size_t source_index = preset_index[preset_role];
+	const auto data = CurrentPreset(preset_role).current;
+	const size_t index = FindPreset(preset_role, path);
+	if (index != preset_library[preset_role].size() && index != source_index &&
+	    preset_library[preset_role][index].IsDirty())
 		throw std::runtime_error("You have unsaved changes to that preset. Choose another filename.");
 	presets::Write(path, data, replace);
-	if (index == presetLibrary[role].size())
-		presetLibrary[role].push_back({ std::filesystem::absolute(path), data, data });
+	if (index == preset_library[preset_role].size())
+		preset_library[preset_role].push_back({ std::filesystem::absolute(path), data, data });
 	else
-		presetLibrary[role][index] = { std::filesystem::absolute(path), data, data };
-	if (index != sourceIndex)
-		presetLibrary[role][sourceIndex].current = presetLibrary[role][sourceIndex].saved;
-	presetIndex[role] = index;
-	if (role == 0 && !applicationContextActive)
-		regularLookIndex = index;
+		preset_library[preset_role][index] = { std::filesystem::absolute(path), data, data };
+	if (index != source_index)
+		preset_library[preset_role][source_index].current = preset_library[preset_role][source_index].saved;
+	preset_index[preset_role] = index;
+	if (preset_role == preset_role::Look && !application_context_active)
+		regular_look_index = index;
 }
 
 void FlushPresetAutosave()
 {
-	KillTimer(window, PresetTimer);
-	if (sliderDragging || (renderOnly && !presetUiTest))
+	KillTimer(main_window, TIMER_PRESET);
+	if (slider_dragging || (render_only && !preset_ui_test))
 		return;
-	for (int role = 0; role < 2; ++role)
-		if (CurrentPreset(role).CanAutosave(autosave))
-			SaveExistingPreset(role);
+	for (int preset_role = preset_role::Look; preset_role < preset_role::Count; ++preset_role)
+		if (CurrentPreset(preset_role).CanAutosave(autosave_enabled))
+			SaveExistingPreset(preset_role);
 }
 
-void OnPresetEdited(int role)
+void OnPresetEdited(int preset_role)
 {
-	if (renderOnly && !presetUiTest)
+	if (render_only && !preset_ui_test)
 		return;
-	auto& data = CurrentPreset(role).current;
-	if (role == 0)
+	auto& data = CurrentPreset(preset_role).current;
+	if (preset_role == preset_role::Look)
 	{
-		data.contrast = contrastPosition;
-		data.pivot = pivotPosition;
-		data.contrastEnabled = contrastEnabled;
+		data.Contrast = contrast_position;
+		data.Pivot = pivot_position;
+		data.ContrastEnabled = contrast_enabled;
 	}
 	else
 	{
-		data.gamma = gammaPosition == 0 ? 22 : 24;
-		data.hdrFix = hdrFixEnabled;
+		data.Gamma = gamma_position == 0 ? 22 : 24;
+		data.HdrFix = hdr_fix_enabled;
 	}
-	presetMessage.clear();
+	preset_message.clear();
 	RefreshPresetChoice();
-	if (!sliderDragging && CurrentPreset(role).CanAutosave(autosave))
-		SetTimer(window, PresetTimer, 350, nullptr);
+	if (!slider_dragging && CurrentPreset(preset_role).CanAutosave(autosave_enabled))
+		SetTimer(main_window, TIMER_PRESET, 350, nullptr);
 }
 
-void PresetFileDialog(bool saveAs)
+void PresetFileDialog(bool save_as)
 {
-	if (renderOnly)
+	if (render_only)
 		return;
 	FlushPresetAutosave();
 	try
@@ -735,29 +748,29 @@ void PresetFileDialog(bool saveAs)
 		const auto folder = PresetFolder(SelectedPresetRole());
 		std::filesystem::create_directories(folder);
 		wchar_t file[32768] {};
-		if (saveAs)
-			wcscpy_s(file, selected != 1 ? L"My look.lutpreset" : L"My correction.lutpreset");
+		if (save_as)
+			wcscpy_s(file, selected_effect != effect::HdrGamma ? L"My look.lutpreset" : L"My correction.lutpreset");
 		OPENFILENAMEW dialog {};
 		dialog.lStructSize = sizeof(dialog);
-		dialog.hwndOwner = window;
+		dialog.hwndOwner = main_window;
 		dialog.lpstrFilter = L"MonitorMage preset (*.lutpreset)\0*.lutpreset\0\0";
 		dialog.lpstrFile = file;
 		dialog.nMaxFile = static_cast<DWORD>(std::size(file));
 		dialog.lpstrDefExt = L"lutpreset";
 		dialog.lpstrInitialDir = folder.c_str();
-		dialog.lpstrTitle = saveAs ? L"Save preset as" : L"Open preset";
-		dialog.Flags = OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | (saveAs ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
-		if (!(saveAs ? GetSaveFileNameW(&dialog) : GetOpenFileNameW(&dialog)))
+		dialog.lpstrTitle = save_as ? L"Save preset as" : L"Open preset";
+		dialog.Flags = OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | (save_as ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
+		if (!(save_as ? GetSaveFileNameW(&dialog) : GetOpenFileNameW(&dialog)))
 			return;
-		if (saveAs)
+		if (save_as)
 		{
 			const bool exists = GetFileAttributesW(file) != INVALID_FILE_ATTRIBUTES;
 			SavePresetAsPath(SelectedPresetRole(), file, exists);
 		}
 		else
-			presetIndex[SelectedPresetRole()] = ReadPreset(SelectedPresetRole(), file);
-		presetMessage.clear();
-		if (selected != 1)
+			preset_index[SelectedPresetRole()] = ReadPreset(SelectedPresetRole(), file);
+		preset_message.clear();
+		if (selected_effect != effect::HdrGamma)
 			ManualLookOverride();
 		PersistPresetChoices();
 		LoadPresetControls();
@@ -775,12 +788,12 @@ bool ConfirmExit()
 {
 	FlushPresetAutosave();
 	bool dirty = false;
-	for (const auto& entries : presetLibrary)
+	for (const auto& entries : preset_library)
 		for (const auto& entry : entries)
 			dirty = dirty || entry.IsDirty();
-	if (!dirty || renderOnly)
+	if (!dirty || render_only)
 		return true;
-	return unsaved::Confirm(window);
+	return unsaved::Confirm(main_window);
 }
 
 UINT HotkeyModifiers(WORD shortcut)
@@ -807,12 +820,12 @@ std::wstring HotkeyName(WORD shortcut)
 		name += L"Alt+";
 	if (HIBYTE(shortcut) & HOTKEYF_SHIFT)
 		name += L"Shift+";
-	wchar_t keyName[80] {};
+	wchar_t key_name[80] {};
 	LONG scan = static_cast<LONG>(MapVirtualKeyW(LOBYTE(shortcut), MAPVK_VK_TO_VSC) << 16);
 	if (HIBYTE(shortcut) & HOTKEYF_EXT)
 		scan |= 1 << 24;
-	if (GetKeyNameTextW(scan, keyName, static_cast<int>(std::size(keyName))))
-		name += keyName;
+	if (GetKeyNameTextW(scan, key_name, static_cast<int>(std::size(key_name))))
+		name += key_name;
 	else
 		name += L"key " + std::to_wstring(LOBYTE(shortcut));
 	return name;
@@ -822,23 +835,23 @@ bool BindHotkey(WORD shortcut)
 {
 	if (!IsValidHotkey(shortcut))
 	{
-		hotkeyError = ERROR_INVALID_PARAMETER;
+		hotkey_error = ERROR_INVALID_PARAMETER;
 		return false;
 	}
-	if (hotkeyRegistered && shortcut == activeShortcut)
+	if (hotkey_registered && shortcut == active_shortcut)
 		return true;
-	const int nextId = hotkeyRegistered ? (activeHotkeyId == 1 ? 2 : 1) : 1;
-	if (!RegisterHotKey(window, nextId, HotkeyModifiers(shortcut), LOBYTE(shortcut)))
+	const int next_id = hotkey_registered ? (active_hotkey_id == 1 ? 2 : 1) : 1;
+	if (!RegisterHotKey(main_window, next_id, HotkeyModifiers(shortcut), LOBYTE(shortcut)))
 	{
-		hotkeyError = GetLastError();
+		hotkey_error = GetLastError();
 		return false;
 	}
-	if (hotkeyRegistered)
-		UnregisterHotKey(window, activeHotkeyId);
-	activeHotkeyId = nextId;
-	activeShortcut = shortcut;
-	hotkeyRegistered = true;
-	hotkeyError = 0;
+	if (hotkey_registered)
+		UnregisterHotKey(main_window, active_hotkey_id);
+	active_hotkey_id = next_id;
+	active_shortcut = shortcut;
+	hotkey_registered = true;
+	hotkey_error = 0;
 	return true;
 }
 
@@ -853,26 +866,26 @@ void BindPreferredHotkey(WORD preferred)
 		if (BindHotkey(candidate))
 		{
 			if (candidate != preferred)
-				hotkeyMessage = L"Your shortcut is unavailable. Using " + HotkeyName(candidate) + L".";
+				hotkey_message = L"Your shortcut is unavailable. Using " + HotkeyName(candidate) + L".";
 			return;
 		}
 	}
-	hotkeyMessage = L"The shortcut could not be set. Choose another key combination in Settings.";
+	hotkey_message = L"The shortcut could not be set. Choose another key combination in Settings.";
 }
 
 void LoadAndBindHotkey()
 {
 	const auto path = SettingsFilePath();
-	preferredShortcut = static_cast<WORD>(GetPrivateProfileIntW(L"Hotkey", L"Bypass", activeShortcut, path.c_str()));
-	BindPreferredHotkey(preferredShortcut);
+	preferred_shortcut = static_cast<WORD>(GetPrivateProfileIntW(L"Hotkey", L"Bypass", active_shortcut, path.c_str()));
+	BindPreferredHotkey(preferred_shortcut);
 }
 
 int RunHotkeySelfTest()
 {
 	// Real Windows registration collisions, with no key injection or display changes.
-	window = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
-	HWND other = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
-	if (!window || !other)
+	main_window = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, app_instance, nullptr);
+	HWND other = CreateWindowExW(0, L"STATIC", L"", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, app_instance, nullptr);
+	if (!main_window || !other)
 		return 1;
 	WORD blocked = 0;
 	for (int key = VK_F8; key <= VK_F11; ++key)
@@ -888,37 +901,38 @@ int RunHotkeySelfTest()
 	if (blocked)
 	{
 		BindPreferredHotkey(blocked);
-		if (hotkeyRegistered && activeShortcut != blocked && !hotkeyMessage.empty())
+		if (hotkey_registered && active_shortcut != blocked && !hotkey_message.empty())
 		{
-			const WORD previous = activeShortcut;
-			const bool rejected = !BindHotkey(blocked) && hotkeyError == ERROR_HOTKEY_ALREADY_REGISTERED;
-			const bool retained = hotkeyRegistered && activeShortcut == previous;
-			const bool invalidRejected = !BindHotkey(MAKEWORD(VK_F12, HOTKEYF_CONTROL)) && activeShortcut == previous;
+			const WORD previous = active_shortcut;
+			const bool rejected = !BindHotkey(blocked) && hotkey_error == ERROR_HOTKEY_ALREADY_REGISTERED;
+			const bool retained = hotkey_registered && active_shortcut == previous;
+			const bool invalid_rejected = !BindHotkey(MAKEWORD(VK_F12, HOTKEYF_CONTROL)) && active_shortcut == previous;
 			UnregisterHotKey(other, 99);
 			const bool replaced = BindHotkey(blocked);
-			const bool oldReleased = RegisterHotKey(other, 99, HotkeyModifiers(previous), LOBYTE(previous)) != FALSE;
-			result = rejected && retained && invalidRejected && replaced && oldReleased ? 0 : 3;
+			const bool old_released = RegisterHotKey(other, 99, HotkeyModifiers(previous), LOBYTE(previous)) != FALSE;
+			result = rejected && retained && invalid_rejected && replaced && old_released ? 0 : 3;
 		}
 	}
 	UnregisterHotKey(other, 99);
 	if (result == 0)
 	{
-		bool shiftBound = false;
+		bool shift_bound = false;
 		for (int key = VK_F20; key <= VK_F24; ++key)
 			if (BindHotkey(MAKEWORD(key, HOTKEYF_SHIFT)))
 			{
-				shiftBound = HIBYTE(activeShortcut) == HOTKEYF_SHIFT && (HotkeyModifiers(activeShortcut) & MOD_SHIFT);
+				shift_bound =
+					HIBYTE(active_shortcut) == HOTKEYF_SHIFT && (HotkeyModifiers(active_shortcut) & MOD_SHIFT);
 				break;
 			}
-		if (!shiftBound)
+		if (!shift_bound)
 			result = 4;
 	}
-	if (hotkeyRegistered)
-		UnregisterHotKey(window, activeHotkeyId);
-	hotkeyRegistered = false;
+	if (hotkey_registered)
+		UnregisterHotKey(main_window, active_hotkey_id);
+	hotkey_registered = false;
 	DestroyWindow(other);
-	DestroyWindow(window);
-	window = nullptr;
+	DestroyWindow(main_window);
+	main_window = nullptr;
 	return result;
 }
 
@@ -935,50 +949,50 @@ ULONGLONG ProcessCpuTime()
 	FILETIME created {}, ended {}, kernel {}, user {};
 	if (!GetProcessTimes(GetCurrentProcess(), &created, &ended, &kernel, &user))
 		return 0;
-	ULARGE_INTEGER k {}, u {};
-	k.LowPart = kernel.dwLowDateTime;
-	k.HighPart = kernel.dwHighDateTime;
-	u.LowPart = user.dwLowDateTime;
-	u.HighPart = user.dwHighDateTime;
-	return k.QuadPart + u.QuadPart;
+	ULARGE_INTEGER kernel_ticks {}, user_ticks {};
+	kernel_ticks.LowPart = kernel.dwLowDateTime;
+	kernel_ticks.HighPart = kernel.dwHighDateTime;
+	user_ticks.LowPart = user.dwLowDateTime;
+	user_ticks.HighPart = user.dwHighDateTime;
+	return kernel_ticks.QuadPart + user_ticks.QuadPart;
 }
 
 double ContrastAmount()
 {
-	return contrastPosition / 100.0;
+	return contrast_position / 100.0;
 }
 
 double ContrastPivot()
 {
-	return pivotPosition / 100.0;
+	return pivot_position / 100.0;
 }
 
 double HdrGamma()
 {
-	return gammaPosition == 0 ? 2.2 : 2.4;
+	return gamma_position == 0 ? 2.2 : 2.4;
 }
 
 live::Settings CurrentSettings();
 Source OutputForPreview()
 {
-	if (liveSession.IsActive())
-		return liveOutput;
+	if (live_session.IsActive())
+		return live_output;
 	Source output;
-	const auto index = SelectedSourceIndex();
-	if (index >= 0 && static_cast<size_t>(index) < sources.size())
-		output = sources[index];
-	if (selected == 1 && !CurrentPreset(1).current.applyInSdr)
+	const auto source_index = SelectedSourceIndex();
+	if (source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size())
+		output = display_sources[source_index];
+	if (selected_effect == effect::HdrGamma && !CurrentPreset(preset_role::Correction).current.ApplyInSdr)
 		output.hdr = true;
-	output.white = whitePosition;
+	output.white = white_position;
 	return output;
 }
 
 void PlaceControl(HWND control, int x, int y, int width, int height, bool body = false)
 {
 	if (x >= 198)
-		x += PaneOffset;
-	const auto offset = ui::ViewportOffset(window);
-	if (control == canvas)
+		x += PANE_OFFSET;
+	const auto offset = ui::ViewportOffset(main_window);
+	if (control == curve_canvas)
 		SetWindowPos(control, nullptr, ScaleForDpi(x) - offset.x, ScaleForDpi(y + (body ? 56 : 0)) - offset.y,
 		             ScaleForDpi(width), ScaleForDpi(height), SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS);
 	else
@@ -1033,98 +1047,102 @@ std::vector<Source> ActiveSources(bool fresh = false)
 	}
 	catch (const std::exception& error)
 	{
-		liveMessage = ui::messages::FriendlyError(error.what());
-		liveError = true;
+		live_message = ui::messages::FriendlyError(error.what());
+		live_error = true;
 		return {};
 	}
 }
 
 void RefreshSources()
 {
-	SourceQueryBatch queryBatch;
-	if (nightDisplay)
-		SendMessageW(nightDisplay, CB_RESETCONTENT, 0, 0);
-	const auto oldIndex = SelectedSourceIndex();
-	const std::wstring previous =
-		oldIndex >= 0 && static_cast<size_t>(oldIndex) < sources.size() ? sources[oldIndex].name : L"";
-	sources = ActiveSources(true);
-	SendMessageW(sourceChoice, CB_RESETCONTENT, 0, 0);
+	SourceQueryBatch query_batch;
+	if (night_display)
+		SendMessageW(night_display, CB_RESETCONTENT, 0, 0);
+	const auto old_index = SelectedSourceIndex();
+	const std::wstring previous = old_index >= 0 && static_cast<size_t>(old_index) < display_sources.size()
+	                                  ? display_sources[old_index].name
+	                                  : L"";
+	display_sources = ActiveSources(true);
+	SendMessageW(source_choice, CB_RESETCONTENT, 0, 0);
 	int select = 0;
-	for (size_t i = 0; i < sources.size(); ++i)
+	for (size_t i = 0; i < display_sources.size(); ++i)
 	{
-		SendMessageW(sourceChoice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(sources[i].label.c_str()));
-		if ((liveSession.IsActive() && sources[i].identity == liveOutput.identity) || sources[i].name == previous)
+		SendMessageW(source_choice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(display_sources[i].label.c_str()));
+		if ((live_session.IsActive() && display_sources[i].identity == live_output.identity) ||
+		    display_sources[i].name == previous)
 			select = static_cast<int>(i);
 	}
 	SelectSource(static_cast<int>(select));
-	hdrState = sources.empty() ? hdr::State {} : hdr::ReadHdrState(sources[select].name);
+	hdr_state = display_sources.empty() ? hdr::State {} : hdr::ReadHdrState(display_sources[select].name);
 }
 
 bool IsLookBypassed()
 {
-	return bypassed || profileAction == applications::Action::Bypass;
+	return bypassed || profile_action == applications::Action::Bypass;
 }
 
 bool IsHdrFixActive()
 {
-	return hdrFixEnabled && profileAction != applications::Action::PauseHdr;
+	return hdr_fix_enabled && profile_action != applications::Action::PauseHdr;
 }
 
 bool LutProcessingActive()
 {
 	static live::ProcessingState cache;
-	if (!liveSession.IsActive())
-		return cache.IsProcessing(false, liveOutput, {});
-	return cache.IsProcessing(true, liveOutput, CurrentSettings());
+	if (!live_session.IsActive())
+		return cache.IsProcessing(false, live_output, {});
+	return cache.IsProcessing(true, live_output, CurrentSettings());
 }
 
 bool IsColorMatrixNeeded()
 {
-	const auto& look = CurrentPreset(0).current;
-	return correctionsRequested && !powerSuspended && !hdrPending && profileAction != applications::Action::Disable &&
-	       !IsLookBypassed() && ((look.saturationEnabled && look.saturation != 100) || look.monochromeEnabled);
+	const auto& look = CurrentPreset(preset_role::Look).current;
+	return corrections_requested && !power_suspended && !hdr_pending &&
+	       profile_action != applications::Action::Disable && !IsLookBypassed() &&
+	       ((look.SaturationEnabled && look.Saturation != 100) || look.MonochromeEnabled);
 }
 
 void SyncColorMatrix(bool refresh = false)
 {
-	if (renderOnly)
+	if (render_only)
 		return;
 	if (!IsColorMatrixNeeded())
-		KillTimer(window, MatrixRecoveryTimer);
+		KillTimer(main_window, TIMER_MATRIX_RECOVERY);
 	try
 	{
-		const auto& look = CurrentPreset(0).current;
+		const auto& look = CurrentPreset(preset_role::Look).current;
 		const bool wanted = IsColorMatrixNeeded();
-		matrixSession.Update(window, wanted ? (look.saturationEnabled ? look.saturation : 100) : -1, refresh, false,
-		                     wanted && look.monochromeEnabled ? &look.monochrome : nullptr);
-		matrixMessage.clear();
+		matrix_session.Update(main_window, wanted ? (look.SaturationEnabled ? look.Saturation : 100) : -1, refresh,
+		                      false, wanted && look.MonochromeEnabled ? &look.Monochrome : nullptr);
+		matrix_message.clear();
 	}
 	catch (const std::exception&)
 	{
-		matrixMessage = L"The color matrix could not start. Your color curves can still work.";
+		matrix_message = L"The color matrix could not start. Your color curves can still work.";
 	}
 }
 
 void ScheduleColorMatrixRecovery()
 {
-	KillTimer(window, MatrixRecoveryTimer);
-	if (renderOnly || !IsColorMatrixNeeded())
+	KillTimer(main_window, TIMER_MATRIX_RECOVERY);
+	if (render_only || !IsColorMatrixNeeded())
 		return;
-	matrixRecovery.Restart();
-	SetTimer(window, MatrixRecoveryTimer, matrixRecovery.NextDelay(), nullptr);
+	matrix_recovery.Restart();
+	SetTimer(main_window, TIMER_MATRIX_RECOVERY, matrix_recovery.NextDelay(), nullptr);
 }
 
 bool ProcessingActive()
 {
-	return LutProcessingActive() || nightOutputs.IsActive() ||
-	       (!renderOnly && IsColorMatrixNeeded() && matrixSession.CurrentState() == matrix_effect::State::Active);
+	return LutProcessingActive() || night_outputs.IsActive() ||
+	       (!render_only && IsColorMatrixNeeded() && matrix_session.CurrentState() == matrix_effect::State::Active);
 }
 
 app_icons::State CurrentIconState(bool active)
 {
-	const auto index = SelectedSourceIndex();
-	const bool hdr = index >= 0 && static_cast<size_t>(index) < sources.size() && sources[index].hdr;
-	return app_icons::ChooseState(active, hdr, applicationContextActive && !appFocus.IsManualOverride());
+	const auto source_index = SelectedSourceIndex();
+	const bool hdr = source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size() &&
+	                 display_sources[source_index].hdr;
+	return app_icons::ChooseState(active, hdr, application_context_active && !foreground_program.IsManualOverride());
 }
 
 app_icons::State CurrentIconState()
@@ -1134,8 +1152,8 @@ app_icons::State CurrentIconState()
 
 HICON IconForState(int metric, app_icons::State state)
 {
-	const UINT windowDpi = GetDpiForWindow(window);
-	return iconCache.GetIcon(instance, state, GetSystemMetricsForDpi(metric, windowDpi ? windowDpi : 96));
+	const UINT window_dpi = GetDpiForWindow(main_window);
+	return icon_cache.GetIcon(app_instance, state, GetSystemMetricsForDpi(metric, window_dpi ? window_dpi : 96));
 }
 
 HICON IconForState(int metric)
@@ -1145,62 +1163,64 @@ HICON IconForState(int metric)
 
 live::Settings CurrentSettings()
 {
-	live::Settings s { contrastEnabled ? ContrastAmount() : 0,
-		               ContrastPivot(),
-		               HdrGamma(),
-		               IsHdrFixActive(),
-		               IsLookBypassed(),
-		               correctionFirst };
-	s.adjustments = CurrentPreset(0).current.adjustments;
-	s.order = effectOrder;
-	s.applyInSdr = CurrentPreset(1).current.applyInSdr;
-	const auto index = SelectedSourceIndex();
-	const auto output = liveSession.IsActive()                                      ? liveOutput
-	                    : index >= 0 && static_cast<size_t>(index) < sources.size() ? sources[index]
-	                                                                                : Source {};
-	if (night::IsDisplayIncluded(nightConfig, output.identity))
-		s.nightWarmth = nightLevel;
-	return s;
+	live::Settings settings { contrast_enabled ? ContrastAmount() : 0,
+		                      ContrastPivot(),
+		                      HdrGamma(),
+		                      IsHdrFixActive(),
+		                      IsLookBypassed(),
+		                      correction_first };
+	settings.Adjustments = CurrentPreset(preset_role::Look).current.Adjustments;
+	settings.Order = effect_order;
+	settings.ApplyInSdr = CurrentPreset(preset_role::Correction).current.ApplyInSdr;
+	const auto source_index = SelectedSourceIndex();
+	const auto output = live_session.IsActive() ? live_output
+	                    : source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size()
+	                        ? display_sources[source_index]
+	                        : Source {};
+	if (night::IsDisplayIncluded(night_config, output.identity))
+		settings.NightWarmth = night_level;
+	return settings;
 }
 
 void RefreshInterface();
 void UpdateNightLightSchedule()
 {
-	KillTimer(window, NightTimer);
+	KillTimer(main_window, TIMER_NIGHT);
 	SYSTEMTIME now {};
 	GetLocalTime(&now);
-	const auto phase = night::CurrentPhase(nightConfig, now.wHour * 3600. + now.wMinute * 60. + now.wSecond);
-	nightLevel = phase.level;
-	if (!renderOnly && !closing && correctionsRequested && !powerSuspended && !hdrPending &&
-	    profileAction != applications::Action::Disable && phase.nextMs)
-		SetTimer(window, NightTimer, phase.nextMs, nullptr);
+	const auto phase = night::CurrentPhase(night_config, now.wHour * 3600. + now.wMinute * 60. + now.wSecond);
+	night_level = phase.level;
+	if (!render_only && !is_closing && corrections_requested && !power_suspended && !hdr_pending &&
+	    profile_action != applications::Action::Disable && phase.next_ms)
+		SetTimer(main_window, TIMER_NIGHT, phase.next_ms, nullptr);
 }
 
 void SyncNightOutputs()
 {
-	if (renderOnly)
+	if (render_only)
 		return;
 	try
 	{
-		if (closing || !correctionsRequested || powerSuspended || hdrPending ||
-		    profileAction == applications::Action::Disable || nightLevel <= 0)
+		if (is_closing || !corrections_requested || power_suspended || hdr_pending ||
+		    profile_action == applications::Action::Disable || night_level <= 0)
 		{
-			if (nightOutputs.Stop() != 0)
+			if (night_outputs.Stop() != 0)
 				throw std::runtime_error("Night light could not restore all displays");
 		}
 		else
 		{
-			const auto index = SelectedSourceIndex();
-			const auto primary = liveSession.IsActive()                                      ? liveOutput
-			                     : index >= 0 && static_cast<size_t>(index) < sources.size() ? sources[index]
-			                                                                                 : Source {};
-			nightOutputs.Update(ActiveSources(), primary, nightConfig, nightLevel);
+			const auto source_index = SelectedSourceIndex();
+			const auto primary = live_session.IsActive() ? live_output
+			                     : source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size()
+			                         ? display_sources[source_index]
+			                         : Source {};
+			night_outputs.Update(ActiveSources(), primary, night_config, night_level);
 		}
-		nightMessage.clear();
+		night_message.clear();
 	}
 	catch (const std::exception& error)
 	{
-		nightMessage = ui::messages::FriendlyError(error.what());
+		night_message = ui::messages::FriendlyError(error.what());
 	}
 }
 
@@ -1214,7 +1234,7 @@ struct NightSync
 	NightSync() { ++Depth(); }
 	~NightSync()
 	{
-		if (--Depth() == 0 && !closing)
+		if (--Depth() == 0 && !is_closing)
 		{
 			SyncNightOutputs();
 			RefreshInterface();
@@ -1222,26 +1242,26 @@ struct NightSync
 	}
 };
 
-int DisableLiveCorrections(bool retainRequest = false)
+int DisableLiveCorrections(bool retain_request = false)
 {
-	KillTimer(window, ApplyTimer);
-	if (!retainRequest)
-		KillTimer(window, NightTimer);
-	const int nightStopped = nightOutputs.Stop();
-	if (!renderOnly && (!retainRequest || !IsColorMatrixNeeded()))
-		matrixSession.Stop();
-	const int primaryStopped = liveSession.Stop();
-	const int result = nightStopped ? nightStopped : primaryStopped;
-	liveError = result != 0 && result != 10 && result != 11;
-	if (!retainRequest || (result != 0 && result != 10 && result != 11))
+	KillTimer(main_window, TIMER_APPLY);
+	if (!retain_request)
+		KillTimer(main_window, TIMER_NIGHT);
+	const int night_stopped = night_outputs.Stop();
+	if (!render_only && (!retain_request || !IsColorMatrixNeeded()))
+		matrix_session.Stop();
+	const int primary_stopped = live_session.Stop();
+	const int result = night_stopped ? night_stopped : primary_stopped;
+	live_error = result != 0 && result != 10 && result != 11;
+	if (!retain_request || (result != 0 && result != 10 && result != 11))
 	{
-		correctionsRequested = false;
-		profilePausedIdentity.clear();
-		displayRetryPending = false;
-		modeResetPending = false;
-		displayAttempts = 0;
+		corrections_requested = false;
+		profile_paused_identity.clear();
+		display_retry_pending = false;
+		mode_reset_pending = false;
+		display_attempts = 0;
 	}
-	liveMessage =
+	live_message =
 		result == 0    ? L"Off. Your previous display colors have been restored."
 		: result == 10 ? L"Off. Color changes made by another app have been kept."
 		: result == 11
@@ -1253,27 +1273,27 @@ int DisableLiveCorrections(bool retainRequest = false)
 void EnableLiveCorrections();
 bool WaitForDisplay()
 {
-	if (!correctionsRequested || ++displayAttempts > 10)
+	if (!corrections_requested || ++display_attempts > 10)
 		return false;
-	displayRetryPending = true;
-	liveError = false;
-	liveMessage = L"Updating your adjustments after a display change...";
-	if (!renderOnly)
-		SetTimer(window, DisplayTimer, 500, nullptr);
+	display_retry_pending = true;
+	live_error = false;
+	live_message = L"Updating your adjustments after a display change...";
+	if (!render_only)
+		SetTimer(main_window, TIMER_DISPLAY, 500, nullptr);
 	RefreshInterface();
 	return true;
 }
 
 void ApplyLiveCorrections()
 {
-	SourceQueryBatch queryBatch;
+	SourceQueryBatch query_batch;
 	UpdateNightLightSchedule();
-	NightSync nightSync;
+	NightSync night_sync;
 	SyncColorMatrix();
-	if (!liveSession.IsActive())
+	if (!live_session.IsActive())
 	{
-		if (correctionsRequested && !renderOnly && !powerSuspended && !hdrPending &&
-		    profileAction != applications::Action::Disable)
+		if (corrections_requested && !render_only && !power_suspended && !hdr_pending &&
+		    profile_action != applications::Action::Disable)
 			EnableLiveCorrections();
 		return;
 	}
@@ -1281,12 +1301,12 @@ void ApplyLiveCorrections()
 	{
 		const auto current = ActiveSources();
 		const auto at = std::find_if(current.begin(), current.end(),
-		                             [&](const Source& output) { return output.identity == liveOutput.identity; });
+		                             [&](const Source& output) { return output.identity == live_output.identity; });
 		if (at == current.end())
 		{
 			const auto replacement =
 				std::find_if(current.begin(), current.end(),
-			                 [&](const Source& output) { return live::SameDisplays(output, liveOutput); });
+			                 [&](const Source& output) { return live::SameDisplays(output, live_output); });
 			if (replacement == current.end() || !replacement->supported)
 			{
 				if (WaitForDisplay())
@@ -1294,42 +1314,42 @@ void ApplyLiveCorrections()
 				throw std::runtime_error("The selected display did not become available after the mode change");
 			}
 			const auto next = *replacement;
-			if (++displayAttempts > 10)
+			if (++display_attempts > 10)
 				throw std::runtime_error("The display mode did not settle after repeated changes");
-			modeResetPending = next.hdr != liveOutput.hdr;
-			displayRetryPending = true;
+			mode_reset_pending = next.hdr != live_output.hdr;
+			display_retry_pending = true;
 			const int stopped = DisableLiveCorrections(true);
 			if (stopped != 0 && stopped != 10 && stopped != 11)
 				throw std::runtime_error("Display restoration could not be verified during the mode change");
 			RefreshSources();
-			for (size_t i = 0; i < sources.size(); ++i)
-				if (sources[i].identity == next.identity)
+			for (size_t i = 0; i < display_sources.size(); ++i)
+				if (display_sources[i].identity == next.identity)
 					SelectSource(static_cast<int>(i));
 			EnableLiveCorrections();
 			return;
 		}
-		liveOutput = *at;
-		liveSession.Update(liveOutput, CurrentSettings());
-		liveError = false;
-		displayRetryPending = false;
-		modeResetPending = false;
-		displayAttempts = 0;
+		live_output = *at;
+		live_session.Update(live_output, CurrentSettings());
+		live_error = false;
+		display_retry_pending = false;
+		mode_reset_pending = false;
+		display_attempts = 0;
 		if (!LutProcessingActive())
 		{
-			const int stopped = liveSession.Stop();
+			const int stopped = live_session.Stop();
 			if (stopped != 0 && stopped != 10 && stopped != 11)
 				throw std::runtime_error("Your previous display colors could not be restored");
-			liveMessage = L"Ready. Turn on an effect or correction to change the picture.";
+			live_message = L"Ready. Turn on an effect or correction to change the picture.";
 			RefreshInterface();
 			return;
 		}
-		liveMessage =
-			liveOutput.hdr && profileAction == applications::Action::PauseHdr
+		live_message =
+			live_output.hdr && profile_action == applications::Action::PauseHdr
 				? L"This application profile pauses HDR gamma. Your other adjustments stay on."
 			: IsLookBypassed() ? L"Effects paused. Monitor corrections can still be active."
-			: liveOutput.hdr
+			: live_output.hdr
 				? L"Your adjustments are on. In HDR, they affect ordinary content while preserving bright HDR highlights."
-			: CurrentSettings().hdrFix && CurrentSettings().applyInSdr
+			: CurrentSettings().HdrFix && CurrentSettings().ApplyInSdr
 				? L"Your adjustments are on, including HDR gamma because Also apply in SDR mode is selected."
 				: L"Your adjustments are on. HDR gamma is skipped while Windows HDR is off.";
 	}
@@ -1338,60 +1358,61 @@ void ApplyLiveCorrections()
 		// A second mode change can race the query/read/write sequence. Retry
 		// only transition failures, with a bounded, event-driven timer.
 		const auto latest = ActiveSources(true);
-		const bool modeGone = std::none_of(
-			latest.begin(), latest.end(), [&](const Source& output) { return output.identity == liveOutput.identity; });
-		if ((displayRetryPending || modeGone) && WaitForDisplay())
+		const bool mode_gone =
+			std::none_of(latest.begin(), latest.end(),
+		                 [&](const Source& output) { return output.identity == live_output.identity; });
+		if ((display_retry_pending || mode_gone) && WaitForDisplay())
 			return;
 		DisableLiveCorrections();
-		liveMessage = ui::messages::FriendlyError(error.what());
-		liveError = true;
+		live_message = ui::messages::FriendlyError(error.what());
+		live_error = true;
 	}
 	RefreshInterface();
 }
 
 void EnableLiveCorrections()
 {
-	SourceQueryBatch queryBatch;
+	SourceQueryBatch query_batch;
 	UpdateNightLightSchedule();
-	NightSync nightSync;
+	NightSync night_sync;
 	SyncColorMatrix();
-	if (renderOnly || liveSession.IsActive())
+	if (render_only || live_session.IsActive())
 		return;
 	try
 	{
-		const auto index = SelectedSourceIndex();
-		if (index < 0 || static_cast<size_t>(index) >= sources.size())
+		const auto source_index = SelectedSourceIndex();
+		if (source_index < 0 || static_cast<size_t>(source_index) >= display_sources.size())
 			throw std::runtime_error("Select an active display group");
-		if (activeTest && WaitForSingleObject(activeTest, 0) == WAIT_TIMEOUT)
+		if (active_test && WaitForSingleObject(active_test, 0) == WAIT_TIMEOUT)
 			throw std::runtime_error("Close the timed diagnostic before enabling live correction");
-		liveOutput = sources[index];
+		live_output = display_sources[source_index];
 		static live::ProcessingState pending;
 		const auto settings = CurrentSettings();
-		if (!modeResetPending && !pending.IsProcessing(true, liveOutput, settings))
+		if (!mode_reset_pending && !pending.IsProcessing(true, live_output, settings))
 		{
-			displayRetryPending = false;
-			displayAttempts = 0;
-			liveError = false;
-			liveMessage = L"Ready. Turn on an effect or correction to change the picture.";
+			display_retry_pending = false;
+			display_attempts = 0;
+			live_error = false;
+			live_message = L"Ready. Turn on an effect or correction to change the picture.";
 			RefreshInterface();
 			return;
 		}
-		nightOutputs.Release(liveOutput, &liveSession);
-		liveSession.Start(liveOutput, settings, modeResetPending);
-		modeResetPending = false;
+		night_outputs.Release(live_output, &live_session);
+		live_session.Start(live_output, settings, mode_reset_pending);
+		mode_reset_pending = false;
 		ApplyLiveCorrections();
 	}
 	catch (const std::exception& error)
 	{
-		if (displayRetryPending)
+		if (display_retry_pending)
 		{
 			DisableLiveCorrections(true);
 			if (WaitForDisplay())
 				return;
 		}
 		DisableLiveCorrections();
-		liveMessage = ui::messages::FriendlyError(error.what());
-		liveError = true;
+		live_message = ui::messages::FriendlyError(error.what());
+		live_error = true;
 	}
 	RefreshInterface();
 }
@@ -1399,10 +1420,10 @@ void EnableLiveCorrections()
 void ToggleBypass()
 {
 	const bool previous = IsLookBypassed();
-	if (profileAction == applications::Action::Bypass)
+	if (profile_action == applications::Action::Bypass)
 	{
-		appFocus.SetManualOverride();
-		profileAction = applications::Action::Look;
+		foreground_program.SetManualOverride();
+		profile_action = applications::Action::Look;
 	}
 	bypassed = !previous;
 	ApplyLiveCorrections();
@@ -1411,36 +1432,37 @@ void ToggleBypass()
 
 void ReconcileLiveCorrections()
 {
-	SourceQueryBatch queryBatch;
+	SourceQueryBatch query_batch;
 	SyncColorMatrix();
-	if (powerSuspended)
+	if (power_suspended)
 	{
 		RefreshInterface();
 		return;
 	}
-	if (profileAction == applications::Action::Disable)
+	if (profile_action == applications::Action::Disable)
 	{
-		if (liveSession.IsActive() || nightOutputs.IsActive())
+		if (live_session.IsActive() || night_outputs.IsActive())
 		{
-			profilePausedIdentity = liveOutput.identity;
+			profile_paused_identity = live_output.identity;
 			DisableLiveCorrections(true);
 		}
-		if (correctionsRequested)
+		if (corrections_requested)
 		{
-			const auto index = SelectedSourceIndex();
-			if (profilePausedIdentity.empty() && index >= 0 && static_cast<size_t>(index) < sources.size())
-				profilePausedIdentity = sources[index].identity;
-			liveMessage =
+			const auto source_index = SelectedSourceIndex();
+			if (profile_paused_identity.empty() && source_index >= 0 &&
+			    static_cast<size_t>(source_index) < display_sources.size())
+				profile_paused_identity = display_sources[source_index].identity;
+			live_message =
 				L"This application profile pauses MonitorMage. Your adjustments resume when you switch to another program.";
 		}
 	}
-	else if (correctionsRequested)
+	else if (corrections_requested)
 	{
-		if (liveSession.IsActive())
+		if (live_session.IsActive())
 			ApplyLiveCorrections();
 		else
 		{
-			profilePausedIdentity.clear();
+			profile_paused_identity.clear();
 			EnableLiveCorrections();
 		}
 	}
@@ -1449,10 +1471,10 @@ void ReconcileLiveCorrections()
 
 void ToggleCorrections()
 {
-	if (hdrPending || (renderOnly && !presetUiTest))
+	if (hdr_pending || (render_only && !preset_ui_test))
 		return;
-	correctionsRequested = !correctionsRequested;
-	if (!correctionsRequested)
+	corrections_requested = !corrections_requested;
+	if (!corrections_requested)
 		DisableLiveCorrections();
 	else
 		ReconcileLiveCorrections();
@@ -1461,106 +1483,106 @@ void ToggleCorrections()
 
 void TurnOnCorrections()
 {
-	correctionsRequested = true;
-	liveError = false;
-	liveMessage = L"Ready. Turn on an effect or correction to change the picture.";
+	corrections_requested = true;
+	live_error = false;
+	live_message = L"Ready. Turn on an effect or correction to change the picture.";
 	ReconcileLiveCorrections();
 }
 
 void ToggleWindowsHdrMode()
 {
-	if (renderOnly || hdrPending)
+	if (render_only || hdr_pending)
 		return;
 	try
 	{
-		const auto index = SelectedSourceIndex();
-		if (index < 0 || static_cast<size_t>(index) >= sources.size())
+		const auto source_index = SelectedSourceIndex();
+		if (source_index < 0 || static_cast<size_t>(source_index) >= display_sources.size())
 			throw std::runtime_error("Select a display before switching HDR");
-		const auto state = hdr::ReadHdrState(sources[index].name);
+		const auto state = hdr::ReadHdrState(display_sources[source_index].name);
 		if (!state.available)
 		{
-			liveMessage = state.reason;
+			live_message = state.reason;
 			RefreshInterface();
 			return;
 		}
-		hdrResume = correctionsRequested;
-		hdrSource = state.source;
-		hdrDesired = !state.on;
-		hdrTransition = state;
+		hdr_resume = corrections_requested;
+		hdr_source = state.source;
+		hdr_desired = !state.on;
+		hdr_transition = state;
 		if (DisableLiveCorrections() != 0)
 			throw std::runtime_error("Restore the display baseline before changing HDR mode");
-		modeResetPending = hdrResume;
-		hdrPending = true;
-		hdrAttempts = 0;
-		hdr::SetHdrEnabled(state, hdrDesired);
-		liveMessage = L"Switching Windows HDR...";
-		if (!SetTimer(window, HdrTimer, 600, nullptr))
+		mode_reset_pending = hdr_resume;
+		hdr_pending = true;
+		hdr_attempts = 0;
+		hdr::SetHdrEnabled(state, hdr_desired);
+		live_message = L"Switching Windows HDR...";
+		if (!SetTimer(main_window, TIMER_HDR, 600, nullptr))
 			throw std::runtime_error(
 				"HDR was requested but its completion timer could not start; corrections remain off");
 	}
 	catch (const std::exception& error)
 	{
-		hdrPending = false;
-		hdrResume = false;
-		modeResetPending = false;
-		liveMessage = ui::messages::FriendlyError(error.what());
-		liveError = true;
+		hdr_pending = false;
+		hdr_resume = false;
+		mode_reset_pending = false;
+		live_message = ui::messages::FriendlyError(error.what());
+		live_error = true;
 	}
 	RefreshInterface();
 }
 
 void ManualLookOverride()
 {
-	if (appConfig.enabled && applicationContextActive)
-		appFocus.SetManualOverride();
+	if (profile_configuration.Enabled && application_context_active)
+		foreground_program.SetManualOverride();
 	else
 	{
-		regularLookIndex = presetIndex[0];
-		appFocus.ClearManualOverride();
+		regular_look_index = preset_index[preset_role::Look];
+		foreground_program.ClearManualOverride();
 	}
-	profileAction = applications::Action::Look;
-	profileMessage.clear();
+	profile_action = applications::Action::Look;
+	profile_message.clear();
 }
 
 void ApplyApplicationProfile(bool force)
 {
-	if (appConfig.enabled && appFocus.IsManualOverride() && !force)
+	if (profile_configuration.Enabled && foreground_program.IsManualOverride() && !force)
 		return;
 	if (force)
-		appFocus.ClearManualOverride();
-	auto decision = applications::ResolveForProgram(appConfig, appFocus.FocusedProgram());
+		foreground_program.ClearManualOverride();
+	auto decision = applications::ResolveForProgram(profile_configuration, foreground_program.FocusedProgram());
 	// Switching between programs without profiles does not change the look.
 	// Avoid re-querying displays and reapplying curves on every focus change.
-	if (!force && !decision.matched && !applicationContextActive)
+	if (!force && !decision.matched && !application_context_active)
 		return;
 	FlushPresetAutosave();
-	profileMessage.clear();
+	profile_message.clear();
 	if (!decision.matched)
 	{
-		if (applicationContextActive)
-			presetIndex[0] = regularLookIndex;
-		applicationContextActive = false;
+		if (application_context_active)
+			preset_index[preset_role::Look] = regular_look_index;
+		application_context_active = false;
 	}
 	else
 	{
 		// Snapshot once across an entire chain of profiled applications, including manual overrides.
-		if (!applicationContextActive)
-			regularLookIndex = presetIndex[0];
-		applicationContextActive = true;
+		if (!application_context_active)
+			regular_look_index = preset_index[preset_role::Look];
+		application_context_active = true;
 	}
 	if (decision.matched && decision.action == applications::Action::Look)
 	{
 		try
 		{
-			presetIndex[0] = ReadPreset(0, decision.look);
+			preset_index[preset_role::Look] = ReadPreset(preset_role::Look, decision.look);
 		}
 		catch (const std::exception&)
 		{
-			presetIndex[0] = regularLookIndex;
-			profileMessage = L"The preset for this program could not be loaded. Your previous look has been restored.";
+			preset_index[preset_role::Look] = regular_look_index;
+			profile_message = L"The preset for this program could not be loaded. Your previous look has been restored.";
 		}
 	}
-	profileAction = decision.action;
+	profile_action = decision.action;
 	LoadPresetControls();
 	RefreshPresetChoice();
 	ReconcileLiveCorrections();
@@ -1569,7 +1591,7 @@ void ApplyApplicationProfile(bool force)
 
 void OnForegroundProgramChanged(const std::filesystem::path& path)
 {
-	if (appFocus.UpdateFocusedProgram(path))
+	if (foreground_program.UpdateFocusedProgram(path))
 	{
 		ApplyApplicationProfile();
 		RefreshInterface();
@@ -1590,10 +1612,10 @@ void CheckForegroundProgram(HWND recent = nullptr)
 	}
 	if (!process || process == GetCurrentProcessId())
 		return;
-	wchar_t cls[128] {};
-	GetClassNameW(foreground, cls, static_cast<int>(std::size(cls)));
-	if (wcscmp(cls, L"Shell_TrayWnd") == 0 || wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0 ||
-	    wcscmp(cls, L"MultitaskingViewFrame") == 0)
+	wchar_t class_name[128] {};
+	GetClassNameW(foreground, class_name, static_cast<int>(std::size(class_name)));
+	if (wcscmp(class_name, L"Shell_TrayWnd") == 0 || wcscmp(class_name, L"Shell_SecondaryTrayWnd") == 0 ||
+	    wcscmp(class_name, L"MultitaskingViewFrame") == 0)
 		return;
 	HANDLE handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process);
 	wchar_t path[32768] {};
@@ -1608,8 +1630,8 @@ void CheckForegroundProgram(HWND recent = nullptr)
 
 void CALLBACK ForegroundChangedCallback(HWINEVENTHOOK, DWORD, HWND foreground, LONG, LONG, DWORD, DWORD)
 {
-	if (window)
-		PostMessageW(window, ForegroundMessage, 0, reinterpret_cast<LPARAM>(foreground));
+	if (main_window)
+		PostMessageW(main_window, MESSAGE_FOREGROUND, 0, reinterpret_cast<LPARAM>(foreground));
 }
 
 bool ApplyProfileConfiguration(const applications::Configuration& candidate)
@@ -1617,22 +1639,22 @@ bool ApplyProfileConfiguration(const applications::Configuration& candidate)
 	try
 	{
 		applications::Validate(candidate);
-		if (candidate.enabled && !foregroundHook && !renderOnly)
+		if (candidate.Enabled && !foreground_hook && !render_only)
 			throw std::runtime_error(
 				"Windows foreground notifications are unavailable; automatic profiles cannot be enabled");
-		for (const auto& rule : candidate.rules)
-			if (rule.action == applications::Action::Look)
-				ReadPreset(0, rule.look);
-		const auto previous = appConfig;
-		appConfig = candidate;
+		for (const auto& rule : candidate.Rules)
+			if (rule.Action == applications::Action::Look)
+				ReadPreset(preset_role::Look, rule.Look);
+		const auto previous = profile_configuration;
+		profile_configuration = candidate;
 		if (!PersistPresetChoices())
 		{
-			appConfig = previous;
+			profile_configuration = previous;
 			RefreshInterface();
 			return false;
 		}
-		appFocus.ClearManualOverride();
-		profileMessage.clear();
+		foreground_program.ClearManualOverride();
+		profile_message.clear();
 		ApplyApplicationProfile(true);
 		RefreshInterface();
 		return true;
@@ -1648,85 +1670,87 @@ bool ApplyProfileConfiguration(const applications::Configuration& candidate)
 void ShowProfiles(bool hidden = false)
 {
 	EnsureCommonControls();
-	DiscoverPresets(0);
+	DiscoverPresets(preset_role::Look);
 	std::vector<profile_editor::Look> looks;
-	for (const auto& entry : presetLibrary[0])
+	for (const auto& entry : preset_library[preset_role::Look])
 		if (!entry.path.empty())
 			looks.push_back({ entry.path.stem().wstring(), entry.path });
-	const auto last = appFocus.FocusedProgram().is_absolute() ? appFocus.FocusedProgram() : std::filesystem::path {};
-	profile_editor::ShowProfileEditor(window, instance, appConfig, looks, last, ApplyProfileConfiguration, hidden);
+	const auto last = foreground_program.FocusedProgram().is_absolute() ? foreground_program.FocusedProgram()
+	                                                                    : std::filesystem::path {};
+	profile_editor::ShowProfileEditor(main_window, app_instance, profile_configuration, looks, last,
+	                                  ApplyProfileConfiguration, hidden);
 }
 
 bool& AdjustmentEnabled(int effect)
 {
-	auto& a = CurrentPreset(0).current.adjustments;
+	auto& adjustments = CurrentPreset(preset_role::Look).current.Adjustments;
 	switch (effect)
 	{
 		case 2:
-			return a.balanceEnabled;
+			return adjustments.BalanceEnabled;
 		case 3:
-			return a.gammaEnabled;
+			return adjustments.GammaEnabled;
 		case 4:
-			return a.levelsEnabled;
+			return adjustments.LevelsEnabled;
 		case 5:
-			return a.toneEnabled;
+			return adjustments.ToneEnabled;
 		case 6:
-			return a.curvesEnabled;
+			return adjustments.CurvesEnabled;
 		default:
-			return a.importEnabled;
+			return adjustments.ImportEnabled;
 	}
 }
 
-void ToggleEffect(int role)
+void ToggleEffect(int effect)
 {
-	if (role == 8)
+	if (effect == effect::ColorFilters)
 	{
-		ChangeWindowsFilter(!filterState.on, filterState.filter);
+		ChangeWindowsFilter(!filter_state.on, filter_state.filter);
 		return;
 	}
-	if (role == 9)
+	if (effect == effect::NightLight)
 	{
-		nightConfig.enabled = !nightConfig.enabled;
+		night_config.Enabled = !night_config.Enabled;
 		PersistPresetChoices();
 		ApplyLiveCorrections();
 		RefreshInterface();
 		return;
 	}
-	if (role >= 10)
+	if (effect >= effect::Saturation)
 	{
-		auto& look = CurrentPreset(0).current;
-		auto& enabled = role == 10 ? look.saturationEnabled : look.monochromeEnabled;
+		auto& look = CurrentPreset(preset_role::Look).current;
+		auto& enabled = effect == effect::Saturation ? look.SaturationEnabled : look.MonochromeEnabled;
 		enabled = !enabled;
-		OnPresetEdited(0);
+		OnPresetEdited(preset_role::Look);
 		SyncColorMatrix();
 		RefreshInterface();
 		return;
 	}
-	if (role == 0)
-		contrastEnabled = !contrastEnabled;
-	else if (role == 1)
-		hdrFixEnabled = !hdrFixEnabled;
+	if (effect == effect::ContrastCurves)
+		contrast_enabled = !contrast_enabled;
+	else if (effect == effect::HdrGamma)
+		hdr_fix_enabled = !hdr_fix_enabled;
 	else
-		AdjustmentEnabled(role) = !AdjustmentEnabled(role);
-	OnPresetEdited(role == 1 ? 1 : 0);
+		AdjustmentEnabled(effect) = !AdjustmentEnabled(effect);
+	OnPresetEdited(effect == effect::HdrGamma ? 1 : 0);
 	ApplyLiveCorrections();
 	RefreshInterface();
 }
 
-void MoveEffect(int role, int target)
+void MoveEffect(int effect, int target)
 {
-	if (target < 0 || target >= static_cast<int>(effectOrder.size()))
+	if (target < 0 || target >= static_cast<int>(effect_order.size()))
 		return;
-	const auto before = effectOrder;
-	const auto position = std::find(effectOrder.begin(), effectOrder.end(), role);
-	effectOrder.erase(position);
-	effectOrder.insert(effectOrder.begin() + target, role);
-	correctionFirst =
-		std::find(effectOrder.begin(), effectOrder.end(), 1) < std::find(effectOrder.begin(), effectOrder.end(), 0);
-	if (!renderOnly && !PersistPresetChoices())
+	const auto before = effect_order;
+	const auto position = std::find(effect_order.begin(), effect_order.end(), effect);
+	effect_order.erase(position);
+	effect_order.insert(effect_order.begin() + target, effect);
+	correction_first =
+		std::find(effect_order.begin(), effect_order.end(), 1) < std::find(effect_order.begin(), effect_order.end(), 0);
+	if (!render_only && !PersistPresetChoices())
 	{
-		effectOrder = before;
-		correctionFirst = std::find(before.begin(), before.end(), 1) < std::find(before.begin(), before.end(), 0);
+		effect_order = before;
+		correction_first = std::find(before.begin(), before.end(), 1) < std::find(before.begin(), before.end(), 0);
 		RefreshInterface();
 		return;
 	}
@@ -1734,26 +1758,27 @@ void MoveEffect(int role, int target)
 	RefreshInterface();
 }
 
-void MoveCreative(int role, int target)
+void MoveCreative(int effect, int target)
 {
 	auto order = CreativeOrder();
-	if (role == 1 || role >= 10 || target < 0 || target >= static_cast<int>(order.size()) - 2)
+	if (effect == effect::HdrGamma || effect >= effect::Saturation || target < 0 ||
+	    target >= static_cast<int>(order.size()) - 2)
 		return;
-	const auto before = effectOrder;
-	const auto found = std::find(order.begin(), order.end(), role);
+	const auto before = effect_order;
+	const auto found = std::find(order.begin(), order.end(), effect);
 	if (found == order.end())
 		return;
 	order.erase(found);
-	order.insert(order.begin() + target, role);
+	order.insert(order.begin() + target, effect);
 	size_t index = 0;
-	for (auto& effect : effectOrder)
-		if (effect != 1)
-			effect = order[index++];
-	correctionFirst = ProcessingOrderIndex(1) < ProcessingOrderIndex(0);
-	if (!renderOnly && !PersistPresetChoices())
+	for (auto& slot : effect_order)
+		if (slot != effect::HdrGamma)
+			slot = order[index++];
+	correction_first = ProcessingOrderIndex(effect::HdrGamma) < ProcessingOrderIndex(effect::ContrastCurves);
+	if (!render_only && !PersistPresetChoices())
 	{
-		effectOrder = before;
-		correctionFirst = ProcessingOrderIndex(1) < ProcessingOrderIndex(0);
+		effect_order = before;
+		correction_first = ProcessingOrderIndex(effect::HdrGamma) < ProcessingOrderIndex(effect::ContrastCurves);
 		RefreshInterface();
 		return;
 	}
@@ -1766,36 +1791,38 @@ struct Parameter
 	const wchar_t* label;
 	int minimum, maximum;
 	int* value;
-	int defaultValue = 0;
+	int default_value = 0;
 };
 
 std::vector<Parameter> SliderParameters()
 {
-	auto& a = CurrentPreset(0).current.adjustments;
-	if (selected == 2)
-		return { { L"Red", 50, 150, &a.balance[0], 100 },
-			     { L"Green", 50, 150, &a.balance[1], 100 },
-			     { L"Blue", 50, 150, &a.balance[2], 100 },
-			     { L"Warmth", -50, 50, &a.balance[3] },
-			     { L"Tint", -50, 50, &a.balance[4] } };
-	if (selected == 3)
-		return { { L"Midtone gamma", 50, 200, &a.midtone, 100 } };
-	if (selected == 4)
-		return { { L"Input black", 0, 95, &a.levels[0] },
-			     { L"Input white", 5, 100, &a.levels[1], 100 },
-			     { L"Output black", 0, 95, &a.levels[2] },
-			     { L"Output white", 5, 100, &a.levels[3], 100 } };
-	if (selected == 5)
-		return { { L"Shadows", -50, 50, &a.shadows }, { L"Highlights", -50, 50, &a.highlights } };
-	if (selected == 10)
-		return { { L"Saturation", 0, color::SaturationMaximum, &CurrentPreset(0).current.saturation, 100 } };
-	if (selected == 11)
+	auto& adjustments = CurrentPreset(preset_role::Look).current.Adjustments;
+	if (selected_effect == effect::ColorBalance)
+		return { { L"Red", 50, 150, &adjustments.Balance[color::BALANCE_RED], 100 },
+			     { L"Green", 50, 150, &adjustments.Balance[color::BALANCE_GREEN], 100 },
+			     { L"Blue", 50, 150, &adjustments.Balance[color::BALANCE_BLUE], 100 },
+			     { L"Warmth", -50, 50, &adjustments.Balance[color::BALANCE_WARMTH] },
+			     { L"Tint", -50, 50, &adjustments.Balance[color::BALANCE_TINT] } };
+	if (selected_effect == effect::MidtoneGamma)
+		return { { L"Midtone gamma", 50, 200, &adjustments.Midtone, 100 } };
+	if (selected_effect == effect::Levels)
+		return { { L"Input black", 0, 95, &adjustments.Levels[color::INPUT_BLACK] },
+			     { L"Input white", 5, 100, &adjustments.Levels[color::INPUT_WHITE], 100 },
+			     { L"Output black", 0, 95, &adjustments.Levels[color::OUTPUT_BLACK] },
+			     { L"Output white", 5, 100, &adjustments.Levels[color::OUTPUT_WHITE], 100 } };
+	if (selected_effect == effect::ShadowsHighlights)
+		return { { L"Shadows", -50, 50, &adjustments.Shadows }, { L"Highlights", -50, 50, &adjustments.Highlights } };
+	if (selected_effect == effect::Saturation)
+		return { { L"Saturation", 0, color::SATURATION_MAXIMUM, &CurrentPreset(preset_role::Look).current.Saturation,
+			       100 } };
+	if (selected_effect == effect::ChannelMixer)
 	{
-		auto& mix = CurrentPreset(0).current.monochrome;
+		auto& mix = CurrentPreset(preset_role::Look).current.Monochrome;
 		return { { L"Red", 0, 200, &mix[0], 21 }, { L"Green", 0, 200, &mix[1], 72 }, { L"Blue", 0, 200, &mix[2], 7 } };
 	}
-	if (selected == 9)
-		return { { L"Warmth", 0, 100, &nightConfig.strength, 35 }, { L"Fade minutes", 0, 60, &nightConfig.fade, 10 } };
+	if (selected_effect == effect::NightLight)
+		return { { L"Warmth", 0, 100, &night_config.Strength, 35 },
+			     { L"Fade minutes", 0, 60, &night_config.Fade, 10 } };
 	return {};
 }
 
@@ -1803,33 +1830,35 @@ std::vector<HWND> TabStopControls()
 {
 	// Sidebar, then the right pane in reading order. The graph is an input
 	// only for curve editing, between the monitor's upper and lower buttons.
-	std::vector<HWND> order { correctionLayers, windowsLayers, layers,       presetChoice,      autosaveControl,
-		                      savePresetButton, saveAsButton,  exportButton, revertPresetButton };
-	if (settingsPage)
-		order.insert(order.end(), { fontChoice, shortcutControl, shortcutButton, startupControl, bypassButton,
-		                            startMinimizedControl, openPresetButton, saturationReportButton });
+	std::vector<HWND> order { correction_list, windows_effect_list, effect_list,
+		                      preset_choice,   autosave_control,    save_preset_button,
+		                      save_as_button,  export_button,       revert_preset_button };
+	if (settings_page)
+		order.insert(order.end(), { font_choice, shortcut_control, shortcut_button, startup_control, bypass_button,
+		                            start_minimized_control, open_preset_button, saturation_report_button });
 	else
 	{
-		order.insert(order.end(), { selectedEffectToggle, resetButton });
-		order.insert(order.end(), { contrastSlider, pivotSlider, whiteSlider,
-		                            gammaPosition == 0 ? gammaChoice : gammaOther, hdrFixControl });
-		order.insert(order.end(), adjustmentSliders.begin(), adjustmentSliders.end());
-		order.insert(order.end(), { curveChannel, importButton, export1DButton });
-		if (selected == 8)
-			order.insert(order.end(), { filterChoice, filterSettingsButton });
-		if (selected == 9)
-			order.insert(order.end(), { nightSchedule, nightStart, nightEnd, nightDisplay, nightInclude });
+		order.insert(order.end(), { selected_effect_toggle, reset_button });
+		order.insert(order.end(), { contrast_slider, pivot_slider, white_slider,
+		                            gamma_position == 0 ? gamma_choice : gamma_other, hdr_fix_control });
+		order.insert(order.end(), adjustment_sliders.begin(), adjustment_sliders.end());
+		order.insert(order.end(), { curve_channel, import_button, export_1d_button });
+		if (selected_effect == effect::ColorFilters)
+			order.insert(order.end(), { filter_choice, filter_settings_button });
+		if (selected_effect == effect::NightLight)
+			order.insert(order.end(), { night_schedule, night_start, night_end, night_display, night_include });
 	}
-	order.insert(order.end(), { hdrButton, infoButton, powerButton });
-	if (!settingsPage && selected == 6)
-		order.push_back(canvas);
-	order.insert(order.end(), { monitorSettingsButton, profilesButton, sourceChoice, websiteLink, monitorProfile });
+	order.insert(order.end(), { hdr_button, info_button, power_button });
+	if (!settings_page && selected_effect == effect::CustomCurves)
+		order.push_back(curve_canvas);
+	order.insert(order.end(),
+	             { monitor_settings_button, profiles_button, source_choice, website_link, monitor_profile });
 	order.erase(std::remove_if(order.begin(), order.end(),
 	                           [](HWND control)
 	                           {
 								   if (!control)
 									   return true;
-								   for (auto at = control; at && at != window; at = GetParent(at))
+								   for (auto at = control; at && at != main_window; at = GetParent(at))
 									   if (!(GetWindowLongPtrW(at, GWL_STYLE) & WS_VISIBLE) || !IsWindowEnabled(at))
 										   return true;
 								   return false;
@@ -1852,59 +1881,61 @@ HWND NextTabStop(HWND from, bool reverse)
 
 bool NavigateTab(MSG& message)
 {
-	if (message.message != WM_KEYDOWN || message.wParam != VK_TAB || GetAncestor(message.hwnd, GA_ROOT) != window ||
-	    (GetKeyState(VK_CONTROL) & 0x8000) || (GetKeyState(VK_MENU) & 0x8000))
+	if (message.message != WM_KEYDOWN || message.wParam != VK_TAB ||
+	    GetAncestor(message.hwnd, GA_ROOT) != main_window || (GetKeyState(VK_CONTROL) & 0x8000) ||
+	    (GetKeyState(VK_MENU) & 0x8000))
 		return false;
 	const auto from = GetFocus(), next = NextTabStop(from, (GetKeyState(VK_SHIFT) & 0x8000) != 0);
 	if (!next)
 		return false;
-	wchar_t cls[32] {};
+	wchar_t class_name[32] {};
 	if (from)
-		GetClassNameW(from, cls, 32);
-	if (wcscmp(cls, L"ComboBox") == 0)
+		GetClassNameW(from, class_name, 32);
+	if (wcscmp(class_name, L"ComboBox") == 0)
 		SendMessageW(from, CB_SHOWDROPDOWN, FALSE, 0);
-	SendMessageW(window, WM_UPDATEUISTATE, MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
+	SendMessageW(main_window, WM_UPDATEUISTATE, MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
 	SetFocus(next);
-	ui::RevealControl(window, next);
+	ui::RevealControl(main_window, next);
 	return true;
 }
 
-bool effectLayoutValid = false;
+bool effect_layout_valid = false;
 void LayoutEffectControls()
 {
-	if (!font || !description)
+	if (!ui_font || !effect_description)
 		return;
-	static int previousPage = -1;
-	static bool previousSettings = false;
-	static std::wstring previousText;
+	static int previous_page = -1;
+	static bool previous_settings = false;
+	static std::wstring previous_text;
 	wchar_t text[1024] {};
-	GetWindowTextW(description, text, 1024);
-	if (effectLayoutValid && previousPage == selected && previousSettings == settingsPage && previousText == text)
+	GetWindowTextW(effect_description, text, 1024);
+	if (effect_layout_valid && previous_page == selected_effect && previous_settings == settings_page &&
+	    previous_text == text)
 		return;
-	effectLayoutValid = true;
-	previousPage = selected;
-	previousSettings = settingsPage;
-	previousText = text;
-	if (settingsPage)
+	effect_layout_valid = true;
+	previous_page = selected_effect;
+	previous_settings = settings_page;
+	previous_text = text;
+	if (settings_page)
 	{
-		PlaceControl(canvas, 198, 262, 558, 268);
+		PlaceControl(curve_canvas, 198, 262, 558, 268);
 		LayoutMonitorControls();
-		InvalidateRect(canvas, nullptr, FALSE);
+		InvalidateRect(curve_canvas, nullptr, FALSE);
 		return;
 	}
-	HDC dc = GetDC(description);
-	const auto old = SelectObject(dc, font);
+	HDC dc = GetDC(effect_description);
+	const auto old = SelectObject(dc, ui_font);
 	TEXTMETRICW metrics {};
 	GetTextMetricsW(dc, &metrics);
 	RECT measure { 0, 0, ScaleForDpi(558), 0 };
 	DrawTextW(dc, text, -1, &measure, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
 	SelectObject(dc, old);
-	ReleaseDC(description, dc);
+	ReleaseDC(effect_description, dc);
 	// Reserve at least two font lines, then an explicit eight-DIP gap. The
 	// native static's actual line metrics vary with font and display scaling.
-	const int textHeight = std::max(measure.bottom, 2 * metrics.tmHeight) + ScaleForDpi(2);
-	const int height = (textHeight * 96 + dpi - 1) / dpi, first = 108 + height + 8;
-	PlaceControl(description, 198, 108, 558, height);
+	const int text_height = std::max(measure.bottom, 2 * metrics.tmHeight) + ScaleForDpi(2);
+	const int height = (text_height * 96 + dpi - 1) / dpi, first = 108 + height + 8;
+	PlaceControl(effect_description, 198, 108, 558, height);
 	const auto row = [&](HWND label, HWND value, HWND slider, int index)
 	{
 		const int top = first + index * 24;
@@ -1912,149 +1943,159 @@ void LayoutEffectControls()
 		PlaceControl(value, 306, top, 56, 22);
 		PlaceControl(slider, 368, top, 388, 22);
 	};
-	row(amountLabel, amountValue, contrastSlider, 0);
-	row(pivotLabel, pivotValue, pivotSlider, 1);
-	row(whiteLabel, whiteValue, whiteSlider, 0);
-	for (size_t i = 0; i < adjustmentSliders.size(); ++i)
-		row(adjustmentLabels[i], adjustmentValues[i], adjustmentSliders[i], static_cast<int>(i));
+	row(amount_label, amount_value, contrast_slider, 0);
+	row(pivot_label, pivot_value, pivot_slider, 1);
+	row(white_label, white_value, white_slider, 0);
+	for (size_t i = 0; i < adjustment_sliders.size(); ++i)
+		row(adjustment_labels[i], adjustment_values[i], adjustment_sliders[i], static_cast<int>(i));
 	const auto width = [&](HWND control, int minimum = 64, int maximum = 240)
 	{
-		return ui::ContentWidth(control, font, minimum, maximum);
+		return ui::ContentWidth(control, ui_font, minimum, maximum);
 	};
-	const int gammaWidth = width(gammaChoice, 56, 100);
-	PlaceControl(gammaLabel, 198, first + 24, 130, 22);
-	PlaceControl(gammaChoice, 331, first + 24, gammaWidth, 22);
-	PlaceControl(gammaOther, 331 + gammaWidth + 12, first + 24, width(gammaOther, 56, 100), 22);
-	PlaceControl(hdrFixControl, 198, first + 48, 550, 22);
-	PlaceControl(curveChannel, 198, first, width(curveChannel, 84, 200), 180);
-	const int importWidth = width(importButton);
-	PlaceControl(importButton, 198, first, importWidth, 28);
-	PlaceControl(export1DButton, 198 + importWidth + 12, first, width(export1DButton), 28);
-	if (selected == 8)
+	const int gamma_width = width(gamma_choice, 56, 100);
+	PlaceControl(gamma_label, 198, first + 24, 130, 22);
+	PlaceControl(gamma_choice, 331, first + 24, gamma_width, 22);
+	PlaceControl(gamma_other, 331 + gamma_width + 12, first + 24, width(gamma_other, 56, 100), 22);
+	PlaceControl(hdr_fix_control, 198, first + 48, 550, 22);
+	PlaceControl(curve_channel, 198, first, width(curve_channel, 84, 200), 180);
+	const int import_width = width(import_button);
+	PlaceControl(import_button, 198, first, import_width, 28);
+	PlaceControl(export_1d_button, 198 + import_width + 12, first, width(export_1d_button), 28);
+	if (selected_effect == effect::ColorFilters)
 	{
-		const int choiceWidth = width(filterChoice, 160, 350);
-		PlaceControl(filterChoice, 198, first, choiceWidth, 180);
-		PlaceControl(filterSettingsButton, 198 + choiceWidth + 12, first, width(filterSettingsButton), 28);
-		PlaceControl(correctionNote, 198, first + 40, 558, 42);
+		const int choice_width = width(filter_choice, 160, 350);
+		PlaceControl(filter_choice, 198, first, choice_width, 180);
+		PlaceControl(filter_settings_button, 198 + choice_width + 12, first, width(filter_settings_button), 28);
+		PlaceControl(correction_note, 198, first + 40, 558, 42);
 	}
-	if (selected == 9)
+	if (selected_effect == effect::NightLight)
 	{
-		PlaceControl(nightSchedule, 198, first + 51, 166, 22);
-		PlaceControl(nightStartLabel, 376, first + 51, 40, 22);
-		PlaceControl(nightStart, 418, first + 50, 72, 24);
-		PlaceControl(nightEndLabel, 514, first + 51, 40, 22);
-		PlaceControl(nightEnd, 556, first + 50, 72, 24);
-		PlaceControl(nightDisplay, 198, first + 82, 256, 180);
-		PlaceControl(nightInclude, 466, first + 82, 290, 22);
-		PlaceControl(correctionNote, 198, first + 108, 558, 22);
+		PlaceControl(night_schedule, 198, first + 51, 166, 22);
+		PlaceControl(night_start_label, 376, first + 51, 40, 22);
+		PlaceControl(night_start, 418, first + 50, 72, 24);
+		PlaceControl(night_end_label, 514, first + 51, 40, 22);
+		PlaceControl(night_end, 556, first + 50, 72, 24);
+		PlaceControl(night_display, 198, first + 82, 256, 180);
+		PlaceControl(night_include, 466, first + 82, 290, 22);
+		PlaceControl(correction_note, 198, first + 108, 558, 22);
 	}
-	const auto alignTrack = [&](HWND slider)
+	const auto align_track = [&](HWND slider)
 	{
 		RECT channel {}, bounds {};
 		SendMessageW(slider, TBM_GETCHANNELRECT, 0, reinterpret_cast<LPARAM>(&channel));
 		GetWindowRect(slider, &bounds);
-		MapWindowPoints(nullptr, window, reinterpret_cast<POINT*>(&bounds), 2);
+		MapWindowPoints(nullptr, main_window, reinterpret_cast<POINT*>(&bounds), 2);
 		const int right = bounds.right - bounds.left - channel.right, h = bounds.bottom - bounds.top;
-		MoveWindow(slider, ScaleForDpi(376 + PaneOffset) - ui::ViewportOffset(window).x - channel.left,
+		MoveWindow(slider, ScaleForDpi(376 + PANE_OFFSET) - ui::ViewportOffset(main_window).x - channel.left,
 		           bounds.top + h / 2 - (channel.top + channel.bottom) / 2, ScaleForDpi(380) + channel.left + right, h,
 		           TRUE);
 	};
-	for (HWND slider : { contrastSlider, pivotSlider, whiteSlider })
-		alignTrack(slider);
-	for (HWND slider : adjustmentSliders)
-		alignTrack(slider);
-	const int rows = selected == 9 ? 6 : selected == 2 ? 5 : selected == 4 ? 4 : selected == 1 ? 3 : 2;
+	for (HWND slider : { contrast_slider, pivot_slider, white_slider })
+		align_track(slider);
+	for (HWND slider : adjustment_sliders)
+		align_track(slider);
+	const int rows = selected_effect == effect::NightLight     ? 6
+	                 : selected_effect == effect::ColorBalance ? 5
+	                 : selected_effect == effect::Levels       ? 4
+	                 : selected_effect == effect::HdrGamma     ? 3
+	                                                           : 2;
 	const int bottom = first + (rows - 1) * 24 + 22;
-	const int graphTop = std::max(262, bottom + 8);
-	PlaceControl(canvas, 198, graphTop, 558, 530 - graphTop);
+	const int graph_top = std::max(262, bottom + 8);
+	PlaceControl(curve_canvas, 198, graph_top, 558, 530 - graph_top);
 	LayoutMonitorControls();
-	InvalidateRect(canvas, nullptr, FALSE);
+	InvalidateRect(curve_canvas, nullptr, FALSE);
 }
 
 void UpdateTray()
 {
-	if (!trayInstalled)
+	if (!tray_installed)
 		return;
-	const auto& look = CurrentPreset(0);
-	const auto origin = applicationContextActive
-	                        ? (appFocus.IsManualOverride() ? L"Manual override: " : L"Application profile: ") +
-	                              programs::DisplayName(appFocus.FocusedProgram())
-	                        : std::wstring(L"Manual look");
-	std::wstring lookState = (look.path.empty() ? std::wstring(L"Unsaved look") : look.path.stem().wstring()) +
-	                         (look.IsDirty() ? L" *" : L"");
-	if (profileAction == applications::Action::Disable)
-		lookState += L" (all adjustments paused)";
+	const auto& look = CurrentPreset(preset_role::Look);
+	const auto origin =
+		application_context_active
+			? (foreground_program.IsManualOverride() ? L"Manual override: " : L"Application profile: ") +
+				  programs::DisplayName(foreground_program.FocusedProgram())
+			: std::wstring(L"Manual look");
+	std::wstring look_state = (look.path.empty() ? std::wstring(L"Unsaved look") : look.path.stem().wstring()) +
+	                          (look.IsDirty() ? L" *" : L"");
+	if (profile_action == applications::Action::Disable)
+		look_state += L" (all adjustments paused)";
 	else
 	{
-		if (profileAction == applications::Action::PauseHdr)
-			lookState += L" (HDR gamma paused)";
+		if (profile_action == applications::Action::PauseHdr)
+			look_state += L" (HDR gamma paused)";
 		if (IsLookBypassed())
-			lookState += L" (look bypassed)";
+			look_state += L" (look bypassed)";
 	}
-	const HICON smallIcon = IconForState(SM_CXSMICON);
-	if (trayInstalled)
+	const HICON small_icon = IconForState(SM_CXSMICON);
+	if (tray_installed)
 	{
-		const std::wstring tip = origin + L" | " + lookState + (!correctionsRequested ? L" (off)" : L"");
-		wchar_t nextTip[std::size(tray.szTip)] {};
-		wcsncpy_s(nextTip, tip.c_str(), _TRUNCATE);
-		tray.uFlags = wcscmp(tray.szTip, nextTip) ? NIF_TIP : 0;
-		wcscpy_s(tray.szTip, nextTip);
-		if (smallIcon && tray.hIcon != smallIcon)
+		const std::wstring tip = origin + L" | " + look_state + (!corrections_requested ? L" (off)" : L"");
+		wchar_t next_tip[std::size(tray_icon.szTip)] {};
+		wcsncpy_s(next_tip, tip.c_str(), _TRUNCATE);
+		tray_icon.uFlags = wcscmp(tray_icon.szTip, next_tip) ? NIF_TIP : 0;
+		wcscpy_s(tray_icon.szTip, next_tip);
+		if (small_icon && tray_icon.hIcon != small_icon)
 		{
-			tray.hIcon = smallIcon;
-			tray.uFlags |= NIF_ICON;
+			tray_icon.hIcon = small_icon;
+			tray_icon.uFlags |= NIF_ICON;
 		}
-		if (tray.uFlags)
-			Shell_NotifyIconW(NIM_MODIFY, &tray);
+		if (tray_icon.uFlags)
+			Shell_NotifyIconW(NIM_MODIFY, &tray_icon);
 	}
 }
 
 void RefreshInterface()
 {
-	if (!editorReady || (!renderOnly && !editorSyncDepth && !IsWindowVisible(window)))
+	if (!editor_ready || (!render_only && !editor_sync_depth && !IsWindowVisible(main_window)))
 	{
-		if (runtimeReady)
+		if (runtime_ready)
 			UpdateTray();
 		return;
 	}
-	const auto sourceIndex = SelectedSourceIndex();
-	const bool valid = sourceIndex >= 0 && static_cast<size_t>(sourceIndex) < sources.size();
-	const bool correctionPowered =
-		correctionsRequested && !powerSuspended && !hdrPending && profileAction != applications::Action::Disable &&
-		profileAction != applications::Action::PauseHdr && valid && sources[sourceIndex].supported &&
-		(sources[sourceIndex].hdr || CurrentPreset(1).current.applyInSdr);
-	std::array<bool, 12> enabled { contrastEnabled, hdrFixEnabled };
+	const auto source_index = SelectedSourceIndex();
+	const bool valid = source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size();
+	const bool correction_powered =
+		corrections_requested && !power_suspended && !hdr_pending && profile_action != applications::Action::Disable &&
+		profile_action != applications::Action::PauseHdr && valid && display_sources[source_index].supported &&
+		(display_sources[source_index].hdr || CurrentPreset(preset_role::Correction).current.ApplyInSdr);
+	std::array<bool, effect::Count> enabled { contrast_enabled, hdr_fix_enabled };
 	for (int i = 2; i < 8; ++i)
 		enabled[i] = AdjustmentEnabled(i);
-	enabled[10] = CurrentPreset(0).current.saturationEnabled;
-	enabled[11] = CurrentPreset(0).current.monochromeEnabled;
-	effects::Update(layers, CreativeOrder(), enabled, false, selected, correctionsRequested);
-	effects::Update(correctionLayers, { 1 }, enabled, profileAction == applications::Action::PauseHdr, selected,
-	                correctionPowered);
-	const bool nightPowered =
-		correctionsRequested && nightLevel > 0 && !powerSuspended && !hdrPending &&
-		profileAction != applications::Action::Disable &&
-		std::any_of(sources.begin(), sources.end(),
+	enabled[effect::Saturation] = CurrentPreset(preset_role::Look).current.SaturationEnabled;
+	enabled[effect::ChannelMixer] = CurrentPreset(preset_role::Look).current.MonochromeEnabled;
+	effects::Update(effect_list, CreativeOrder(), enabled, false, selected_effect, corrections_requested);
+	effects::Update(correction_list, { 1 }, enabled, profile_action == applications::Action::PauseHdr, selected_effect,
+	                correction_powered);
+	const bool night_powered =
+		corrections_requested && night_level > 0 && !power_suspended && !hdr_pending &&
+		profile_action != applications::Action::Disable &&
+		std::any_of(display_sources.begin(), display_sources.end(),
 	                [](const Source& output)
-	                { return output.supported && night::IsDisplayIncluded(nightConfig, output.identity); });
-	enabled[8] = filterState.on;
-	enabled[9] = nightConfig.enabled;
-	effects::Update(windowsLayers, { 8, 9 }, enabled, false, selected, nightPowered);
-	SetTextIfChanged(title, effects::Names[selected]);
-	SetTextIfChanged(selectedEffectToggle, (std::wstring(effects::Names[selected]) + L" on/off").c_str());
-	ui::ToggleButton(selectedEffectToggle, selected == 8 ? filterState.on : enabled[selected],
-	                 selected == 8   ? true
-	                 : selected == 9 ? nightPowered
-	                 : selected == 1 ? correctionPowered
-	                                 : correctionsRequested);
-	SetControlVisible(selectedEffectToggle, !settingsPage);
-	SetControlVisible(resetButton, !settingsPage && (selected < 8 || selected == 9 || selected >= 10));
-	SetControlEnabled(selectedEffectToggle,
-	                  selected != 8 || (filterState.available && !filterController.IsBusy() && !renderOnly));
-	if (selected < 2)
+	                { return output.supported && night::IsDisplayIncluded(night_config, output.identity); });
+	enabled[effect::ColorFilters] = filter_state.on;
+	enabled[effect::NightLight] = night_config.Enabled;
+	effects::Update(windows_effect_list, { 8, 9 }, enabled, false, selected_effect, night_powered);
+	SetTextIfChanged(effect_title, effects::EFFECT_NAMES[selected_effect]);
+	SetTextIfChanged(selected_effect_toggle,
+	                 (std::wstring(effects::EFFECT_NAMES[selected_effect]) + L" on/off").c_str());
+	ui::ToggleButton(selected_effect_toggle,
+	                 selected_effect == effect::ColorFilters ? filter_state.on : enabled[selected_effect],
+	                 selected_effect == effect::ColorFilters ? true
+	                 : selected_effect == effect::NightLight ? night_powered
+	                 : selected_effect == effect::HdrGamma   ? correction_powered
+	                                                         : corrections_requested);
+	SetControlVisible(selected_effect_toggle, !settings_page);
+	SetControlVisible(reset_button, !settings_page && (selected_effect < effect::FirstWindows ||
+	                                                   selected_effect == effect::NightLight ||
+	                                                   selected_effect >= effect::Saturation));
+	SetControlEnabled(selected_effect_toggle,
+	                  selected_effect != effect::ColorFilters ||
+	                      (filter_state.available && !filter_controller.IsBusy() && !render_only));
+	if (selected_effect < effect::FirstCreative)
 		SetTextIfChanged(
-			description,
-			selected == 0
+			effect_description,
+			selected_effect == effect::ContrastCurves
 				? L"Make dark and bright tones stand apart. Pivot sets the tone that stays unchanged. Zero has no effect."
 				: L"Adjust shadows in ordinary content when Windows HDR is on. Gamma changes the shadow brightness.");
 	const wchar_t* explanations[] {
@@ -2067,46 +2108,46 @@ void RefreshInterface()
 		L"Drag points to change the curve. Double-click resets a point; right-click resets the whole curve.",
 		L"Load color curves from a file. Supports 1D cube, spi1d, CAL, CSV and PNG/TIFF ramps, but not 3D LUTs."
 	};
-	if (selected >= 2 && selected < 8)
-		SetTextIfChanged(description, explanations[selected]);
-	if (selected == 8)
+	if (selected_effect >= effect::FirstCreative && selected_effect < effect::FirstWindows)
+		SetTextIfChanged(effect_description, explanations[selected_effect]);
+	if (selected_effect == effect::ColorFilters)
 		SetTextIfChanged(
-			description,
+			effect_description,
 			L"Windows color filters apply to all displays for your account. They stay on when MonitorMage is off or closed.");
-	if (selected == 10)
-		SetTextIfChanged(description, L"All displays: 0% grayscale, 100% unchanged. Strong boosts may clip.");
-	if (selected == 11)
+	if (selected_effect == effect::Saturation)
+		SetTextIfChanged(effect_description, L"All displays: 0% grayscale, 100% unchanged. Strong boosts may clip.");
+	if (selected_effect == effect::ChannelMixer)
 		SetTextIfChanged(
-			description,
+			effect_description,
 			L"Make a black-and-white look by mixing red, green and blue. White stays white. All zeros use the standard mix. Applies to all displays.");
-	if (selected == 9)
+	if (selected_effect == effect::NightLight)
 		SetTextIfChanged(
-			description,
+			effect_description,
 			L"Warmer colors in the evening. Applies to all included displays, independently of your look. Linked displays change together.");
 	const auto controls = SliderParameters();
-	const bool changingAdjustmentPage = adjustmentPage != (settingsPage ? -1 : selected);
-	for (size_t i = 0; i < adjustmentSliders.size(); ++i)
+	const bool changing_adjustment_page = adjustment_page != (settings_page ? -1 : selected_effect);
+	for (size_t i = 0; i < adjustment_sliders.size(); ++i)
 	{
-		const bool visible = i < controls.size() && !settingsPage;
-		SetControlVisible(adjustmentSliders[i], visible && !changingAdjustmentPage);
-		SetControlVisible(adjustmentLabels[i], visible);
-		SetControlVisible(adjustmentValues[i], visible);
+		const bool visible = i < controls.size() && !settings_page;
+		SetControlVisible(adjustment_sliders[i], visible && !changing_adjustment_page);
+		SetControlVisible(adjustment_labels[i], visible);
+		SetControlVisible(adjustment_values[i], visible);
 		if (visible)
 		{
 			const auto& p = controls[i];
-			COLORREF colour = ui::Accent;
-			if (selected == 9 && i == 0)
+			COLORREF colour = ui::THEME_ACCENT;
+			if (selected_effect == effect::NightLight && i == 0)
 				colour = RGB(255, 165, 82);
-			if (selected == 11)
+			if (selected_effect == effect::ChannelMixer)
 			{
-				constexpr COLORREF rgb[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
-				colour = rgb[i];
+				constexpr COLORREF CHANNEL_COLORS[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
+				colour = CHANNEL_COLORS[i];
 			}
-			if (selected == 2)
+			if (selected_effect == effect::ColorBalance)
 			{
-				constexpr COLORREF rgb[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
+				constexpr COLORREF CHANNEL_COLORS[] { RGB(245, 95, 104), RGB(92, 210, 126), RGB(90, 155, 248) };
 				if (i < 3)
-					colour = rgb[i];
+					colour = CHANNEL_COLORS[i];
 				else if (*p.value)
 				{
 					const auto target = i == 3 ? (*p.value > 0 ? RGB(255, 165, 82) : RGB(113, 173, 255))
@@ -2116,449 +2157,461 @@ void RefreshInterface()
 					{
 						return static_cast<BYTE>(std::lround(a + (b - a) * mix));
 					};
-					colour = RGB(blend(GetRValue(ui::Muted), GetRValue(target)),
-					             blend(((ui::Muted >> 8) & 255), GetGValue(target)),
-					             blend(GetBValue(ui::Muted), GetBValue(target)));
+					colour = RGB(blend(GetRValue(ui::THEME_MUTED), GetRValue(target)),
+					             blend(((ui::THEME_MUTED >> 8) & 255), GetGValue(target)),
+					             blend(GetBValue(ui::THEME_MUTED), GetBValue(target)));
 				}
 				else
-					colour = ui::Muted;
+					colour = ui::THEME_MUTED;
 			}
-			ui::SliderColour(adjustmentSliders[i], colour);
-			ui::ConfigureSlider(adjustmentSliders[i], p.defaultValue,
-			                    (selected == 2 || selected == 11) && i < 3 ? L"RGB"[i] : 0);
-			if (adjustmentPage != selected)
-				SendMessageW(adjustmentSliders[i], TBM_SETRANGE, TRUE, MAKELPARAM(p.minimum, p.maximum));
-			if (SendMessageW(adjustmentSliders[i], TBM_GETPOS, 0, 0) != *p.value)
-				SendMessageW(adjustmentSliders[i], TBM_SETPOS, TRUE, *p.value);
-			SetTextIfChanged(adjustmentLabels[i], p.label);
-			SetTextIfChanged(adjustmentValues[i],
-			                 (selected >= 10 || (selected == 9 && i == 0) ? std::to_wstring(*p.value) + L"%"
-			                  : selected == 9                             ? std::to_wstring(*p.value)
-			                                                              : FormatDecimal(*p.value / 100.0))
+			ui::SliderColour(adjustment_sliders[i], colour);
+			ui::ConfigureSlider(adjustment_sliders[i], p.default_value,
+			                    (selected_effect == effect::ColorBalance || selected_effect == effect::ChannelMixer) &&
+			                            i < 3
+			                        ? L"RGB"[i]
+			                        : 0);
+			if (adjustment_page != selected_effect)
+				SendMessageW(adjustment_sliders[i], TBM_SETRANGE, TRUE, MAKELPARAM(p.minimum, p.maximum));
+			if (SendMessageW(adjustment_sliders[i], TBM_GETPOS, 0, 0) != *p.value)
+				SendMessageW(adjustment_sliders[i], TBM_SETPOS, TRUE, *p.value);
+			SetTextIfChanged(adjustment_labels[i], p.label);
+			SetTextIfChanged(adjustment_values[i],
+			                 (selected_effect >= effect::Saturation || (selected_effect == effect::NightLight && i == 0)
+			                      ? std::to_wstring(*p.value) + L"%"
+			                  : selected_effect == effect::NightLight ? std::to_wstring(*p.value)
+			                                                          : FormatDecimal(*p.value / 100.0))
 			                     .c_str());
 		}
 	}
-	static constexpr const wchar_t* parameterHelp[][5] {
+	static constexpr const wchar_t* PARAMETER_HELP[][5] {
 		{ L"Red balance", L"Green balance", L"Blue balance", L"Warmth", L"Tint" },
 		{ L"Midtone brightness" },
 		{ L"Input black level", L"Input white level", L"Output black level", L"Output white level" },
 		{ L"Shadow brightness", L"Highlight brightness" }
 	};
-	if (selected >= 2 && selected <= 5)
+	if (selected_effect >= effect::FirstCreative && selected_effect <= effect::ShadowsHighlights)
 		for (size_t i = 0; i < controls.size(); ++i)
-			ui::SetHelpText(adjustmentSliders[i], parameterHelp[selected - 2][i]);
-	if (selected == 10)
-		ui::SetHelpText(adjustmentSliders[0], L"Color strength");
-	if (selected == 11)
+			ui::SetHelpText(adjustment_sliders[i], PARAMETER_HELP[selected_effect - effect::FirstCreative][i]);
+	if (selected_effect == effect::Saturation)
+		ui::SetHelpText(adjustment_sliders[0], L"Color strength");
+	if (selected_effect == effect::ChannelMixer)
 		for (int i = 0; i < 3; ++i)
 		{
 			const wchar_t* help[] { L"Red contribution", L"Green contribution", L"Blue contribution" };
-			ui::SetHelpText(adjustmentSliders[i], help[i]);
+			ui::SetHelpText(adjustment_sliders[i], help[i]);
 		}
-	if (selected == 9)
+	if (selected_effect == effect::NightLight)
 	{
-		ui::SetHelpText(adjustmentSliders[0], L"Night light warmth");
-		ui::SetHelpText(adjustmentSliders[1], L"Fade duration");
+		ui::SetHelpText(adjustment_sliders[0], L"Night light warmth");
+		ui::SetHelpText(adjustment_sliders[1], L"Fade duration");
 	}
-	adjustmentPage = settingsPage ? -1 : selected;
-	SetControlVisible(saturationReportButton, settingsPage);
-	SetControlVisible(curveChannel, selected == 6 && !settingsPage);
-	SetControlVisible(importButton, selected == 7 && !settingsPage);
-	SetControlVisible(export1DButton, selected == 7 && !settingsPage);
-	for (HWND control : { layers, correctionLayers, windowsLayers, listLabel, effectsLabel, orderHint })
+	adjustment_page = settings_page ? -1 : selected_effect;
+	SetControlVisible(saturation_report_button, settings_page);
+	SetControlVisible(curve_channel, selected_effect == effect::CustomCurves && !settings_page);
+	SetControlVisible(import_button, selected_effect == effect::Imported1dLut && !settings_page);
+	SetControlVisible(export_1d_button, selected_effect == effect::Imported1dLut && !settings_page);
+	for (HWND control :
+	     { effect_list, correction_list, windows_effect_list, corrections_heading, effects_label, order_hint })
 		SetControlVisible(control, true);
-	SetControlVisible(presetLabel, false);
-	SetControlVisible(title, !settingsPage);
-	SetControlVisible(description, !settingsPage);
-	SetControlVisible(activeLookLabel, false);
-	SetControlVisible(openPresetButton, settingsPage);
-	SetControlVisible(settingsButton, false);
-	for (HWND control : { shortcutLabel, shortcutControl, shortcutButton, fontChoice, fontLabel, bypassButton })
-		SetControlVisible(control, settingsPage);
+	SetControlVisible(preset_label, false);
+	SetControlVisible(effect_title, !settings_page);
+	SetControlVisible(effect_description, !settings_page);
+	SetControlVisible(active_look_label, false);
+	SetControlVisible(open_preset_button, settings_page);
+	SetControlVisible(settings_button, false);
+	for (HWND control : { shortcut_label, shortcut_control, shortcut_button, font_choice, font_label, bypass_button })
+		SetControlVisible(control, settings_page);
 	// Personal corrections have their own settings, outside LUT presets.
 	for (HWND control :
-	     { presetChoice, autosaveControl, savePresetButton, saveAsButton, exportButton, revertPresetButton })
-		SetControlVisible(control, settingsPage || selected < 8 || selected >= 10);
-	SetControlVisible(versionLabel, settingsPage);
-	SetControlVisible(startupControl, settingsPage);
-	SetControlVisible(startMinimizedControl, settingsPage);
-	SetControlVisible(openPresetButton, settingsPage);
-	for (HWND control : { filterChoice, filterSettingsButton, correctionNote })
+	     { preset_choice, autosave_control, save_preset_button, save_as_button, export_button, revert_preset_button })
+		SetControlVisible(control, settings_page || selected_effect < effect::FirstWindows ||
+		                               selected_effect >= effect::Saturation);
+	SetControlVisible(version_label, settings_page);
+	SetControlVisible(startup_control, settings_page);
+	SetControlVisible(start_minimized_control, settings_page);
+	SetControlVisible(open_preset_button, settings_page);
+	for (HWND control : { filter_choice, filter_settings_button, correction_note })
 		SetControlVisible(control, false);
 	for (HWND control :
-	     { nightSchedule, nightStart, nightEnd, nightStartLabel, nightEndLabel, nightInclude, nightDisplay })
-		SetControlVisible(control, !settingsPage && selected == 9);
-	if (!settingsPage && selected == 9)
+	     { night_schedule, night_start, night_end, night_start_label, night_end_label, night_include, night_display })
+		SetControlVisible(control, !settings_page && selected_effect == effect::NightLight);
+	if (!settings_page && selected_effect == effect::NightLight)
 	{
-		if (SendMessageW(nightDisplay, CB_GETCOUNT, 0, 0) != static_cast<LRESULT>(sources.size()))
+		if (SendMessageW(night_display, CB_GETCOUNT, 0, 0) != static_cast<LRESULT>(display_sources.size()))
 		{
-			SendMessageW(nightDisplay, CB_RESETCONTENT, 0, 0);
-			for (const auto& output : sources)
-				SendMessageW(nightDisplay, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(output.label.c_str()));
-			SendMessageW(nightDisplay, CB_SETCURSEL, valid ? sourceIndex : 0, 0);
+			SendMessageW(night_display, CB_RESETCONTENT, 0, 0);
+			for (const auto& output : display_sources)
+				SendMessageW(night_display, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(output.label.c_str()));
+			SendMessageW(night_display, CB_SETCURSEL, valid ? source_index : 0, 0);
 		}
-		const auto nightIndex = SendMessageW(nightDisplay, CB_GETCURSEL, 0, 0);
-		const bool nightValid = nightIndex >= 0 && static_cast<size_t>(nightIndex) < sources.size();
-		SetControlVisible(correctionNote, true);
-		SetTextIfChanged(correctionNote, nightMessage.empty()
-		                                     ? (nightConfig.scheduled ? (nightLevel > 0 ? L"Schedule active"
-		                                                                                : L"Waiting for the schedule")
-		                                                              : L"Manual mode")
-		                                     : nightMessage.c_str());
+		const auto night_index = SendMessageW(night_display, CB_GETCURSEL, 0, 0);
+		const bool night_valid = night_index >= 0 && static_cast<size_t>(night_index) < display_sources.size();
+		SetControlVisible(correction_note, true);
+		SetTextIfChanged(correction_note, night_message.empty() ? (night_config.Scheduled
+		                                                               ? (night_level > 0 ? L"Schedule active"
+		                                                                                  : L"Waiting for the schedule")
+		                                                               : L"Manual mode")
+		                                                        : night_message.c_str());
 		for (const auto& entry :
-		     { std::pair<HWND, bool> { nightSchedule, nightConfig.scheduled },
-		       { nightInclude, nightValid && night::IsDisplayIncluded(nightConfig, sources[nightIndex].identity) } })
+		     { std::pair<HWND, bool> { night_schedule, night_config.Scheduled },
+		       { night_include,
+		         night_valid && night::IsDisplayIncluded(night_config, display_sources[night_index].identity) } })
 			if (SendMessageW(entry.first, BM_GETCHECK, 0, 0) != (entry.second ? BST_CHECKED : BST_UNCHECKED))
 				SendMessageW(entry.first, BM_SETCHECK, entry.second ? BST_CHECKED : BST_UNCHECKED, 0);
-		if (GetFocus() != nightStart)
-			SetTextIfChanged(nightStart, night::FormatTime(nightConfig.start).c_str());
-		if (GetFocus() != nightEnd)
-			SetTextIfChanged(nightEnd, night::FormatTime(nightConfig.end).c_str());
-		SetControlEnabled(nightStart, nightConfig.scheduled);
-		SetControlEnabled(nightEnd, nightConfig.scheduled);
-		SetControlEnabled(nightInclude, nightValid && sources[nightIndex].supported);
+		if (GetFocus() != night_start)
+			SetTextIfChanged(night_start, night::FormatTime(night_config.Start).c_str());
+		if (GetFocus() != night_end)
+			SetTextIfChanged(night_end, night::FormatTime(night_config.End).c_str());
+		SetControlEnabled(night_start, night_config.Scheduled);
+		SetControlEnabled(night_end, night_config.Scheduled);
+		SetControlEnabled(night_include, night_valid && display_sources[night_index].supported);
 	}
-	if (!settingsPage && selected == 8)
+	if (!settings_page && selected_effect == effect::ColorFilters)
 	{
-		SetControlVisible(filterChoice, true);
-		SetControlVisible(filterSettingsButton, true);
-		SetControlVisible(correctionNote, !filterMessage.empty() || !filterState.available);
+		SetControlVisible(filter_choice, true);
+		SetControlVisible(filter_settings_button, true);
+		SetControlVisible(correction_note, !filter_message.empty() || !filter_state.available);
 	}
-	SetTextIfChanged(versionLabel, L"MonitorMage " MONITORMAGE_VERSION_W);
-	SetControlEnabled(filterChoice, filterState.available && !filterController.IsBusy() && !renderOnly);
-	if (SendMessageW(filterChoice, CB_GETCURSEL, 0, 0) != filterState.filter)
-		SendMessageW(filterChoice, CB_SETCURSEL, filterState.filter, 0);
-	if (selected != 9 || settingsPage)
-		SetTextIfChanged(correctionNote, (!filterMessage.empty() ? filterMessage
-		                                  : !filterState.available
-		                                      ? filterState.reason
-		                                      : L"Windows color filters stay on when MonitorMage is off or closed.")
-		                                     .c_str());
-	const auto startupCheck = startupEnabled ? BST_CHECKED : BST_UNCHECKED;
-	if (SendMessageW(startupControl, BM_GETCHECK, 0, 0) != startupCheck)
-		SendMessageW(startupControl, BM_SETCHECK, startupCheck, 0);
-	SetControlEnabled(startupControl, !renderOnly);
-	const auto minimizedCheck = startMinimized ? BST_CHECKED : BST_UNCHECKED;
-	if (SendMessageW(startMinimizedControl, BM_GETCHECK, 0, 0) != minimizedCheck)
-		SendMessageW(startMinimizedControl, BM_SETCHECK, minimizedCheck, 0);
-	SetTextIfChanged(settingsButton, settingsPage ? L"Back to effects" : ui::wording::Settings);
-	SetTextIfChanged(amountLabel, L"Contrast");
-	SetTextIfChanged(amountValue, FormatDecimal(ContrastAmount()).c_str());
-	SetTextIfChanged(pivotLabel, L"Pivot");
-	SetTextIfChanged(pivotValue, FormatDecimal(ContrastPivot()).c_str());
-	std::wstring statusText = liveMessage;
-	statusError = liveError;
-	const bool applying = ProcessingActive(), profileActive = applicationContextActive && !appFocus.IsManualOverride();
-	if (!liveError && liveSession.IsActive() && !applying)
-		statusText = L"Ready. No adjustments are changing the picture.";
-	if (!renderOnly && !hotkeyMessage.empty())
-		statusText += L" " + hotkeyMessage;
-	if (!liveError && !presetMessage.empty())
+	SetTextIfChanged(version_label, L"MonitorMage " MONITORMAGE_VERSION_W);
+	SetControlEnabled(filter_choice, filter_state.available && !filter_controller.IsBusy() && !render_only);
+	if (SendMessageW(filter_choice, CB_GETCURSEL, 0, 0) != filter_state.filter)
+		SendMessageW(filter_choice, CB_SETCURSEL, filter_state.filter, 0);
+	if (selected_effect != effect::NightLight || settings_page)
+		SetTextIfChanged(correction_note, (!filter_message.empty() ? filter_message
+		                                   : !filter_state.available
+		                                       ? filter_state.reason
+		                                       : L"Windows color filters stay on when MonitorMage is off or closed.")
+		                                      .c_str());
+	const auto startup_check = startup_enabled ? BST_CHECKED : BST_UNCHECKED;
+	if (SendMessageW(startup_control, BM_GETCHECK, 0, 0) != startup_check)
+		SendMessageW(startup_control, BM_SETCHECK, startup_check, 0);
+	SetControlEnabled(startup_control, !render_only);
+	const auto minimized_check = start_minimized ? BST_CHECKED : BST_UNCHECKED;
+	if (SendMessageW(start_minimized_control, BM_GETCHECK, 0, 0) != minimized_check)
+		SendMessageW(start_minimized_control, BM_SETCHECK, minimized_check, 0);
+	SetTextIfChanged(settings_button, settings_page ? L"Back to effects" : ui::wording::LABEL_SETTINGS);
+	SetTextIfChanged(amount_label, L"Contrast");
+	SetTextIfChanged(amount_value, FormatDecimal(ContrastAmount()).c_str());
+	SetTextIfChanged(pivot_label, L"Pivot");
+	SetTextIfChanged(pivot_value, FormatDecimal(ContrastPivot()).c_str());
+	std::wstring status_text = live_message;
+	status_error = live_error;
+	const bool applying = ProcessingActive(),
+			   profile_active = application_context_active && !foreground_program.IsManualOverride();
+	if (!live_error && live_session.IsActive() && !applying)
+		status_text = L"Ready. No adjustments are changing the picture.";
+	if (!render_only && !hotkey_message.empty())
+		status_text += L" " + hotkey_message;
+	if (!live_error && !preset_message.empty())
 	{
-		statusText = presetMessage;
-		statusError = presetMessage == lastPresetError;
+		status_text = preset_message;
+		status_error = preset_message == last_preset_error;
 	}
-	else if (!liveError && !profileMessage.empty())
+	else if (!live_error && !profile_message.empty())
 	{
-		statusText = profileMessage;
-		statusError = false;
+		status_text = profile_message;
+		status_error = false;
 	}
 	if (IsColorMatrixNeeded())
 	{
-		const auto state = renderOnly ? matrix_effect::State::Active : matrixSession.CurrentState();
-		if (!matrixMessage.empty())
+		const auto state = render_only ? matrix_effect::State::Active : matrix_session.CurrentState();
+		if (!matrix_message.empty())
 		{
-			statusText = matrixMessage;
-			statusError = true;
+			status_text = matrix_message;
+			status_error = true;
 		}
 		else if (state == matrix_effect::State::OtherTool || state == matrix_effect::State::ExternalChange)
 		{
-			statusText =
+			status_text =
 				L"Color effects are paused because another color tool is active. Your color curves can still work.";
-			statusError = true;
+			status_error = true;
 		}
 		else if (state == matrix_effect::State::Failed)
 		{
-			statusText = L"Color effects could not be applied. Your color curves can still work.";
-			statusError = true;
+			status_text = L"Color effects could not be applied. Your color curves can still work.";
+			status_error = true;
 		}
-		else if (state == matrix_effect::State::Active && !liveError)
+		else if (state == matrix_effect::State::Active && !live_error)
 		{
-			statusText =
+			status_text =
 				L"Your color effects are on. They apply to all displays; some fullscreen games may skip them. The graph shows color curves only.";
-			statusError = false;
+			status_error = false;
 		}
 	}
-	if (!renderOnly && !IsColorMatrixNeeded() && matrixSession.CurrentState() == matrix_effect::State::Failed)
+	if (!render_only && !IsColorMatrixNeeded() && matrix_session.CurrentState() == matrix_effect::State::Failed)
 	{
-		statusText = L"Your previous colors could not be confirmed. See the color effect report in Settings.";
-		statusError = true;
+		status_text = L"Your previous colors could not be confirmed. See the color effect report in Settings.";
+		status_error = true;
 	}
-	if (!matrixMessage.empty())
+	if (!matrix_message.empty())
 	{
-		statusText = matrixMessage;
-		statusError = true;
+		status_text = matrix_message;
+		status_error = true;
 	}
-	if (filterError)
+	if (filter_error)
 	{
-		statusText = filterMessage;
-		statusError = true;
+		status_text = filter_message;
+		status_error = true;
 	}
-	if (!nightMessage.empty() && !renderOnly)
+	if (!night_message.empty() && !render_only)
 	{
-		statusText = nightMessage;
-		statusError = true;
+		status_text = night_message;
+		status_error = true;
 	}
-	const auto& look = CurrentPreset(0);
-	std::wstring profileText = L"Desktop profile";
-	if (profileActive)
+	const auto& look = CurrentPreset(preset_role::Look);
+	std::wstring profile_text = L"Desktop profile";
+	if (profile_active)
 	{
-		profileText = L"Profile: " + programs::DisplayName(appFocus.FocusedProgram()) + L" | ";
-		profileText += profileAction == applications::Action::PauseHdr  ? L"HDR gamma paused"
-		               : profileAction == applications::Action::Disable ? L"All adjustments paused"
-		               : profileAction == applications::Action::Bypass  ? L"Look bypassed"
-		               : look.path.empty()                              ? L"Unsaved look"
-		                                                                : look.path.stem().wstring();
+		profile_text = L"Profile: " + programs::DisplayName(foreground_program.FocusedProgram()) + L" | ";
+		profile_text += profile_action == applications::Action::PauseHdr  ? L"HDR gamma paused"
+		                : profile_action == applications::Action::Disable ? L"All adjustments paused"
+		                : profile_action == applications::Action::Bypass  ? L"Look bypassed"
+		                : look.path.empty()                               ? L"Unsaved look"
+		                                                                  : look.path.stem().wstring();
 	}
-	SetTextIfChanged(monitorProfile, profileText.c_str());
-	const auto lookName = (look.path.empty() ? std::wstring(L"Unsaved look") : look.path.stem().wstring()) +
-	                      ((sliderDragging ? lookDirtyBeforeDrag : look.IsDirty()) ? L" *" : L"");
-	std::wstring origin = applicationContextActive
-	                          ? (appFocus.IsManualOverride() ? L"Manual override: " : L"Application profile: ") +
-	                                programs::DisplayName(appFocus.FocusedProgram())
-	                          : L"Manual look";
-	std::wstring lookState = lookName;
-	if (profileAction == applications::Action::Disable)
-		lookState += L" (all adjustments paused)";
+	SetTextIfChanged(monitor_profile, profile_text.c_str());
+	const auto look_name = (look.path.empty() ? std::wstring(L"Unsaved look") : look.path.stem().wstring()) +
+	                       ((slider_dragging ? look_dirty_before_drag : look.IsDirty()) ? L" *" : L"");
+	std::wstring origin =
+		application_context_active
+			? (foreground_program.IsManualOverride() ? L"Manual override: " : L"Application profile: ") +
+				  programs::DisplayName(foreground_program.FocusedProgram())
+			: L"Manual look";
+	std::wstring look_state = look_name;
+	if (profile_action == applications::Action::Disable)
+		look_state += L" (all adjustments paused)";
 	else
 	{
-		if (profileAction == applications::Action::PauseHdr)
-			lookState += L" (HDR gamma paused)";
+		if (profile_action == applications::Action::PauseHdr)
+			look_state += L" (HDR gamma paused)";
 		if (IsLookBypassed())
-			lookState += L" (look bypassed)";
+			look_state += L" (look bypassed)";
 	}
-	SetTextIfChanged(hdrFixControl, L"Also apply when Windows HDR is off (SDR)");
-	const auto activeText = origin + L" | " + lookState;
-	SetTextIfChanged(activeLookLabel, activeText.c_str());
-	const auto caption = L"MonitorMage - " + activeText;
-	SetTextIfChanged(window, caption.c_str());
+	SetTextIfChanged(hdr_fix_control, L"Also apply when Windows HDR is off (SDR)");
+	const auto active_text = origin + L" | " + look_state;
+	SetTextIfChanged(active_look_label, active_text.c_str());
+	const auto caption = L"MonitorMage - " + active_text;
+	SetTextIfChanged(main_window, caption.c_str());
 	const auto state = CurrentIconState(applying);
-	const HICON smallIcon = IconForState(SM_CXSMICON, state), largeIcon = IconForState(SM_CXICON, state);
-	if (smallIcon && reinterpret_cast<HICON>(SendMessageW(window, WM_GETICON, ICON_SMALL, 0)) != smallIcon)
-		SendMessageW(window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(smallIcon));
-	if (largeIcon && reinterpret_cast<HICON>(SendMessageW(window, WM_GETICON, ICON_BIG, 0)) != largeIcon)
-		SendMessageW(window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(largeIcon));
-	const auto shortcutText =
-		hotkeyRegistered ? L"Bypass: " + HotkeyName(activeShortcut) : std::wstring(L"Bypass shortcut");
-	SetTextIfChanged(shortcutLabel, shortcutText.c_str());
-	SetTextIfChanged(status, statusText.c_str());
-	graphStatusVisible = statusError || hdrPending || displayRetryPending;
-	SetControlVisible(infoButton, !graphStatusVisible);
-	SetTextIfChanged(infoButton, statusText.c_str());
+	const HICON small_icon = IconForState(SM_CXSMICON, state), large_icon = IconForState(SM_CXICON, state);
+	if (small_icon && reinterpret_cast<HICON>(SendMessageW(main_window, WM_GETICON, ICON_SMALL, 0)) != small_icon)
+		SendMessageW(main_window, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(small_icon));
+	if (large_icon && reinterpret_cast<HICON>(SendMessageW(main_window, WM_GETICON, ICON_BIG, 0)) != large_icon)
+		SendMessageW(main_window, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(large_icon));
+	const auto shortcut_text =
+		hotkey_registered ? L"Bypass: " + HotkeyName(active_shortcut) : std::wstring(L"Bypass shortcut");
+	SetTextIfChanged(shortcut_label, shortcut_text.c_str());
+	SetTextIfChanged(status_label, status_text.c_str());
+	graph_status_visible = status_error || hdr_pending || display_retry_pending;
+	SetControlVisible(info_button, !graph_status_visible);
+	SetTextIfChanged(info_button, status_text.c_str());
 	// Expose the painted status as the keyboard-focusable graph's accessible name.
-	SetTextIfChanged(canvas, statusText.c_str());
-	for (HWND control : { amountLabel, amountValue, contrastSlider, pivotLabel, pivotValue, pivotSlider })
-		SetControlVisible(control, selected == 0 && !settingsPage);
-	for (HWND control : { whiteLabel, whiteValue, whiteSlider, gammaLabel, gammaChoice, gammaOther, hdrFixControl })
-		SetControlVisible(control, selected == 1 && !settingsPage);
-	ui::SetCaptionSettingsButton(window, SettingsPage, settingsPage);
-	const bool canPower =
-		!hdrPending && !renderOnly && (correctionsRequested || (valid && sources[sourceIndex].supported));
-	ui::SetIconButton(powerButton, ui::Glyph::Power, correctionsRequested, canPower);
-	ui::SetIconButton(hdrButton, ui::Glyph::Sun, valid && sources[sourceIndex].hdr,
-	                  !renderOnly && !hdrPending && hdrState.available);
-	ui::SetIconButton(profilesButton, ui::Glyph::Diamond, profileActive, true);
-	ui::SetIconButton(monitorSettingsButton, ui::Glyph::Settings, settingsPage, true);
-	ui::SetIconButton(infoButton, ui::Glyph::Info, false, true);
-	ui::CaptionActions(window, { { { ToggleWindowsHdr, valid && sources[sourceIndex].hdr,
-	                                 !renderOnly && !hdrPending && hdrState.available },
-	                               { ApplicationProfiles, profileActive, true },
-	                               { TestContrast, correctionsRequested, canPower } } });
-	SetControlEnabled(sourceChoice, !liveSession.IsActive() && !hdrPending);
-	SetControlEnabled(whiteSlider, !(valid && sources[sourceIndex].hdr));
-	SetTextIfChanged(bypassButton, IsLookBypassed() ? L"Resume look" : L"Bypass look");
+	SetTextIfChanged(curve_canvas, status_text.c_str());
+	for (HWND control : { amount_label, amount_value, contrast_slider, pivot_label, pivot_value, pivot_slider })
+		SetControlVisible(control, selected_effect == effect::ContrastCurves && !settings_page);
+	for (HWND control :
+	     { white_label, white_value, white_slider, gamma_label, gamma_choice, gamma_other, hdr_fix_control })
+		SetControlVisible(control, selected_effect == effect::HdrGamma && !settings_page);
+	ui::SetCaptionSettingsButton(main_window, ID_SETTINGS_PAGE, settings_page);
+	const bool can_power =
+		!hdr_pending && !render_only && (corrections_requested || (valid && display_sources[source_index].supported));
+	ui::SetIconButton(power_button, ui::Glyph::Power, corrections_requested, can_power);
+	ui::SetIconButton(hdr_button, ui::Glyph::Sun, valid && display_sources[source_index].hdr,
+	                  !render_only && !hdr_pending && hdr_state.available);
+	ui::SetIconButton(profiles_button, ui::Glyph::Diamond, profile_active, true);
+	ui::SetIconButton(monitor_settings_button, ui::Glyph::Settings, settings_page, true);
+	ui::SetIconButton(info_button, ui::Glyph::Info, false, true);
+	ui::CaptionActions(main_window, { { { ID_TOGGLE_WINDOWS_HDR, valid && display_sources[source_index].hdr,
+	                                      !render_only && !hdr_pending && hdr_state.available },
+	                                    { ID_APPLICATION_PROFILES, profile_active, true },
+	                                    { ID_TEST_CONTRAST, corrections_requested, can_power } } });
+	SetControlEnabled(source_choice, !live_session.IsActive() && !hdr_pending);
+	SetControlEnabled(white_slider, !(valid && display_sources[source_index].hdr));
+	SetTextIfChanged(bypass_button, IsLookBypassed() ? L"Resume look" : L"Bypass look");
 	std::wstring note = L"No active display group available.";
 	if (valid)
 	{
-		const auto& source = sources[sourceIndex];
+		const auto& source = display_sources[source_index];
 		note = source.label + L"\n";
-		if (settingsPage && std::count(source.identity.begin(), source.identity.end(), L'\n') > 1)
+		if (settings_page && std::count(source.identity.begin(), source.identity.end(), L'\n') > 1)
 			note += L"Linked displays change together.\n";
 		note += source.hdr ? L"HDR: SDR white follows Windows." : L"SDR: hardware colour curves.";
 		if (!source.supported)
 			note += L" Mode not supported.";
 	}
-	SetTextIfChanged(testNote, note.c_str());
-	SetControlVisible(testNote, false);
-	SetControlVisible(sourceChoice, true);
-	std::wstring mode = valid ? (sources[sourceIndex].hdr ? L"HDR" : L"SDR") : L"";
-	SetTextIfChanged(monitorMode, mode.c_str());
-	if (valid && sources[sourceIndex].hdr)
+	SetTextIfChanged(test_note, note.c_str());
+	SetControlVisible(test_note, false);
+	SetControlVisible(source_choice, true);
+	std::wstring mode = valid ? (display_sources[source_index].hdr ? L"HDR" : L"SDR") : L"";
+	SetTextIfChanged(monitor_mode, mode.c_str());
+	if (valid && display_sources[source_index].hdr)
 	{
-		whitePosition = static_cast<int>(std::lround(sources[sourceIndex].white));
-		if (SendMessageW(whiteSlider, TBM_GETPOS, 0, 0) != whitePosition)
-			SendMessageW(whiteSlider, TBM_SETPOS, TRUE, whitePosition);
-		const auto detected = FormatDecimal(sources[sourceIndex].white, 0) + L" nits";
-		SetTextIfChanged(whiteValue, detected.c_str());
+		white_position = static_cast<int>(std::lround(display_sources[source_index].white));
+		if (SendMessageW(white_slider, TBM_GETPOS, 0, 0) != white_position)
+			SendMessageW(white_slider, TBM_SETPOS, TRUE, white_position);
+		const auto detected = FormatDecimal(display_sources[source_index].white, 0) + L" nits";
+		SetTextIfChanged(white_value, detected.c_str());
 	}
 	else
 	{
-		const auto text = std::to_wstring(whitePosition) + L" nits";
-		SetTextIfChanged(whiteValue, text.c_str());
+		const auto text = std::to_wstring(white_position) + L" nits";
+		SetTextIfChanged(white_value, text.c_str());
 	}
 	UpdateTray();
 	LayoutEffectControls();
-	if (changingAdjustmentPage)
-		for (size_t i = 0; i < adjustmentSliders.size(); ++i)
-			SetControlVisible(adjustmentSliders[i], i < controls.size() && !settingsPage);
+	if (changing_adjustment_page)
+		for (size_t i = 0; i < adjustment_sliders.size(); ++i)
+			SetControlVisible(adjustment_sliders[i], i < controls.size() && !settings_page);
 	InvalidateGraph();
 }
 
 void LayoutEditorControls()
 {
-	if (!editorReady)
+	if (!editor_ready)
 		return;
-	++graphLayoutVersion;
-	effectLayoutValid = false;
-	if (font)
-		DeleteObject(font);
-	font = ui::CreateUiFont(static_cast<UINT>(dpi));
-	if (hintFont)
-		DeleteObject(hintFont);
-	LOGFONTW hintStyle {};
-	GetObjectW(font, sizeof(hintStyle), &hintStyle);
-	hintStyle.lfHeight = -ScaleForDpi(ui::style::SecondaryTextSize);
-	hintFont = CreateFontIndirectW(&hintStyle);
-	SendMessageW(selectedEffectToggle, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	for (HWND slider : adjustmentSliders)
-		SendMessageW(slider, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	for (HWND slider : { contrastSlider, pivotSlider, whiteSlider })
-		SendMessageW(slider, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	ui::StyleTooltip(monitorTips);
+	++graph_layout_version;
+	effect_layout_valid = false;
+	if (ui_font)
+		DeleteObject(ui_font);
+	ui_font = ui::CreateUiFont(static_cast<UINT>(dpi));
+	if (hint_font)
+		DeleteObject(hint_font);
+	LOGFONTW hint_style {};
+	GetObjectW(ui_font, sizeof(hint_style), &hint_style);
+	hint_style.lfHeight = -ScaleForDpi(ui::style::SECONDARY_TEXT_SIZE);
+	hint_font = CreateFontIndirectW(&hint_style);
+	SendMessageW(selected_effect_toggle, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	for (HWND slider : adjustment_sliders)
+		SendMessageW(slider, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	for (HWND slider : { contrast_slider, pivot_slider, white_slider })
+		SendMessageW(slider, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	ui::StyleTooltip(monitor_tips);
 	for (HWND control :
-	     { layers,           title,           description,      amountLabel,     pivotLabel,         whiteLabel,
-	       gammaLabel,       gammaChoice,     gammaOther,       status,          monitorMode,        monitorProfile,
-	       resetButton,      exportButton,    listLabel,        sourceChoice,    testNote,           bypassButton,
-	       hdrFixControl,    shortcutControl, shortcutButton,   shortcutLabel,   presetLabel,        presetChoice,
-	       savePresetButton, saveAsButton,    openPresetButton, autosaveControl, revertPresetButton, profilesButton,
-	       activeLookLabel,  orderHint })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	for (HWND control : { correctionLayers, windowsLayers, effectsLabel })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+	     { effect_list,       effect_title,       effect_description, amount_label,         pivot_label,
+	       white_label,       gamma_label,        gamma_choice,       gamma_other,          status_label,
+	       monitor_mode,      monitor_profile,    reset_button,       export_button,        corrections_heading,
+	       source_choice,     test_note,          bypass_button,      hdr_fix_control,      shortcut_control,
+	       shortcut_button,   shortcut_label,     preset_label,       preset_choice,        save_preset_button,
+	       save_as_button,    open_preset_button, autosave_control,   revert_preset_button, profiles_button,
+	       active_look_label, order_hint })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	for (HWND control : { correction_list, windows_effect_list, effects_label })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
 	// Presets and their actions belong to the right pane; the sidebar is the stack.
-	PlaceControl(presetChoice, 198, 21, 244, 240);
-	PlaceControl(savePresetButton, 558, 16, 32, 42);
-	PlaceControl(saveAsButton, 598, 16, 32, 42);
-	PlaceControl(autosaveControl, 454, 16, 92, 28);
-	PlaceControl(exportButton, 644, 16, 32, 42);
-	PlaceControl(activeLookLabel, 20, 48, 444, 24);
-	PlaceControl(revertPresetButton, 724, 16, 32, 42);
-	PlaceControl(testNote, 20, 480, 180, 82);
-	PlaceControl(title, 198, 64, 470, 24);
-	PlaceControl(selectedEffectToggle, 676, 62, 40, 28);
-	PlaceControl(resetButton, 724, 62, 32, 42);
-	SendMessageW(saturationReportButton, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	for (HWND control : { amountValue, pivotValue, whiteValue })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	PlaceControl(listLabel, 13, 16, 160, 28);
-	PlaceControl(correctionLayers, 0, 48, SidebarWidth, 36);
-	PlaceControl(windowsLayers, 0, 84, SidebarWidth, 72);
-	const int effectRows = std::min(static_cast<int>(CreativeOrder().size()), 10),
-			  effectHeight = effectRows * effects::RowHeight;
-	PlaceControl(effectsLabel, 13, 168, 160, 24);
-	PlaceControl(layers, 0, 196, SidebarWidth, effectHeight);
-	PlaceControl(orderHint, 0, 196 + effectHeight + 6, SidebarWidth, 18);
-	PlaceControl(testNote, 20, settingsPage ? 480 : 500, 180, settingsPage ? 82 : 62);
+	PlaceControl(preset_choice, 198, 21, 244, 240);
+	PlaceControl(save_preset_button, 558, 16, 32, 42);
+	PlaceControl(save_as_button, 598, 16, 32, 42);
+	PlaceControl(autosave_control, 454, 16, 92, 28);
+	PlaceControl(export_button, 644, 16, 32, 42);
+	PlaceControl(active_look_label, 20, 48, 444, 24);
+	PlaceControl(revert_preset_button, 724, 16, 32, 42);
+	PlaceControl(test_note, 20, 480, 180, 82);
+	PlaceControl(effect_title, 198, 64, 470, 24);
+	PlaceControl(selected_effect_toggle, 676, 62, 40, 28);
+	PlaceControl(reset_button, 724, 62, 32, 42);
+	SendMessageW(saturation_report_button, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	for (HWND control : { amount_value, pivot_value, white_value })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	PlaceControl(corrections_heading, 13, 16, 160, 28);
+	PlaceControl(correction_list, 0, 48, SIDEBAR_WIDTH, 36);
+	PlaceControl(windows_effect_list, 0, 84, SIDEBAR_WIDTH, 72);
+	const int effect_rows = std::min(static_cast<int>(CreativeOrder().size()), 10),
+			  effect_height = effect_rows * effects::ROW_HEIGHT;
+	PlaceControl(effects_label, 13, 168, 160, 24);
+	PlaceControl(effect_list, 0, 196, SIDEBAR_WIDTH, effect_height);
+	PlaceControl(order_hint, 0, 196 + effect_height + 6, SIDEBAR_WIDTH, 18);
+	PlaceControl(test_note, 20, settings_page ? 480 : 500, 180, settings_page ? 82 : 62);
 	const auto width = [&](HWND control, int minimum = 64, int maximum = 240)
 	{
-		return ui::ContentWidth(control, font, minimum, maximum);
+		return ui::ContentWidth(control, ui_font, minimum, maximum);
 	};
-	PlaceControl(fontLabel, 198, 98, 220, 20);
-	PlaceControl(fontChoice, 198, 125, width(fontChoice, 128, 220), 180);
-	PlaceControl(openPresetButton, 198, 228, width(openPresetButton), 28);
-	PlaceControl(bypassButton, 456, 164, width(bypassButton, 100), 28);
-	PlaceControl(saturationReportButton, 456, 228, width(saturationReportButton), 28);
-	PlaceControl(versionLabel, 198, 64, 220, 24);
-	PlaceControl(startupControl, 198, 164, 220, 26);
-	PlaceControl(startMinimizedControl, 198, 196, 220, 26);
-	PlaceControl(shortcutLabel, 456, 98, 300, 20);
-	PlaceControl(shortcutControl, 456, 120, 200, 28);
-	PlaceControl(shortcutButton, 664, 120, 92, 28);
+	PlaceControl(font_label, 198, 98, 220, 20);
+	PlaceControl(font_choice, 198, 125, width(font_choice, 128, 220), 180);
+	PlaceControl(open_preset_button, 198, 228, width(open_preset_button), 28);
+	PlaceControl(bypass_button, 456, 164, width(bypass_button, 100), 28);
+	PlaceControl(saturation_report_button, 456, 228, width(saturation_report_button), 28);
+	PlaceControl(version_label, 198, 64, 220, 24);
+	PlaceControl(startup_control, 198, 164, 220, 26);
+	PlaceControl(start_minimized_control, 198, 196, 220, 26);
+	PlaceControl(shortcut_label, 456, 98, 300, 20);
+	PlaceControl(shortcut_control, 456, 120, 200, 28);
+	PlaceControl(shortcut_button, 664, 120, 92, 28);
 
-	for (size_t i = 0; i < adjustmentSliders.size(); ++i)
+	for (size_t i = 0; i < adjustment_sliders.size(); ++i)
 	{
-		SendMessageW(adjustmentLabels[i], WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-		SendMessageW(adjustmentValues[i], WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+		SendMessageW(adjustment_labels[i], WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+		SendMessageW(adjustment_values[i], WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
 	}
-	for (HWND control : { settingsButton, fontChoice, fontLabel, curveChannel, importButton, export1DButton })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	for (HWND control : { versionLabel, startupControl, startMinimizedControl })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	for (HWND control : { filterChoice, filterSettingsButton, correctionNote })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+	for (HWND control : { settings_button, font_choice, font_label, curve_channel, import_button, export_1d_button })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	for (HWND control : { version_label, startup_control, start_minimized_control })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	for (HWND control : { filter_choice, filter_settings_button, correction_note })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
 	for (HWND control :
-	     { nightSchedule, nightStart, nightEnd, nightStartLabel, nightEndLabel, nightInclude, nightDisplay })
-		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-	SendMessageW(orderHint, WM_SETFONT, reinterpret_cast<WPARAM>(hintFont ? hintFont : font), TRUE);
-	ui::RefreshCaptionFont(window);
+	     { night_schedule, night_start, night_end, night_start_label, night_end_label, night_include, night_display })
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(ui_font), TRUE);
+	SendMessageW(order_hint, WM_SETFONT, reinterpret_cast<WPARAM>(hint_font ? hint_font : ui_font), TRUE);
+	ui::RefreshCaptionFont(main_window);
 	RefreshPresetChoice();
 	RefreshInterface();
-	for (HWND control : { monitorMode, monitorProfile })
+	for (HWND control : { monitor_mode, monitor_profile })
 		InvalidateRect(control, nullptr, FALSE);
-	InvalidateRect(window, nullptr, TRUE);
+	InvalidateRect(main_window, nullptr, TRUE);
 }
 
 void ShowEditor()
 {
-	SourceQueryBatch queryBatch;
+	SourceQueryBatch query_batch;
 	EditorSync sync;
 	CreateEditorIfNeeded();
 	RefreshColorFilters();
 	RefreshSources();
 	ApplyLiveCorrections();
 	RefreshInterface();
-	ShowWindow(window, SW_SHOW);
-	ShowWindow(window, SW_RESTORE);
-	SetForegroundWindow(window);
+	ShowWindow(main_window, SW_SHOW);
+	ShowWindow(main_window, SW_RESTORE);
+	SetForegroundWindow(main_window);
 }
 
 bool InstallTray()
 {
-	tray.cbSize = sizeof(tray);
-	tray.hWnd = window;
-	tray.uID = 1;
-	tray.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
-	tray.uCallbackMessage = TrayMessage;
-	tray.hIcon = IconForState(SM_CXSMICON);
-	if (!tray.hIcon)
-		tray.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-	wcscpy_s(tray.szTip, L"MonitorMage - disabled");
-	trayInstalled = Shell_NotifyIconW(NIM_ADD, &tray) != FALSE;
-	if (trayInstalled)
+	tray_icon.cbSize = sizeof(tray_icon);
+	tray_icon.hWnd = main_window;
+	tray_icon.uID = 1;
+	tray_icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
+	tray_icon.uCallbackMessage = MESSAGE_TRAY;
+	tray_icon.hIcon = IconForState(SM_CXSMICON);
+	if (!tray_icon.hIcon)
+		tray_icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+	wcscpy_s(tray_icon.szTip, L"MonitorMage - disabled");
+	tray_installed = Shell_NotifyIconW(NIM_ADD, &tray_icon) != FALSE;
+	if (tray_installed)
 	{
-		tray.uVersion = NOTIFYICON_VERSION_4;
-		Shell_NotifyIconW(NIM_SETVERSION, &tray);
+		tray_icon.uVersion = NOTIFYICON_VERSION_4;
+		Shell_NotifyIconW(NIM_SETVERSION, &tray_icon);
 	}
-	return trayInstalled;
+	return tray_installed;
 }
 
 std::vector<ui::MenuItem> TrayMenuItems()
 {
-	return { { Open, L"Open editor", L"", false, false, true, ui::Glyph::Editor },
-		     { ApplicationProfiles, ui::wording::ApplicationProfiles, L"",
-		       applicationContextActive && !appFocus.IsManualOverride(), false, true, ui::Glyph::Diamond },
-		     { ToggleWindowsHdr, L"Windows HDR", hdrPending ? L"SWITCHING" : L"", hdrState.on, false,
-		       hdrState.available && !hdrPending, ui::Glyph::Sun },
-		     { Bypass, IsLookBypassed() ? L"Resume look" : L"Bypass look",
-		       hotkeyRegistered ? HotkeyName(activeShortcut) : L"", IsLookBypassed(), false, true, ui::Glyph::Bypass },
-		     { TestContrast, L"Master power", !ProcessingActive() && correctionsRequested ? L"READY" : L"",
+	return { { ID_OPEN, L"Open editor", L"", false, false, true, ui::Glyph::Editor },
+		     { ID_APPLICATION_PROFILES, ui::wording::LABEL_APPLICATION_PROFILES, L"",
+		       application_context_active && !foreground_program.IsManualOverride(), false, true, ui::Glyph::Diamond },
+		     { ID_TOGGLE_WINDOWS_HDR, L"Windows HDR", hdr_pending ? L"SWITCHING" : L"", hdr_state.on, false,
+		       hdr_state.available && !hdr_pending, ui::Glyph::Sun },
+		     { ID_BYPASS, IsLookBypassed() ? L"Resume look" : L"Bypass look",
+		       hotkey_registered ? HotkeyName(active_shortcut) : L"", IsLookBypassed(), false, true,
+		       ui::Glyph::Bypass },
+		     { ID_TEST_CONTRAST, L"Master power", !ProcessingActive() && corrections_requested ? L"READY" : L"",
 		       ProcessingActive(), false, true, ui::Glyph::Power },
-		     { Exit, L"Exit", L"", false, true, true, ui::Glyph::Close } };
+		     { ID_EXIT, L"Exit", L"", false, true, true, ui::Glyph::Close } };
 }
 
 void ShowTrayMenu()
 {
-	if (!renderOnly)
+	if (!render_only)
 	{
 		RefreshSources();
 		RefreshColorFilters();
@@ -2566,28 +2619,28 @@ void ShowTrayMenu()
 	}
 	POINT point {};
 	GetCursorPos(&point);
-	const UINT command = ui::ShowTrayPopup(window, IconForState(SM_CXSMICON), TrayMenuItems(), point);
-	if (command == Open)
+	const UINT command = ui::ShowTrayPopup(main_window, IconForState(SM_CXSMICON), TrayMenuItems(), point);
+	if (command == ID_OPEN)
 		ShowEditor();
-	else if (command == Exit && ConfirmExit())
-		DestroyWindow(window);
-	else if (command == ApplicationProfiles)
+	else if (command == ID_EXIT && ConfirmExit())
+		DestroyWindow(main_window);
+	else if (command == ID_APPLICATION_PROFILES)
 		ShowProfiles();
-	else if (command == TestContrast)
+	else if (command == ID_TEST_CONTRAST)
 		ToggleCorrections();
-	else if (command == Bypass)
+	else if (command == ID_BYPASS)
 		ToggleBypass();
-	else if (command == ToggleWindowsHdr)
+	else if (command == ID_TOGGLE_WINDOWS_HDR)
 		ToggleWindowsHdrMode();
 }
 
 void ExportCurve()
 {
 	wchar_t file[32768] {};
-	wcscpy_s(file, selected == 0 ? L"creative-curves.csv" : L"compiled-curves.csv");
+	wcscpy_s(file, selected_effect == effect::ContrastCurves ? L"creative-curves.csv" : L"compiled-curves.csv");
 	OPENFILENAMEW dialog {};
 	dialog.lStructSize = sizeof(dialog);
-	dialog.hwndOwner = window;
+	dialog.hwndOwner = main_window;
 	dialog.lpstrFilter = L"Curve CSV (*.csv)\0*.csv\0\0";
 	dialog.lpstrFile = file;
 	dialog.nMaxFile = static_cast<DWORD>(std::size(file));
@@ -2598,7 +2651,7 @@ void ExportCurve()
 	HANDLE handle = CreateFileW(file, GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (handle == INVALID_HANDLE_VALUE)
 	{
-		MessageBoxW(window, L"Choose a different filename to keep the existing file.", L"Export curve",
+		MessageBoxW(main_window, L"Choose a different filename to keep the existing file.", L"Export curve",
 		            MB_OK | MB_ICONINFORMATION);
 		return;
 	}
@@ -2608,20 +2661,20 @@ void ExportCurve()
 	csv << "input,output_red,output_green,output_blue,model,contrast,pivot,sdr_white_nits,gamma,hdr_fix,bypass,contrast_enabled,correction_first\n";
 	const auto output = OutputForPreview();
 	const auto settings = CurrentSettings();
-	const bool hdrModel = output.hdr;
+	const bool hdr_model = output.hdr;
 	for (int i = 0; i < 1024; ++i)
 	{
 		const double x = i / 1023.0;
 		csv << x << ',' << live::EvaluateOutputCode(x, 0, output, settings) << ','
 			<< live::EvaluateOutputCode(x, 1, output, settings) << ','
 			<< live::EvaluateOutputCode(x, 2, output, settings) << ','
-			<< (hdrModel ? (liveSession.IsActive() ? "combined_hdr_pq" : "hdr_pq") : "creative_1d") << ',';
+			<< (hdr_model ? (live_session.IsActive() ? "combined_hdr_pq" : "hdr_pq") : "creative_1d") << ',';
 		csv << ContrastAmount() << ',' << ContrastPivot() << ',';
-		if (hdrModel)
-			csv << (liveSession.IsActive() ? liveOutput.white : whitePosition) << ',' << HdrGamma();
+		if (hdr_model)
+			csv << (live_session.IsActive() ? live_output.white : white_position) << ',' << HdrGamma();
 		else
 			csv << ',';
-		csv << ',' << IsHdrFixActive() << ',' << IsLookBypassed() << ',' << contrastEnabled << ',' << correctionFirst
+		csv << ',' << IsHdrFixActive() << ',' << IsLookBypassed() << ',' << contrast_enabled << ',' << correction_first
 			<< '\n';
 	}
 	const auto data = csv.str();
@@ -2629,20 +2682,20 @@ void ExportCurve()
 	const bool ok =
 		WriteFile(handle, data.data(), static_cast<DWORD>(data.size()), &written, nullptr) && written == data.size();
 	CloseHandle(handle);
-	MessageBoxW(window,
+	MessageBoxW(main_window,
 	            ok ? L"Curve exported." : L"The curve could not be saved completely. Check free space and try again.",
 	            L"Export curve", MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONERROR));
 }
 
 void ImportOrExportLut(bool importing)
 {
-	if (renderOnly)
+	if (render_only)
 		return;
 	wchar_t file[32768] {};
 	if (!importing)
 		wcscpy_s(file, L"MonitorMage-look");
 	OPENFILENAMEW dialog { sizeof(dialog) };
-	dialog.hwndOwner = window;
+	dialog.hwndOwner = main_window;
 	dialog.lpstrFile = file;
 	dialog.nMaxFile = static_cast<DWORD>(std::size(file));
 	dialog.lpstrFilter =
@@ -2659,9 +2712,9 @@ void ImportOrExportLut(bool importing)
 		if (importing)
 		{
 			auto loaded = lut1d::Read(path);
-			CurrentPreset(0).current.adjustments.imported = std::move(loaded.channels);
-			OnPresetEdited(0);
-			presetMessage = L"Color curves imported.";
+			CurrentPreset(preset_role::Look).current.Adjustments.Imported = std::move(loaded.channels);
+			OnPresetEdited(preset_role::Look);
+			preset_message = L"Color curves imported.";
 			ApplyLiveCorrections();
 		}
 		else
@@ -2671,21 +2724,21 @@ void ImportOrExportLut(bool importing)
 				const wchar_t* extensions[] { L".cube", L".spi1d", L".cal", L".csv", L".png", L".tif" };
 				path += extensions[std::clamp(static_cast<int>(dialog.nFilterIndex) - 1, 0, 5)];
 				if (std::filesystem::exists(path) &&
-				    MessageBoxW(window, L"Replace the existing LUT file?", L"Export look LUT",
+				    MessageBoxW(main_window, L"Replace the existing LUT file?", L"Export look LUT",
 				                MB_YESNO | MB_ICONQUESTION) != IDYES)
 					return;
 			}
 			auto settings = CurrentSettings();
-			settings.hdrFix = false;
-			settings.bypass = false;
-			settings.nightWarmth = 0;
+			settings.HdrFix = false;
+			settings.Bypass = false;
+			settings.NightWarmth = 0;
 			Source output;
 			lut1d::Channels channels;
 			for (int i = 0; i < 1024; ++i)
 				for (int c = 0; c < 3; ++c)
 					channels[c].push_back(live::EvaluateOutputCode(i / 1023.0, c, output, settings));
 			lut1d::Write(path, channels);
-			presetMessage =
+			preset_message =
 				L"Color curves exported. Saturation, Channel mixer and monitor corrections are not included.";
 		}
 	}
@@ -2706,25 +2759,27 @@ MonitorGeometry CalculateMonitorGeometry(HWND hwnd)
 {
 	RECT client {};
 	GetClientRect(hwnd, &client);
-	MonitorGeometry g {};
-	g.body = { 0, 0, client.right, client.bottom - ScaleForDpi(30) };
-	g.screen = g.body;
-	InflateRect(&g.screen, -ScaleForDpi(6), -ScaleForDpi(6));
+	MonitorGeometry geometry {};
+	geometry.body = { 0, 0, client.right, client.bottom - ScaleForDpi(30) };
+	geometry.screen = geometry.body;
+	InflateRect(&geometry.screen, -ScaleForDpi(6), -ScaleForDpi(6));
 	// Six DIP of internal padding plus a two-DIP inset gives an eight-DIP
 	// visible corner gap (previously sixteen), retaining rounded screen corners.
-	g.size = ScaleForDpi(24);
+	geometry.size = ScaleForDpi(24);
 	const int inset = ScaleForDpi(2);
-	g.left = g.screen.left + inset;
-	g.right = g.screen.right - inset - g.size;
-	g.top = g.screen.top + inset;
-	g.bottom = g.screen.bottom - inset - g.size;
+	geometry.left = geometry.screen.left + inset;
+	geometry.right = geometry.screen.right - inset - geometry.size;
+	geometry.top = geometry.screen.top + inset;
+	geometry.bottom = geometry.screen.bottom - inset - geometry.size;
 	// Reserve a small axis-label strip above the separate profile row.
-	g.plot = { g.left + g.size / 2 + ScaleForDpi(20), g.top + g.size / 2 + ScaleForDpi(20),
-		       g.right + g.size / 2 - ScaleForDpi(20), g.bottom + g.size / 2 - ScaleForDpi(32) };
+	geometry.plot = { geometry.left + geometry.size / 2 + ScaleForDpi(20),
+		              geometry.top + geometry.size / 2 + ScaleForDpi(20),
+		              geometry.right + geometry.size / 2 - ScaleForDpi(20),
+		              geometry.bottom + geometry.size / 2 - ScaleForDpi(32) };
 	const int center = client.right / 2;
-	g.foot = { center - ScaleForDpi(57), client.bottom - ScaleForDpi(15), center + ScaleForDpi(57),
-		       client.bottom - ScaleForDpi(3) };
-	return g;
+	geometry.foot = { center - ScaleForDpi(57), client.bottom - ScaleForDpi(15), center + ScaleForDpi(57),
+		              client.bottom - ScaleForDpi(3) };
+	return geometry;
 }
 
 RECT CurvePlotRect(HWND hwnd)
@@ -2747,7 +2802,7 @@ RECT GraphWarningBounds(HWND hwnd, const wchar_t* text)
 	const auto g = CalculateMonitorGeometry(hwnd);
 	RECT area { g.left + g.size + ScaleForDpi(12), g.top, g.right - ScaleForDpi(12), g.bottom }, measured = area;
 	HDC dc = GetDC(hwnd);
-	const auto old = SelectObject(dc, font);
+	const auto old = SelectObject(dc, ui_font);
 	DrawTextW(dc, text, -1, &measured, DT_CENTER | DT_WORDBREAK | DT_CALCRECT | DT_NOPREFIX);
 	SelectObject(dc, old);
 	ReleaseDC(hwnd, dc);
@@ -2758,111 +2813,111 @@ RECT GraphWarningBounds(HWND hwnd, const wchar_t* text)
 
 void InvalidateGraph()
 {
-	if (!canvas || !font)
+	if (!curve_canvas || !ui_font)
 		return;
-	if (renderOnly)
-		graphAuditCount = 0;
+	if (render_only)
+		graph_audit_count = 0;
 	const auto queue = [&](const RECT& area)
 	{
-		if (renderOnly && graphAuditCount < graphAuditDamage.size())
-			graphAuditDamage[graphAuditCount++] = area;
-		InvalidateRect(canvas, &area, FALSE);
+		if (render_only && graph_audit_count < graph_audit_damage.size())
+			graph_audit_damage[graph_audit_count++] = area;
+		InvalidateRect(curve_canvas, &area, FALSE);
 	};
-	const RECT plot = GraphUpdateBounds(canvas);
+	const RECT plot = GraphUpdateBounds(curve_canvas);
 	queue(plot);
 	static std::wstring previous;
-	static RECT oldBounds {};
-	static bool hadWarning = false;
-	static unsigned previousLayout = 0;
+	static RECT old_bounds {};
+	static bool had_warning = false;
+	static unsigned previous_layout = 0;
 	wchar_t text[2048] {};
-	if (graphStatusVisible)
-		GetWindowTextW(status, text, 2048);
-	if (hadWarning != graphStatusVisible || previous != text || previousLayout != graphLayoutVersion)
+	if (graph_status_visible)
+		GetWindowTextW(status_label, text, 2048);
+	if (had_warning != graph_status_visible || previous != text || previous_layout != graph_layout_version)
 	{
-		if (hadWarning)
-			queue(oldBounds);
-		if (graphStatusVisible)
+		if (had_warning)
+			queue(old_bounds);
+		if (graph_status_visible)
 		{
-			oldBounds = GraphWarningBounds(canvas, text);
-			queue(oldBounds);
+			old_bounds = GraphWarningBounds(curve_canvas, text);
+			queue(old_bounds);
 		}
 		previous = text;
-		hadWarning = graphStatusVisible;
-		previousLayout = graphLayoutVersion;
+		had_warning = graph_status_visible;
+		previous_layout = graph_layout_version;
 	}
 }
 
 void LayoutMonitorControls()
 {
-	if (!canvas)
+	if (!curve_canvas)
 		return;
 	RECT client {};
-	GetClientRect(canvas, &client);
-	const auto g = CalculateMonitorGeometry(canvas);
+	GetClientRect(curve_canvas, &client);
+	const auto g = CalculateMonitorGeometry(curve_canvas);
 	const auto label = [&](HWND control, int x, int y, int width, int height)
 	{
 		SetWindowPos(control, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS);
 		InvalidateRect(control, nullptr, FALSE);
 	};
-	label(websiteLink, g.foot.left + ScaleForDpi(2), g.foot.top + ScaleForDpi(1),
+	label(website_link, g.foot.left + ScaleForDpi(2), g.foot.top + ScaleForDpi(1),
 	      g.foot.right - g.foot.left - ScaleForDpi(4), g.foot.bottom - g.foot.top - ScaleForDpi(2));
-	MoveWindow(hdrButton, g.left, g.top, g.size, g.size, TRUE);
-	MoveWindow(powerButton, g.right, g.top, g.size, g.size, TRUE);
-	MoveWindow(infoButton, (g.screen.left + g.screen.right - g.size) / 2, g.top, g.size, g.size, TRUE);
-	MoveWindow(profilesButton, g.right, g.bottom, g.size, g.size, TRUE);
-	MoveWindow(monitorSettingsButton, g.left, g.bottom, g.size, g.size, TRUE);
-	MoveWindow(status, g.left + g.size + ScaleForDpi(12), g.top, g.right - g.left - g.size - ScaleForDpi(24), g.size,
-	           TRUE);
-	label(monitorMode, g.left + g.size + ScaleForDpi(32), g.bottom, g.right - g.left - g.size - ScaleForDpi(64),
+	MoveWindow(hdr_button, g.left, g.top, g.size, g.size, TRUE);
+	MoveWindow(power_button, g.right, g.top, g.size, g.size, TRUE);
+	MoveWindow(info_button, (g.screen.left + g.screen.right - g.size) / 2, g.top, g.size, g.size, TRUE);
+	MoveWindow(profiles_button, g.right, g.bottom, g.size, g.size, TRUE);
+	MoveWindow(monitor_settings_button, g.left, g.bottom, g.size, g.size, TRUE);
+	MoveWindow(status_label, g.left + g.size + ScaleForDpi(12), g.top, g.right - g.left - g.size - ScaleForDpi(24),
+	           g.size, TRUE);
+	label(monitor_mode, g.left + g.size + ScaleForDpi(32), g.bottom, g.right - g.left - g.size - ScaleForDpi(64),
 	      g.size);
 	const int center = client.right / 2;
 	RECT choice {};
-	GetWindowRect(sourceChoice, &choice);
+	GetWindowRect(source_choice, &choice);
 	const int height = choice.bottom - choice.top;
-	const int rowTop = (g.body.bottom + g.foot.bottom - height) / 2;
-	MoveWindow(sourceChoice, 0, rowTop, center - ScaleForDpi(68), ScaleForDpi(180), TRUE);
-	label(monitorProfile, center + ScaleForDpi(68), rowTop, client.right - center - ScaleForDpi(68), height);
+	const int row_top = (g.body.bottom + g.foot.bottom - height) / 2;
+	MoveWindow(source_choice, 0, row_top, center - ScaleForDpi(68), ScaleForDpi(180), TRUE);
+	label(monitor_profile, center + ScaleForDpi(68), row_top, client.right - center - ScaleForDpi(68), height);
 }
 
 void ChangeCurvePoint(HWND hwnd, LPARAM point)
 {
-	if (selected != 6)
+	if (selected_effect != effect::CustomCurves)
 		return;
 	const RECT plot = CurvePlotRect(hwnd);
-	auto& curve = CurrentPreset(0).current.adjustments.curves[editingChannel];
+	auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
 	if (curve.empty())
 	{
 		for (int i = 0; i < 9; ++i)
 			curve.push_back(i / 8.0);
 	}
-	if (draggedPoint < 0)
-		draggedPoint = std::clamp(
+	if (dragged_point < 0)
+		dragged_point = std::clamp(
 			static_cast<int>(std::lround((GET_X_LPARAM(point) - plot.left) * 8.0 / (plot.right - plot.left))), 0, 8);
-	keyboardPoint = draggedPoint;
-	const auto index = static_cast<size_t>(draggedPoint);
+	keyboard_point = dragged_point;
+	const auto index = static_cast<size_t>(dragged_point);
 	const double low = index ? curve[index - 1] : 0, high = index + 1 < curve.size() ? curve[index + 1] : 1;
 	curve[index] =
 		std::clamp((plot.bottom - GET_Y_LPARAM(point)) / static_cast<double>(plot.bottom - plot.top), low, high);
-	OnPresetEdited(0);
+	OnPresetEdited(preset_role::Look);
 	RefreshInterface();
-	if (correctionsRequested)
-		SetTimer(window, ApplyTimer, 100, nullptr);
+	if (corrections_requested)
+		SetTimer(main_window, TIMER_APPLY, 100, nullptr);
 }
 
-LRESULT CALLBACK ProfileLinkProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK ProfileLinkProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
 	if (message == WM_SETCURSOR)
 	{
 		SetCursor(LoadCursorW(nullptr, IDC_HAND));
 		return TRUE;
 	}
-	if (message == WM_GETDLGCODE && lParam)
+	if (message == WM_GETDLGCODE && l_param)
 	{
-		const auto* key = reinterpret_cast<MSG*>(lParam);
+		const auto* key = reinterpret_cast<MSG*>(l_param);
 		if (key->wParam == VK_RETURN || key->wParam == VK_SPACE)
 			return DLGC_WANTMESSAGE;
 	}
-	if (message == WM_KEYDOWN && (wParam == VK_RETURN || wParam == VK_SPACE))
+	if (message == WM_KEYDOWN && (w_param == VK_RETURN || w_param == VK_SPACE))
 	{
 		SendMessageW(GetParent(hwnd), WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(hwnd), STN_CLICKED),
 		             reinterpret_cast<LPARAM>(hwnd));
@@ -2887,17 +2942,17 @@ LRESULT CALLBACK ProfileLinkProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		RemovePropW(hwnd, L"LutProfileHover");
 		RemoveWindowSubclass(hwnd, ProfileLinkProc, 80);
 	}
-	return DefSubclassProc(hwnd, message, wParam, lParam);
+	return DefSubclassProc(hwnd, message, w_param, l_param);
 }
 
-LRESULT CALLBACK MonitorLabelPaintProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK MonitorLabelPaintProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
 	if (message == WM_ERASEBKGND)
 		return 1;
 	if (message == WM_PAINT || message == WM_PRINTCLIENT || message == WM_PRINT)
 	{
 		PAINTSTRUCT paint {};
-		HDC target = message == WM_PAINT ? BeginPaint(hwnd, &paint) : reinterpret_cast<HDC>(wParam);
+		HDC target = message == WM_PAINT ? BeginPaint(hwnd, &paint) : reinterpret_cast<HDC>(w_param);
 		RECT bounds {};
 		GetClientRect(hwnd, &bounds);
 		// Native static controls can preserve/copy parent pixels while the
@@ -2921,30 +2976,30 @@ LRESULT CALLBACK MonitorLabelPaintProc(HWND hwnd, UINT message, WPARAM wParam, L
 	}
 	if (message == WM_NCDESTROY)
 		RemoveWindowSubclass(hwnd, MonitorLabelPaintProc, 81);
-	return DefSubclassProc(hwnd, message, wParam, lParam);
+	return DefSubclassProc(hwnd, message, w_param, l_param);
 }
 
-LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 {
-	if (message == WM_DRAWITEM && reinterpret_cast<DRAWITEMSTRUCT*>(lParam)->hwndItem == websiteLink)
+	if (message == WM_DRAWITEM && reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == website_link)
 	{
-		const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(lParam);
+		const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
 		const int saved = SaveDC(item.hDC);
 		IntersectClipRect(item.hDC, item.rcItem.left, item.rcItem.top, item.rcItem.right, item.rcItem.bottom);
 		HBRUSH back = CreateSolidBrush(RGB(80, 87, 96));
 		FillRect(item.hDC, &item.rcItem, back);
 		DeleteObject(back);
 		LOGFONTW style {};
-		GetObjectW(font, sizeof(style), &style);
+		GetObjectW(ui_font, sizeof(style), &style);
 		style.lfHeight = -ScaleForDpi(8);
-		style.lfUnderline = GetPropW(websiteLink, L"LutProfileHover") != nullptr;
+		style.lfUnderline = GetPropW(website_link, L"LutProfileHover") != nullptr;
 		HFONT small = CreateFontIndirectW(&style);
-		const auto old = SelectObject(item.hDC, small ? small : font);
+		const auto old = SelectObject(item.hDC, small ? small : ui_font);
 		SetBkMode(item.hDC, TRANSPARENT);
 		SetTextColor(item.hDC, RGB(0, 0, 0));
 		RECT area = item.rcItem;
 		DrawTextW(item.hDC, L"CeeJay.dk", -1, &area, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
-		if (GetFocus() == websiteLink)
+		if (GetFocus() == website_link)
 			DrawFocusRect(item.hDC, &area);
 		SelectObject(item.hDC, old);
 		if (small)
@@ -2953,24 +3008,24 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			RestoreDC(item.hDC, saved);
 		return TRUE;
 	}
-	if (message == WM_SETCURSOR && reinterpret_cast<HWND>(wParam) == hwnd && LOWORD(lParam) == HTCLIENT &&
-	    selected == 6 && !settingsPage)
+	if (message == WM_SETCURSOR && reinterpret_cast<HWND>(w_param) == hwnd && LOWORD(l_param) == HTCLIENT &&
+	    selected_effect == effect::CustomCurves && !settings_page)
 	{
 		POINT point {};
 		GetCursorPos(&point);
 		ScreenToClient(hwnd, &point);
 		const auto plot = CurvePlotRect(hwnd);
-		if (PtInRect(&plot, point) || draggedPoint >= 0)
+		if (PtInRect(&plot, point) || dragged_point >= 0)
 		{
 			SetCursor(LoadCursorW(nullptr, IDC_CROSS));
 			return TRUE;
 		}
 	}
-	if (message == WM_DRAWITEM && (reinterpret_cast<DRAWITEMSTRUCT*>(lParam)->hwndItem == monitorMode ||
-	                               reinterpret_cast<DRAWITEMSTRUCT*>(lParam)->hwndItem == monitorProfile))
+	if (message == WM_DRAWITEM && (reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == monitor_mode ||
+	                               reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == monitor_profile))
 	{
-		const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(lParam);
-		const bool profile = item.hwndItem == monitorProfile;
+		const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
+		const bool profile = item.hwndItem == monitor_profile;
 		const int saved = SaveDC(item.hDC);
 		IntersectClipRect(item.hDC, item.rcItem.left, item.rcItem.top, item.rcItem.right, item.rcItem.bottom);
 		HBRUSH back = profile ? ui::BackgroundBrush() : CreateSolidBrush(RGB(7, 9, 12));
@@ -2979,29 +3034,29 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			DeleteObject(back);
 		const auto old = SelectObject(item.hDC, reinterpret_cast<HFONT>(SendMessageW(item.hwndItem, WM_GETFONT, 0, 0)));
 		SetBkMode(item.hDC, TRANSPARENT);
-		SetTextColor(item.hDC, ui::Muted);
+		SetTextColor(item.hDC, ui::THEME_MUTED);
 		wchar_t text[2048] {};
 		GetWindowTextW(item.hwndItem, text, 2048);
 		RECT area = item.rcItem;
 		if (profile)
 		{
-			const bool hover = GetPropW(monitorProfile, L"LutProfileHover") != nullptr;
-			SetTextColor(item.hDC, hover || GetFocus() == monitorProfile ? ui::Text : ui::Muted);
+			const bool hover = GetPropW(monitor_profile, L"LutProfileHover") != nullptr;
+			SetTextColor(item.hDC, hover || GetFocus() == monitor_profile ? ui::THEME_TEXT : ui::THEME_MUTED);
 			RECT measured {};
 			DrawTextW(item.hDC, text, -1, &measured, DT_SINGLELINE | DT_CALCRECT | DT_NOPREFIX);
 			const int icon = ScaleForDpi(12), gap = ScaleForDpi(5),
 					  width = std::min(static_cast<int>(measured.right - measured.left) + ScaleForDpi(4),
 			                           static_cast<int>(area.right - area.left) - icon - gap);
 			const int start = area.right - width - icon - gap, mid = (area.top + area.bottom) / 2;
-			ui::PaintMenuGlyph(monitorProfile, item.hDC, { start, mid - icon / 2, start + icon, mid + (icon + 1) / 2 },
-			                   ui::Glyph::Diamond, applicationContextActive && !appFocus.IsManualOverride(), true,
-			                   ui::Background);
+			ui::PaintMenuGlyph(monitor_profile, item.hDC, { start, mid - icon / 2, start + icon, mid + (icon + 1) / 2 },
+			                   ui::Glyph::Diamond, application_context_active && !foreground_program.IsManualOverride(),
+			                   true, ui::THEME_BACKGROUND);
 			area.left = start + icon + gap;
 			area.right = area.left + width;
 			DrawTextW(item.hDC, text, -1, &area, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
 			if (hover)
 			{
-				HPEN pen = CreatePen(PS_SOLID, 1, ui::FocusBorder);
+				HPEN pen = CreatePen(PS_SOLID, 1, ui::THEME_FOCUS_BORDER);
 				const auto previous = SelectObject(item.hDC, pen);
 				const int y = mid + ScaleForDpi(8);
 				MoveToEx(item.hDC, area.left, y, nullptr);
@@ -3009,7 +3064,7 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 				SelectObject(item.hDC, previous);
 				DeleteObject(pen);
 			}
-			if (GetFocus() == monitorProfile)
+			if (GetFocus() == monitor_profile)
 				DrawFocusRect(item.hDC, &area);
 		}
 		else
@@ -3023,12 +3078,12 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	LRESULT themed = 0;
 	if ((message == WM_NOTIFY || message == WM_DRAWITEM || message == WM_MEASUREITEM ||
 	     (message >= WM_CTLCOLORMSGBOX && message <= WM_CTLCOLORSTATIC)) &&
-	    ui::HandleThemeMessage(hwnd, message, wParam, lParam, themed))
+	    ui::HandleThemeMessage(hwnd, message, w_param, l_param, themed))
 		return themed;
 	if (message == WM_COMMAND)
-		return SendMessageW(GetParent(hwnd), message, wParam, lParam);
+		return SendMessageW(GetParent(hwnd), message, w_param, l_param);
 	if (message == WM_NOTIFY)
-		return SendMessageW(GetParent(hwnd), message, wParam, lParam);
+		return SendMessageW(GetParent(hwnd), message, w_param, l_param);
 	if (message == WM_SIZE)
 	{
 		LayoutMonitorControls();
@@ -3040,30 +3095,30 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		InvalidateGraph();
 		return 0;
 	}
-	if (selected == 6)
+	if (selected_effect == effect::CustomCurves)
 	{
 		if (message == WM_GETDLGCODE)
 			return DLGC_WANTARROWS;
 		if (message == WM_LBUTTONDBLCLK)
 		{
 			const auto plot = CurvePlotRect(hwnd);
-			POINT point { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 			auto hit = plot;
 			InflateRect(&hit, ScaleForDpi(6), ScaleForDpi(6));
 			if (PtInRect(&hit, point))
 			{
-				auto& curve = CurrentPreset(0).current.adjustments.curves[editingChannel];
+				auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
 				if (!curve.empty())
 				{
 					const auto i = static_cast<size_t>(std::clamp(
 						static_cast<int>(std::lround((point.x - plot.left) * 8.0 / (plot.right - plot.left))), 0, 8));
 					curve[i] = std::clamp(i / 8.0, i ? curve[i - 1] : 0, i + 1 < curve.size() ? curve[i + 1] : 1);
-					keyboardPoint = static_cast<int>(i);
-					draggedPoint = -1;
-					sliderDragging = false;
+					keyboard_point = static_cast<int>(i);
+					dragged_point = -1;
+					slider_dragging = false;
 					if (GetCapture() == hwnd)
 						ReleaseCapture();
-					OnPresetEdited(0);
+					OnPresetEdited(preset_role::Look);
 					ApplyLiveCorrections();
 					RefreshInterface();
 				}
@@ -3073,61 +3128,62 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		if (message == WM_LBUTTONDOWN)
 		{
 			const auto plot = CurvePlotRect(hwnd);
-			POINT point { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+			POINT point { GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param) };
 			if (PtInRect(&plot, point))
 			{
 				SetFocus(hwnd);
-				lookDirtyBeforeDrag = CurrentPreset(0).IsDirty();
-				sliderDragging = true;
-				KillTimer(window, PresetTimer);
-				draggedPoint = -1;
+				look_dirty_before_drag = CurrentPreset(preset_role::Look).IsDirty();
+				slider_dragging = true;
+				KillTimer(main_window, TIMER_PRESET);
+				dragged_point = -1;
 				SetCapture(hwnd);
-				ChangeCurvePoint(hwnd, lParam);
+				ChangeCurvePoint(hwnd, l_param);
 			}
 			return 0;
 		}
 		if (message == WM_MOUSEMOVE && GetCapture() == hwnd)
 		{
-			ChangeCurvePoint(hwnd, lParam);
+			ChangeCurvePoint(hwnd, l_param);
 			return 0;
 		}
 		if (message == WM_LBUTTONUP || message == WM_CAPTURECHANGED || message == WM_CANCELMODE)
 		{
-			if (draggedPoint >= 0)
+			if (dragged_point >= 0)
 			{
-				draggedPoint = -1;
-				sliderDragging = false;
+				dragged_point = -1;
+				slider_dragging = false;
 				if (GetCapture() == hwnd)
 					ReleaseCapture();
-				OnPresetEdited(0);
+				OnPresetEdited(preset_role::Look);
 				RefreshInterface();
 			}
 			return 0;
 		}
 		if (message == WM_RBUTTONUP)
 		{
-			CurrentPreset(0).current.adjustments.curves[editingChannel].clear();
-			OnPresetEdited(0);
+			CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel].clear();
+			OnPresetEdited(preset_role::Look);
 			ApplyLiveCorrections();
 			RefreshInterface();
 			return 0;
 		}
-		if (message == WM_KEYDOWN && (wParam == VK_UP || wParam == VK_DOWN || wParam == VK_LEFT || wParam == VK_RIGHT))
+		if (message == WM_KEYDOWN &&
+		    (w_param == VK_UP || w_param == VK_DOWN || w_param == VK_LEFT || w_param == VK_RIGHT))
 		{
-			auto& curve = CurrentPreset(0).current.adjustments.curves[editingChannel];
+			auto& curve = CurrentPreset(preset_role::Look).current.Adjustments.Curves[editing_channel];
 			if (curve.empty())
 				for (int i = 0; i < 9; ++i)
 					curve.push_back(i / 8.0);
-			if (wParam == VK_LEFT || wParam == VK_RIGHT)
-				keyboardPoint = std::clamp(keyboardPoint + (wParam == VK_RIGHT ? 1 : -1), 0, 8);
+			if (w_param == VK_LEFT || w_param == VK_RIGHT)
+				keyboard_point = std::clamp(keyboard_point + (w_param == VK_RIGHT ? 1 : -1), 0, 8);
 			else
 			{
-				const size_t i = static_cast<size_t>(keyboardPoint);
-				curve[i] = std::clamp(curve[i] + (wParam == VK_UP ? .01 : -.01), i ? curve[i - 1] : 0,
+				const size_t i = static_cast<size_t>(keyboard_point);
+				curve[i] = std::clamp(curve[i] + (w_param == VK_UP ? .01 : -.01), i ? curve[i - 1] : 0,
 				                      i + 1 < curve.size() ? curve[i + 1] : 1);
-				OnPresetEdited(0);
-				if (correctionsRequested)
-					SetTimer(window, ApplyTimer, 100, nullptr);
+				OnPresetEdited(preset_role::Look);
+				if (corrections_requested)
+					SetTimer(main_window, TIMER_APPLY, 100, nullptr);
 			}
 			RefreshInterface();
 			return 0;
@@ -3136,9 +3192,9 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	if (message == WM_ERASEBKGND)
 		return 1;
 	if (message != WM_PAINT && message != WM_PRINTCLIENT)
-		return DefWindowProcW(hwnd, message, wParam, lParam);
+		return DefWindowProcW(hwnd, message, w_param, l_param);
 	PAINTSTRUCT paint {};
-	HDC dc = message == WM_PAINT ? BeginPaint(hwnd, &paint) : reinterpret_cast<HDC>(wParam);
+	HDC dc = message == WM_PAINT ? BeginPaint(hwnd, &paint) : reinterpret_cast<HDC>(w_param);
 	RECT client {};
 	GetClientRect(hwnd, &client);
 	// Buffer only while painting; no persistent frame loop or render resources.
@@ -3152,8 +3208,8 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			EndPaint(hwnd, &paint);
 		return 0;
 	}
-	if (renderOnly)
-		lastGraphPaintBytes = frame.ByteCount();
+	if (render_only)
+		last_graph_paint_bytes = frame.ByteCount();
 	HDC buffer = frame.DeviceContext();
 	FillRect(buffer, &client, ui::BackgroundBrush());
 	const auto geometry = CalculateMonitorGeometry(hwnd);
@@ -3162,11 +3218,11 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	{
 		HBRUSH brush = CreateSolidBrush(fill);
 		HPEN pen = CreatePen(PS_SOLID, 1, outline);
-		auto oldBrush = SelectObject(buffer, brush), oldPen = SelectObject(buffer, pen);
+		auto old_brush = SelectObject(buffer, brush), old_pen = SelectObject(buffer, pen);
 		RoundRect(buffer, rect.left, rect.top, rect.right, rect.bottom, ScaleForDpi(radius * 2),
 		          ScaleForDpi(radius * 2));
-		SelectObject(buffer, oldBrush);
-		SelectObject(buffer, oldPen);
+		SelectObject(buffer, old_brush);
+		SelectObject(buffer, old_pen);
 		DeleteObject(brush);
 		DeleteObject(pen);
 	};
@@ -3179,10 +3235,10 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	rounded(body, RGB(82, 89, 98), RGB(120, 128, 138), 7);
 	const RECT screen = geometry.screen;
 	rounded(screen, RGB(7, 9, 12), RGB(32, 36, 42), 3);
-	const auto plotRect = CurvePlotRect(hwnd);
-	const int left = plotRect.left, right = plotRect.right, top = plotRect.top, bottom = plotRect.bottom;
+	const auto plot_rect = CurvePlotRect(hwnd);
+	const int left = plot_rect.left, right = plot_rect.right, top = plot_rect.top, bottom = plot_rect.bottom;
 	HPEN grid = CreatePen(PS_SOLID, 1, RGB(58, 62, 69));
-	HGDIOBJ oldPen = SelectObject(buffer, grid);
+	HGDIOBJ old_pen = SelectObject(buffer, grid);
 	for (int i = 0; i <= 4; ++i)
 	{
 		const int x = left + (right - left) * i / 4, y = bottom - (bottom - top) * i / 4;
@@ -3191,7 +3247,7 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		MoveToEx(buffer, left, y, nullptr);
 		LineTo(buffer, right, y);
 	}
-	HPEN identity = CreatePen(PS_DOT, 1, ui::Border);
+	HPEN identity = CreatePen(PS_DOT, 1, ui::THEME_BORDER);
 	SelectObject(buffer, identity);
 	MoveToEx(buffer, left, bottom, nullptr);
 	LineTo(buffer, right, top);
@@ -3199,12 +3255,12 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	const auto output = OutputForPreview();
 	const COLORREF inks[] { RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255) };
 	plot::Paths paths;
-	std::vector<POINT> editablePath;
-	bool needsGuide = false;
+	std::vector<POINT> editable_path;
+	bool needs_guide = false;
 	for (auto& path : paths)
 		path.reserve(513);
-	if (selected == 6)
-		editablePath.reserve(513);
+	if (selected_effect == effect::CustomCurves)
+		editable_path.reserve(513);
 	const auto position = [&](double x, double y)
 	{
 		return POINT { left + static_cast<int>(std::lround((right - left) * x)),
@@ -3214,79 +3270,80 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 	{
 		const double x = i / 512.0;
 		POINT editable {};
-		if (selected == 6)
+		if (selected_effect == effect::CustomCurves)
 		{
-			editable = position(x, color::SampleSpline(settings.adjustments.curves[editingChannel], x));
-			editablePath.push_back(editable);
+			editable = position(x, color::SampleSpline(settings.Adjustments.Curves[editing_channel], x));
+			editable_path.push_back(editable);
 		}
 		for (int c = 0; c < 3; ++c)
 		{
 			// In the editor show the Master + RGB transform even when its
 			// switch is off, so editing remains possible before enabling it.
-			const double y = selected == 6 ? color::SampleSpline(settings.adjustments.curves[c + 1],
-			                                                     color::SampleSpline(settings.adjustments.curves[0], x))
-			                               : live::EvaluateOutputCode(x, c, output, settings);
+			const double y = selected_effect == effect::CustomCurves
+			                     ? color::SampleSpline(settings.Adjustments.Curves[c + 1],
+			                                           color::SampleSpline(settings.Adjustments.Curves[0], x))
+			                     : live::EvaluateOutputCode(x, c, output, settings);
 			paths[c].push_back(position(x, y));
-			if (selected == 6 && (editingChannel == 0 || editingChannel == c + 1) &&
+			if (selected_effect == effect::CustomCurves && (editing_channel == 0 || editing_channel == c + 1) &&
 			    std::abs(paths[c].back().y - editable.y) > 1)
-				needsGuide = true;
+				needs_guide = true;
 		}
 	}
-	if (selected == 6 && needsGuide)
+	if (selected_effect == effect::CustomCurves && needs_guide)
 	{
-		HPEN guide = CreatePen(PS_DOT, 1, ui::Muted);
+		HPEN guide = CreatePen(PS_DOT, 1, ui::THEME_MUTED);
 		SelectObject(buffer, guide);
-		Polyline(buffer, editablePath.data(), static_cast<int>(editablePath.size()));
-		SelectObject(buffer, oldPen);
+		Polyline(buffer, editable_path.data(), static_cast<int>(editable_path.size()));
+		SelectObject(buffer, old_pen);
 		DeleteObject(guide);
 	}
-	plot::DrawRgbCurves(buffer, client.right, client.bottom, paths, ScaleForDpi(2), &curveScratch);
-	if (selected == 6)
+	plot::DrawRgbCurves(buffer, client.right, client.bottom, paths, ScaleForDpi(2), &curve_scratch);
+	if (selected_effect == effect::CustomCurves)
 	{
-		const auto& editable = settings.adjustments.curves[editingChannel];
+		const auto& editable = settings.Adjustments.Curves[editing_channel];
 		HPEN handles =
-			CreatePen(PS_SOLID, ScaleForDpi(2), editingChannel ? inks[editingChannel - 1] : RGB(255, 255, 255));
+			CreatePen(PS_SOLID, ScaleForDpi(2), editing_channel ? inks[editing_channel - 1] : RGB(255, 255, 255));
 		SelectObject(buffer, handles);
-		const auto previousBrush = SelectObject(buffer, GetStockObject(BLACK_BRUSH));
+		const auto previous_brush = SelectObject(buffer, GetStockObject(BLACK_BRUSH));
 		for (int i = 0; i < 9; ++i)
 		{
 			const auto at = position(i / 8.0, color::SampleSpline(editable, i / 8.0));
 			const int x = at.x, y = at.y;
 			Ellipse(buffer, x - ScaleForDpi(3), y - ScaleForDpi(3), x + ScaleForDpi(4), y + ScaleForDpi(4));
-			if (GetFocus() == hwnd && i == keyboardPoint)
+			if (GetFocus() == hwnd && i == keyboard_point)
 			{
 				RECT focus { x - ScaleForDpi(6), y - ScaleForDpi(6), x + ScaleForDpi(7), y + ScaleForDpi(7) };
 				DrawFocusRect(buffer, &focus);
 			}
 		}
-		SelectObject(buffer, previousBrush);
-		SelectObject(buffer, oldPen);
+		SelectObject(buffer, previous_brush);
+		SelectObject(buffer, old_pen);
 		DeleteObject(handles);
 	}
-	SelectObject(buffer, oldPen);
+	SelectObject(buffer, old_pen);
 	DeleteObject(grid);
 	DeleteObject(identity);
-	LOGFONTW axisStyle {};
-	GetObjectW(font, sizeof(axisStyle), &axisStyle);
-	axisStyle.lfHeight = -ScaleForDpi(ui::style::SecondaryTextSize);
-	HFONT axisFont = CreateFontIndirectW(&axisStyle);
-	HGDIOBJ oldFont = SelectObject(buffer, axisFont ? axisFont : font);
+	LOGFONTW axis_style {};
+	GetObjectW(ui_font, sizeof(axis_style), &axis_style);
+	axis_style.lfHeight = -ScaleForDpi(ui::style::SECONDARY_TEXT_SIZE);
+	HFONT axis_font = CreateFontIndirectW(&axis_style);
+	HGDIOBJ old_font = SelectObject(buffer, axis_font ? axis_font : ui_font);
 	SetBkMode(buffer, TRANSPARENT);
-	SetTextColor(buffer, ui::Text);
+	SetTextColor(buffer, ui::THEME_TEXT);
 	const auto axis = [&](const wchar_t* value, int cx, int cy)
 	{
 		RECT area { cx - ScaleForDpi(8), cy - ScaleForDpi(8), cx + ScaleForDpi(8), cy + ScaleForDpi(8) };
 		DrawTextW(buffer, value, 1, &area, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
 	};
-	const int lowerCenter = geometry.bottom + geometry.size / 2, sideCenter = geometry.left + geometry.size / 2;
-	axis(L"0", left, lowerCenter);
-	axis(L"1", right, lowerCenter);
-	axis(L"1", sideCenter, top);
-	axis(L"0", sideCenter, bottom);
-	axisStyle.lfHeight = -ScaleForDpi(ui::style::CaptionTextSize);
-	HFONT toneFont = CreateFontIndirectW(&axisStyle);
-	SelectObject(buffer, toneFont ? toneFont : font);
-	SetTextColor(buffer, ui::Muted);
+	const int lower_center = geometry.bottom + geometry.size / 2, side_center = geometry.left + geometry.size / 2;
+	axis(L"0", left, lower_center);
+	axis(L"1", right, lower_center);
+	axis(L"1", side_center, top);
+	axis(L"0", side_center, bottom);
+	axis_style.lfHeight = -ScaleForDpi(ui::style::CAPTION_TEXT_SIZE);
+	HFONT tone_font = CreateFontIndirectW(&axis_style);
+	SelectObject(buffer, tone_font ? tone_font : ui_font);
+	SetTextColor(buffer, ui::THEME_MUTED);
 	const wchar_t* tones[] { L"Shadows", L"Midtones", L"Highlights" };
 	for (int i = 0; i < 3; ++i)
 	{
@@ -3298,26 +3355,26 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 		               : i == 1 ? DT_CENTER
 		                        : DT_RIGHT));
 	}
-	SelectObject(buffer, oldFont);
-	if (toneFont)
-		DeleteObject(toneFont);
-	if (axisFont)
-		DeleteObject(axisFont);
+	SelectObject(buffer, old_font);
+	if (tone_font)
+		DeleteObject(tone_font);
+	if (axis_font)
+		DeleteObject(axis_font);
 	// Paint last, over the graph itself: long warnings may wrap below the
 	// header row without a child window clipping their second line.
-	wchar_t statusText[2048] {};
-	GetWindowTextW(status, statusText, 2048);
-	RECT statusArea { geometry.left + geometry.size + ScaleForDpi(12), geometry.top, geometry.right - ScaleForDpi(12),
-		              geometry.bottom };
-	RECT measured = statusArea;
-	const auto statusFont = SelectObject(buffer, font);
+	wchar_t status_text[2048] {};
+	GetWindowTextW(status_label, status_text, 2048);
+	RECT status_area { geometry.left + geometry.size + ScaleForDpi(12), geometry.top, geometry.right - ScaleForDpi(12),
+		               geometry.bottom };
+	RECT measured = status_area;
+	const auto status_font = SelectObject(buffer, ui_font);
 	SetBkMode(buffer, TRANSPARENT);
-	SetTextColor(buffer, statusError ? ui::Error : ui::Muted);
-	DrawTextW(buffer, statusText, -1, &measured, DT_CENTER | DT_WORDBREAK | DT_CALCRECT | DT_NOPREFIX);
-	statusArea.top += std::max(0, (geometry.size - static_cast<int>(measured.bottom - measured.top)) / 2);
-	if (graphStatusVisible)
-		DrawTextW(buffer, statusText, -1, &statusArea, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX);
-	SelectObject(buffer, statusFont);
+	SetTextColor(buffer, status_error ? ui::THEME_ERROR : ui::THEME_MUTED);
+	DrawTextW(buffer, status_text, -1, &measured, DT_CENTER | DT_WORDBREAK | DT_CALCRECT | DT_NOPREFIX);
+	status_area.top += std::max(0, (geometry.size - static_cast<int>(measured.bottom - measured.top)) / 2);
+	if (graph_status_visible)
+		DrawTextW(buffer, status_text, -1, &status_area, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX);
+	SelectObject(buffer, status_font);
 	frame.Finish();
 	if (message == WM_PAINT)
 		EndPaint(hwnd, &paint);
@@ -3327,7 +3384,7 @@ LRESULT CALLBACK CurveWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 bool RenderWindowToFile(const wchar_t* path, HWND target = nullptr)
 {
 	if (!target)
-		target = window;
+		target = main_window;
 	RECT outer {};
 	GetWindowRect(target, &outer);
 	RECT rect { 0, 0, outer.right - outer.left, outer.bottom - outer.top };
@@ -3371,299 +3428,306 @@ bool RenderWindowToFile(const wchar_t* path, HWND target = nullptr)
 	return written;
 }
 
-HWND CreateChildControl(const wchar_t* cls, const wchar_t* text, DWORD style, int id, HWND parent = nullptr)
+HWND CreateChildControl(const wchar_t* class_name, const wchar_t* text, DWORD style, int id, HWND parent = nullptr)
 {
-	if (wcscmp(cls, L"COMBOBOX") == 0)
+	if (wcscmp(class_name, L"COMBOBOX") == 0)
 		style |= CBS_OWNERDRAWFIXED | CBS_HASSTRINGS;
-	HWND child = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 1, 1, parent ? parent : window,
-	                             reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
+	HWND child =
+		CreateWindowExW(0, class_name, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 1, 1, parent ? parent : main_window,
+	                    reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), app_instance, nullptr);
 	ui::ApplyControlTheme(child);
 	return child;
 }
 
 void CreateEditorIfNeeded()
 {
-	if (editorReady)
+	if (editor_ready)
 		return;
 	EditorSync sync;
 	EnsureCommonControls();
-	editorReady = true;
-	HWND hwnd = window;
-	ui::FixedWindowSize(hwnd, ClientWidth, ClientHeight);
-	ui::EnableViewport(hwnd, ClientWidth, ClientHeight);
-	presetLabel = CreateChildControl(L"STATIC", L"Look preset", 0, 0);
-	presetChoice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, PresetChoice);
-	savePresetButton = CreateChildControl(L"BUTTON", L"Save", WS_TABSTOP | BS_PUSHBUTTON, SavePreset);
-	saveAsButton = CreateChildControl(L"BUTTON", L"Save as...", WS_TABSTOP | BS_PUSHBUTTON, SavePresetAs);
-	openPresetButton = CreateChildControl(L"BUTTON", L"Preset folder...", WS_TABSTOP | BS_PUSHBUTTON, OpenPreset);
-	autosaveControl = CreateChildControl(L"BUTTON", L"Autosave", WS_TABSTOP | BS_AUTOCHECKBOX, Autosave);
-	revertPresetButton = CreateChildControl(L"BUTTON", L"Revert edits", WS_TABSTOP | BS_PUSHBUTTON, RevertPreset);
-	activeLookLabel = CreateChildControl(L"STATIC", L"", SS_ENDELLIPSIS | SS_NOPREFIX, ActiveLook);
-	listLabel = CreateChildControl(L"STATIC", L"Corrections", SS_CENTERIMAGE, 0);
-	effectsLabel = CreateChildControl(L"STATIC", L"Effects", SS_CENTERIMAGE, 0);
-	layers = CreateChildControl(
-		L"LISTBOX", L"",
-		WS_TABSTOP | LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | WS_VSCROLL, Layers);
-	effects::Attach(layers, ToggleEffect, MoveCreative);
-	correctionLayers = CreateChildControl(
+	editor_ready = true;
+	HWND hwnd = main_window;
+	ui::FixedWindowSize(hwnd, CLIENT_WIDTH, CLIENT_HEIGHT);
+	ui::EnableViewport(hwnd, CLIENT_WIDTH, CLIENT_HEIGHT);
+	preset_label = CreateChildControl(L"STATIC", L"Look preset", 0, 0);
+	preset_choice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, ID_PRESET_CHOICE);
+	save_preset_button = CreateChildControl(L"BUTTON", L"Save", WS_TABSTOP | BS_PUSHBUTTON, ID_SAVE_PRESET);
+	save_as_button = CreateChildControl(L"BUTTON", L"Save as...", WS_TABSTOP | BS_PUSHBUTTON, ID_SAVE_PRESET_AS);
+	open_preset_button = CreateChildControl(L"BUTTON", L"Preset folder...", WS_TABSTOP | BS_PUSHBUTTON, ID_OPEN_PRESET);
+	autosave_control = CreateChildControl(L"BUTTON", L"Autosave", WS_TABSTOP | BS_AUTOCHECKBOX, ID_AUTOSAVE);
+	revert_preset_button = CreateChildControl(L"BUTTON", L"Revert edits", WS_TABSTOP | BS_PUSHBUTTON, ID_REVERT_PRESET);
+	active_look_label = CreateChildControl(L"STATIC", L"", SS_ENDELLIPSIS | SS_NOPREFIX, ID_ACTIVE_LOOK);
+	corrections_heading = CreateChildControl(L"STATIC", L"Corrections", SS_CENTERIMAGE, 0);
+	effects_label = CreateChildControl(L"STATIC", L"Effects", SS_CENTERIMAGE, 0);
+	effect_list = CreateChildControl(L"LISTBOX", L"",
+	                                 WS_TABSTOP | LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS |
+	                                     LBS_NOINTEGRALHEIGHT | WS_VSCROLL,
+	                                 ID_EFFECT_LIST);
+	effects::Attach(effect_list, ToggleEffect, MoveCreative);
+	correction_list = CreateChildControl(
 		L"LISTBOX", L"Corrections",
-		WS_TABSTOP | LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT, CorrectionLayers);
-	effects::Attach(correctionLayers, ToggleEffect, [](int, int) {});
-	windowsLayers = CreateChildControl(
-		L"LISTBOX", L"Windows account corrections",
-		WS_TABSTOP | LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT, WindowsCorrectionLayers);
-	effects::Attach(windowsLayers, ToggleEffect, [](int, int) {});
-	orderHint = CreateChildControl(L"STATIC", L"Drag / Alt+arrows reorder", SS_OWNERDRAW, OrderHint);
-	title = CreateChildControl(L"STATIC", L"", 0, 0);
-	description = CreateChildControl(L"STATIC", L"", 0, 0);
-	amountLabel = CreateChildControl(L"STATIC", L"Contrast", SS_CENTERIMAGE, 0);
-	pivotLabel = CreateChildControl(L"STATIC", L"Pivot", SS_CENTERIMAGE, 0);
-	whiteLabel = CreateChildControl(L"STATIC", L"SDR white", SS_CENTERIMAGE, 0);
-	gammaLabel = CreateChildControl(L"STATIC", L"Target gamma", SS_CENTERIMAGE, 0);
-	amountValue = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
-	pivotValue = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
-	whiteValue = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
-	contrastSlider = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, Contrast);
-	pivotSlider = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, Pivot);
-	whiteSlider = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, White);
-	SendMessageW(contrastSlider, TBM_SETRANGE, TRUE, MAKELPARAM(-25, 25));
-	SendMessageW(pivotSlider, TBM_SETRANGE, TRUE, MAKELPARAM(20, 80));
-	SendMessageW(pivotSlider, TBM_SETPOS, TRUE, pivotPosition);
-	SendMessageW(whiteSlider, TBM_SETRANGE, TRUE, MAKELPARAM(80, 480));
-	SendMessageW(whiteSlider, TBM_SETPOS, TRUE, whitePosition);
-	ui::ConfigureSlider(contrastSlider, 0);
-	ui::ConfigureSlider(pivotSlider, 50);
-	ui::ConfigureSlider(whiteSlider, 200);
-	gammaChoice = CreateChildControl(L"BUTTON", L"2.2", WS_GROUP | WS_TABSTOP | BS_AUTORADIOBUTTON, Gamma);
-	gammaOther = CreateChildControl(L"BUTTON", L"2.4", BS_AUTORADIOBUTTON, GammaOther);
-	SendMessageW(gammaChoice, BM_SETCHECK, BST_CHECKED, 0);
-	canvas = CreateChildControl(L"LutCurvePreview", L"", WS_TABSTOP | WS_GROUP | WS_CLIPCHILDREN, 0);
-	status = CreateChildControl(L"STATIC", L"", SS_OWNERDRAW, MonitorStatus, canvas);
+		WS_TABSTOP | LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT, ID_CORRECTION_LAYERS);
+	effects::Attach(correction_list, ToggleEffect, [](int, int) {});
+	windows_effect_list =
+		CreateChildControl(L"LISTBOX", L"Windows account corrections",
+	                       WS_TABSTOP | LBS_NOTIFY | LBS_OWNERDRAWFIXED | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT,
+	                       ID_WINDOWS_CORRECTION_LAYERS);
+	effects::Attach(windows_effect_list, ToggleEffect, [](int, int) {});
+	order_hint = CreateChildControl(L"STATIC", L"Drag / Alt+arrows reorder", SS_OWNERDRAW, ID_ORDER_HINT);
+	effect_title = CreateChildControl(L"STATIC", L"", 0, 0);
+	effect_description = CreateChildControl(L"STATIC", L"", 0, 0);
+	amount_label = CreateChildControl(L"STATIC", L"Contrast", SS_CENTERIMAGE, 0);
+	pivot_label = CreateChildControl(L"STATIC", L"Pivot", SS_CENTERIMAGE, 0);
+	white_label = CreateChildControl(L"STATIC", L"SDR white", SS_CENTERIMAGE, 0);
+	gamma_label = CreateChildControl(L"STATIC", L"Target gamma", SS_CENTERIMAGE, 0);
+	amount_value = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
+	pivot_value = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
+	white_value = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
+	contrast_slider = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, ID_CONTRAST);
+	pivot_slider = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, ID_PIVOT);
+	white_slider = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, ID_WHITE);
+	SendMessageW(contrast_slider, TBM_SETRANGE, TRUE, MAKELPARAM(-25, 25));
+	SendMessageW(pivot_slider, TBM_SETRANGE, TRUE, MAKELPARAM(20, 80));
+	SendMessageW(pivot_slider, TBM_SETPOS, TRUE, pivot_position);
+	SendMessageW(white_slider, TBM_SETRANGE, TRUE, MAKELPARAM(80, 480));
+	SendMessageW(white_slider, TBM_SETPOS, TRUE, white_position);
+	ui::ConfigureSlider(contrast_slider, 0);
+	ui::ConfigureSlider(pivot_slider, 50);
+	ui::ConfigureSlider(white_slider, 200);
+	gamma_choice = CreateChildControl(L"BUTTON", L"2.2", WS_GROUP | WS_TABSTOP | BS_AUTORADIOBUTTON, ID_GAMMA);
+	gamma_other = CreateChildControl(L"BUTTON", L"2.4", BS_AUTORADIOBUTTON, ID_GAMMA_OTHER);
+	SendMessageW(gamma_choice, BM_SETCHECK, BST_CHECKED, 0);
+	curve_canvas = CreateChildControl(L"LutCurvePreview", L"", WS_TABSTOP | WS_GROUP | WS_CLIPCHILDREN, 0);
+	status_label = CreateChildControl(L"STATIC", L"", SS_OWNERDRAW, ID_MONITOR_STATUS, curve_canvas);
 	// Retain the status text handle for state queries; the canvas paints it
 	// and exposes it to accessibility without a separately clipped surface.
-	ShowWindow(status, SW_HIDE);
+	ShowWindow(status_label, SW_HIDE);
 
-	monitorMode = CreateChildControl(L"STATIC", L"", SS_OWNERDRAW, MonitorMode, canvas);
-	monitorProfile = CreateChildControl(L"STATIC", L"Desktop profile", SS_OWNERDRAW | SS_NOTIFY | WS_TABSTOP,
-	                                    MonitorProfile, canvas);
-	SetWindowSubclass(monitorProfile, ProfileLinkProc, 80, 0);
-	websiteLink =
-		CreateChildControl(L"STATIC", L"CeeJay.dk", SS_OWNERDRAW | SS_NOTIFY | WS_TABSTOP, WebsiteLink, canvas);
-	SetWindowSubclass(websiteLink, ProfileLinkProc, 80, 0);
-	for (HWND label : { monitorMode, monitorProfile, websiteLink })
+	monitor_mode = CreateChildControl(L"STATIC", L"", SS_OWNERDRAW, ID_MONITOR_MODE, curve_canvas);
+	monitor_profile = CreateChildControl(L"STATIC", L"Desktop profile", SS_OWNERDRAW | SS_NOTIFY | WS_TABSTOP,
+	                                     ID_MONITOR_PROFILE, curve_canvas);
+	SetWindowSubclass(monitor_profile, ProfileLinkProc, 80, 0);
+	website_link = CreateChildControl(L"STATIC", L"CeeJay.dk", SS_OWNERDRAW | SS_NOTIFY | WS_TABSTOP, ID_WEBSITE_LINK,
+	                                  curve_canvas);
+	SetWindowSubclass(website_link, ProfileLinkProc, 80, 0);
+	for (HWND label : { monitor_mode, monitor_profile, website_link })
 	{
 		SetWindowLongPtrW(label, GWL_STYLE, GetWindowLongPtrW(label, GWL_STYLE) | WS_CLIPSIBLINGS);
 		SetWindowSubclass(label, MonitorLabelPaintProc, 81, 0);
 	}
-	SetWindowLongPtrW(canvas, GWL_EXSTYLE, GetWindowLongPtrW(canvas, GWL_EXSTYLE) | WS_EX_CONTROLPARENT);
-	hdrButton = CreateChildControl(L"BUTTON", L"Toggle Windows HDR on the selected display", WS_TABSTOP | BS_PUSHBUTTON,
-	                               ToggleWindowsHdr, canvas);
-	powerButton =
-		CreateChildControl(L"BUTTON", L"Master power on/off (Alt+P)", WS_TABSTOP | BS_PUSHBUTTON, TestContrast, canvas);
-	profilesButton = CreateChildControl(L"BUTTON", ui::wording::ApplicationProfiles, WS_TABSTOP | BS_PUSHBUTTON,
-	                                    ApplicationProfiles, canvas);
-	infoButton = CreateChildControl(L"BUTTON", L"Picture status", WS_TABSTOP | BS_PUSHBUTTON, OutputInfo, canvas);
-	monitorSettingsButton =
-		CreateChildControl(L"BUTTON", ui::wording::Settings, WS_TABSTOP | BS_PUSHBUTTON, SettingsPage, canvas);
-	monitorTips =
+	SetWindowLongPtrW(curve_canvas, GWL_EXSTYLE, GetWindowLongPtrW(curve_canvas, GWL_EXSTYLE) | WS_EX_CONTROLPARENT);
+	hdr_button = CreateChildControl(L"BUTTON", L"Toggle Windows HDR on the selected display",
+	                                WS_TABSTOP | BS_PUSHBUTTON, ID_TOGGLE_WINDOWS_HDR, curve_canvas);
+	power_button = CreateChildControl(L"BUTTON", L"Master power on/off (Alt+P)", WS_TABSTOP | BS_PUSHBUTTON,
+	                                  ID_TEST_CONTRAST, curve_canvas);
+	profiles_button = CreateChildControl(L"BUTTON", ui::wording::LABEL_APPLICATION_PROFILES, WS_TABSTOP | BS_PUSHBUTTON,
+	                                     ID_APPLICATION_PROFILES, curve_canvas);
+	info_button =
+		CreateChildControl(L"BUTTON", L"Picture status", WS_TABSTOP | BS_PUSHBUTTON, ID_OUTPUT_INFO, curve_canvas);
+	monitor_settings_button = CreateChildControl(L"BUTTON", ui::wording::LABEL_SETTINGS, WS_TABSTOP | BS_PUSHBUTTON,
+	                                             ID_SETTINGS_PAGE, curve_canvas);
+	monitor_tips =
 		CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, CW_USEDEFAULT,
-	                    CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, window, nullptr, instance, nullptr);
-	ui::StyleTooltip(monitorTips);
-	SendMessageW(monitorTips, TTM_SETMAXTIPWIDTH, 0, ScaleForDpi(360));
-	for (HWND button :
-	     { hdrButton, powerButton, profilesButton, monitorSettingsButton, infoButton, monitorProfile, websiteLink })
+	                    CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, main_window, nullptr, app_instance, nullptr);
+	ui::StyleTooltip(monitor_tips);
+	SendMessageW(monitor_tips, TTM_SETMAXTIPWIDTH, 0, ScaleForDpi(360));
+	for (HWND button : { hdr_button, power_button, profiles_button, monitor_settings_button, info_button,
+	                     monitor_profile, website_link })
 	{
 		TOOLINFOW tip { sizeof(tip) };
 		tip.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-		tip.hwnd = canvas;
+		tip.hwnd = curve_canvas;
 		tip.uId = reinterpret_cast<UINT_PTR>(button);
 		tip.lpszText = LPSTR_TEXTCALLBACKW;
-		SendMessageW(monitorTips, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tip));
+		SendMessageW(monitor_tips, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tip));
 	}
-	resetButton = CreateChildControl(L"BUTTON", L"Reset adjustment", WS_TABSTOP | BS_PUSHBUTTON, Reset);
-	selectedEffectToggle =
-		CreateChildControl(L"BUTTON", L"Selected effect on/off", WS_TABSTOP | BS_AUTOCHECKBOX, SelectedEffectToggle);
-	ui::ToggleButton(selectedEffectToggle, false);
-	exportButton = CreateChildControl(L"BUTTON", L"Export curve...", WS_TABSTOP | BS_PUSHBUTTON, Export);
+	reset_button = CreateChildControl(L"BUTTON", L"Reset adjustment", WS_TABSTOP | BS_PUSHBUTTON, ID_RESET);
+	selected_effect_toggle = CreateChildControl(L"BUTTON", L"Selected effect on/off", WS_TABSTOP | BS_AUTOCHECKBOX,
+	                                            ID_SELECTED_EFFECT_TOGGLE);
+	ui::ToggleButton(selected_effect_toggle, false);
+	export_button = CreateChildControl(L"BUTTON", L"Export curve...", WS_TABSTOP | BS_PUSHBUTTON, ID_EXPORT);
 	{
-		const std::pair<HWND, ui::Glyph> toolbar[] { { savePresetButton, ui::Glyph::Save },
-			                                         { saveAsButton, ui::Glyph::SaveAs },
-			                                         { exportButton, ui::Glyph::Export },
-			                                         { revertPresetButton, ui::Glyph::Revert },
-			                                         { resetButton, ui::Glyph::Reset } };
+		const std::pair<HWND, ui::Glyph> toolbar[] { { save_preset_button, ui::Glyph::Save },
+			                                         { save_as_button, ui::Glyph::SaveAs },
+			                                         { export_button, ui::Glyph::Export },
+			                                         { revert_preset_button, ui::Glyph::Revert },
+			                                         { reset_button, ui::Glyph::Reset } };
 		for (const auto& entry : toolbar)
 		{
 			ui::SetIconButton(entry.first, entry.second, false, IsWindowEnabled(entry.first) != FALSE);
 		}
 		const std::pair<HWND, const wchar_t*> hints[] {
-			{ savePresetButton, L"Save preset" },      { saveAsButton, L"Save preset as..." },
-			{ exportButton, L"Export curve..." },      { revertPresetButton, L"Revert unsaved changes" },
-			{ resetButton, L"Reset this adjustment" }, { selectedEffectToggle, L"Turn this adjustment on or off" }
+			{ save_preset_button, L"Save preset" },     { save_as_button, L"Save preset as..." },
+			{ export_button, L"Export curve..." },      { revert_preset_button, L"Revert unsaved changes" },
+			{ reset_button, L"Reset this adjustment" }, { selected_effect_toggle, L"Turn this adjustment on or off" }
 		};
 		for (const auto& entry : hints)
 		{
 			TOOLINFOW tip { sizeof(tip) };
 			tip.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-			tip.hwnd = window;
+			tip.hwnd = main_window;
 			tip.uId = reinterpret_cast<UINT_PTR>(entry.first);
 			tip.lpszText = const_cast<wchar_t*>(entry.second);
-			SendMessageW(monitorTips, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tip));
+			SendMessageW(monitor_tips, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tip));
 		}
 	}
 
-	sourceChoice =
-		CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, SourceChoice, canvas);
-	testNote = CreateChildControl(L"STATIC", L"", 0, 0);
-	bypassButton = CreateChildControl(L"BUTTON", L"Bypass look", WS_TABSTOP | BS_PUSHBUTTON, Bypass);
-	shortcutLabel = CreateChildControl(L"STATIC", L"Bypass shortcut", 0, 0);
-	shortcutControl = CreateChildControl(HOTKEY_CLASSW, L"", WS_TABSTOP, Shortcut);
-	SendMessageW(shortcutControl, HKM_SETRULES, HKCOMB_NONE, HOTKEYF_CONTROL);
-	shortcutButton = CreateChildControl(L"BUTTON", L"Set shortcut", WS_TABSTOP | BS_PUSHBUTTON, SetShortcut);
-	hdrFixControl = CreateChildControl(L"BUTTON", L"Also apply when Windows HDR is off (SDR)",
-	                                   WS_TABSTOP | BS_AUTOCHECKBOX, HdrFix);
-	settingsButton = CreateChildControl(L"BUTTON", ui::wording::Settings, WS_TABSTOP | BS_PUSHBUTTON, SettingsPage);
-	versionLabel = CreateChildControl(L"STATIC", L"MonitorMage " MONITORMAGE_VERSION_W, 0, 0);
-	startupControl =
-		CreateChildControl(L"BUTTON", L"Start with Windows", WS_TABSTOP | BS_AUTOCHECKBOX, StartWithWindows);
-	startMinimizedControl =
-		CreateChildControl(L"BUTTON", L"Start minimized", WS_TABSTOP | BS_AUTOCHECKBOX, StartMinimized);
-	saturationReportButton =
-		CreateChildControl(L"BUTTON", L"Color effect report...", WS_TABSTOP | BS_PUSHBUTTON, SaturationReport);
-	ui::SetHelpText(saturationReportButton, L"Color effect report");
-	filterChoice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, ColorFilterChoice);
-	for (const auto* name : windows_controls::FilterNames)
-		SendMessageW(filterChoice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
-	filterSettingsButton =
-		CreateChildControl(L"BUTTON", L"Windows settings...", WS_TABSTOP | BS_PUSHBUTTON, ColorFilterSettings);
-	nightSchedule = CreateChildControl(L"BUTTON", L"Use schedule", WS_TABSTOP | BS_AUTOCHECKBOX, NightSchedule);
-	nightStartLabel = CreateChildControl(L"STATIC", L"From", SS_CENTERIMAGE, 0);
-	nightEndLabel = CreateChildControl(L"STATIC", L"Until", SS_CENTERIMAGE, 0);
-	nightStart = CreateChildControl(L"EDIT", L"21:00", WS_TABSTOP | ES_AUTOHSCROLL, NightStart);
-	nightEnd = CreateChildControl(L"EDIT", L"07:00", WS_TABSTOP | ES_AUTOHSCROLL, NightEnd);
-	SendMessageW(nightStart, EM_SETLIMITTEXT, 5, 0);
-	SendMessageW(nightEnd, EM_SETLIMITTEXT, 5, 0);
-	nightDisplay = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, NightDisplay);
-	nightInclude = CreateChildControl(L"BUTTON", L"Use on this display", WS_TABSTOP | BS_AUTOCHECKBOX, NightInclude);
-	ui::SetHelpText(nightDisplay, L"Night light display");
-	ui::SetHelpText(nightSchedule, L"Use daily schedule");
-	ui::SetHelpText(nightStart, L"Start time (24-hour)");
-	ui::SetHelpText(nightEnd, L"End time (24-hour)");
-	ui::SetHelpText(nightInclude, L"Include this display");
-	correctionNote = CreateChildControl(L"STATIC", L"", 0, 0);
-	if (!renderOnly)
+	source_choice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, ID_SOURCE_CHOICE,
+	                                   curve_canvas);
+	test_note = CreateChildControl(L"STATIC", L"", 0, 0);
+	bypass_button = CreateChildControl(L"BUTTON", L"Bypass look", WS_TABSTOP | BS_PUSHBUTTON, ID_BYPASS);
+	shortcut_label = CreateChildControl(L"STATIC", L"Bypass shortcut", 0, 0);
+	shortcut_control = CreateChildControl(HOTKEY_CLASSW, L"", WS_TABSTOP, ID_SHORTCUT);
+	SendMessageW(shortcut_control, HKM_SETRULES, HKCOMB_NONE, HOTKEYF_CONTROL);
+	shortcut_button = CreateChildControl(L"BUTTON", L"Set shortcut", WS_TABSTOP | BS_PUSHBUTTON, ID_SET_SHORTCUT);
+	hdr_fix_control = CreateChildControl(L"BUTTON", L"Also apply when Windows HDR is off (SDR)",
+	                                     WS_TABSTOP | BS_AUTOCHECKBOX, ID_HDR_FIX);
+	settings_button =
+		CreateChildControl(L"BUTTON", ui::wording::LABEL_SETTINGS, WS_TABSTOP | BS_PUSHBUTTON, ID_SETTINGS_PAGE);
+	version_label = CreateChildControl(L"STATIC", L"MonitorMage " MONITORMAGE_VERSION_W, 0, 0);
+	startup_control =
+		CreateChildControl(L"BUTTON", L"Start with Windows", WS_TABSTOP | BS_AUTOCHECKBOX, ID_START_WITH_WINDOWS);
+	start_minimized_control =
+		CreateChildControl(L"BUTTON", L"Start minimized", WS_TABSTOP | BS_AUTOCHECKBOX, ID_START_MINIMIZED);
+	saturation_report_button =
+		CreateChildControl(L"BUTTON", L"Color effect report...", WS_TABSTOP | BS_PUSHBUTTON, ID_SATURATION_REPORT);
+	ui::SetHelpText(saturation_report_button, L"Color effect report");
+	filter_choice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, ID_COLOR_FILTER_CHOICE);
+	for (const auto* name : windows_controls::FILTER_NAMES)
+		SendMessageW(filter_choice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+	filter_settings_button =
+		CreateChildControl(L"BUTTON", L"Windows settings...", WS_TABSTOP | BS_PUSHBUTTON, ID_COLOR_FILTER_SETTINGS);
+	night_schedule = CreateChildControl(L"BUTTON", L"Use schedule", WS_TABSTOP | BS_AUTOCHECKBOX, ID_NIGHT_SCHEDULE);
+	night_start_label = CreateChildControl(L"STATIC", L"From", SS_CENTERIMAGE, 0);
+	night_end_label = CreateChildControl(L"STATIC", L"Until", SS_CENTERIMAGE, 0);
+	night_start = CreateChildControl(L"EDIT", L"21:00", WS_TABSTOP | ES_AUTOHSCROLL, ID_NIGHT_START);
+	night_end = CreateChildControl(L"EDIT", L"07:00", WS_TABSTOP | ES_AUTOHSCROLL, ID_NIGHT_END);
+	SendMessageW(night_start, EM_SETLIMITTEXT, 5, 0);
+	SendMessageW(night_end, EM_SETLIMITTEXT, 5, 0);
+	night_display = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, ID_NIGHT_DISPLAY);
+	night_include =
+		CreateChildControl(L"BUTTON", L"Use on this display", WS_TABSTOP | BS_AUTOCHECKBOX, ID_NIGHT_INCLUDE);
+	ui::SetHelpText(night_display, L"Night light display");
+	ui::SetHelpText(night_schedule, L"Use daily schedule");
+	ui::SetHelpText(night_start, L"Start time (24-hour)");
+	ui::SetHelpText(night_end, L"End time (24-hour)");
+	ui::SetHelpText(night_include, L"Include this display");
+	correction_note = CreateChildControl(L"STATIC", L"", 0, 0);
+	if (!render_only)
 	{
 		try
 		{
-			startupEnabled = app_settings::StartsWithWindows(app_settings::ExecutablePath());
+			startup_enabled = app_settings::StartsWithWindows(app_settings::ExecutablePath());
 		}
 		catch (const std::exception& error)
 		{
 			ShowPresetError(error);
 		}
 	}
-	fontLabel = CreateChildControl(L"STATIC", L"Interface font", 0, 0);
-	fontChoice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, FontChoice);
+	font_label = CreateChildControl(L"STATIC", L"Interface font", 0, 0);
+	font_choice = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, ID_FONT_CHOICE);
 	for (const wchar_t* name : { L"Bahnschrift", L"Segoe UI", L"Segoe UI Semilight" })
-		SendMessageW(fontChoice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
-	curveChannel = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, CurveChannel);
+		SendMessageW(font_choice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+	curve_channel = CreateChildControl(L"COMBOBOX", L"", WS_TABSTOP | CBS_DROPDOWNLIST, ID_CURVE_CHANNEL);
 	for (const wchar_t* name : { L"Master", L"Red", L"Green", L"Blue" })
-		SendMessageW(curveChannel, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
-	SendMessageW(curveChannel, CB_SETCURSEL, 0, 0);
-	importButton = CreateChildControl(L"BUTTON", L"Import 1D LUT...", WS_TABSTOP | BS_PUSHBUTTON, Import1D);
-	export1DButton = CreateChildControl(L"BUTTON", L"Export look LUT...", WS_TABSTOP | BS_PUSHBUTTON, Export1D);
-	for (size_t i = 0; i < adjustmentSliders.size(); ++i)
+		SendMessageW(curve_channel, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(name));
+	SendMessageW(curve_channel, CB_SETCURSEL, 0, 0);
+	import_button = CreateChildControl(L"BUTTON", L"Import 1D LUT...", WS_TABSTOP | BS_PUSHBUTTON, ID_IMPORT_1D);
+	export_1d_button = CreateChildControl(L"BUTTON", L"Export look LUT...", WS_TABSTOP | BS_PUSHBUTTON, ID_EXPORT_1D);
+	for (size_t i = 0; i < adjustment_sliders.size(); ++i)
 	{
-		adjustmentLabels[i] = CreateChildControl(L"STATIC", L"", SS_CENTERIMAGE, 0);
-		adjustmentValues[i] = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
-		adjustmentSliders[i] =
-			CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS, AdjustmentBase + static_cast<int>(i));
+		adjustment_labels[i] = CreateChildControl(L"STATIC", L"", SS_CENTERIMAGE, 0);
+		adjustment_values[i] = CreateChildControl(L"STATIC", L"", SS_RIGHT | SS_CENTERIMAGE, 0);
+		adjustment_sliders[i] = CreateChildControl(TRACKBAR_CLASSW, L"", WS_TABSTOP | TBS_NOTICKS,
+		                                           ID_ADJUSTMENT_BASE + static_cast<int>(i));
 	}
 	{
-		const std::pair<HWND, const wchar_t*> help[] { { presetChoice, L"Choose preset" },
-			                                           { autosaveControl, L"Autosave preset changes" },
-			                                           { sourceChoice, L"Choose display" },
-			                                           { fontChoice, L"Interface font" },
-			                                           { shortcutControl, L"Pause effects shortcut" },
-			                                           { shortcutButton, L"Set shortcut" },
-			                                           { startupControl, L"Start with Windows" },
-			                                           { startMinimizedControl, L"Start in the tray" },
-			                                           { openPresetButton, L"Open preset folder" },
-			                                           { bypassButton, L"Pause / resume effects" },
-			                                           { filterChoice, L"Choose color filter" },
-			                                           { filterSettingsButton, L"Windows color filter settings" },
-			                                           { contrastSlider, L"Contrast" },
-			                                           { pivotSlider, L"Contrast pivot" },
-			                                           { whiteSlider, L"SDR white brightness" },
-			                                           { gammaChoice, L"Gamma 2.2" },
-			                                           { gammaOther, L"Gamma 2.4" },
-			                                           { hdrFixControl, L"Also apply in SDR" },
-			                                           { curveChannel, L"Choose curve channel" },
-			                                           { importButton, L"Import 1D LUT" },
-			                                           { export1DButton, L"Export effects as 1D LUT" } };
+		const std::pair<HWND, const wchar_t*> help[] { { preset_choice, L"Choose preset" },
+			                                           { autosave_control, L"Autosave preset changes" },
+			                                           { source_choice, L"Choose display" },
+			                                           { font_choice, L"Interface font" },
+			                                           { shortcut_control, L"Pause effects shortcut" },
+			                                           { shortcut_button, L"Set shortcut" },
+			                                           { startup_control, L"Start with Windows" },
+			                                           { start_minimized_control, L"Start in the tray" },
+			                                           { open_preset_button, L"Open preset folder" },
+			                                           { bypass_button, L"Pause / resume effects" },
+			                                           { filter_choice, L"Choose color filter" },
+			                                           { filter_settings_button, L"Windows color filter settings" },
+			                                           { contrast_slider, L"Contrast" },
+			                                           { pivot_slider, L"Contrast pivot" },
+			                                           { white_slider, L"SDR white brightness" },
+			                                           { gamma_choice, L"Gamma 2.2" },
+			                                           { gamma_other, L"Gamma 2.4" },
+			                                           { hdr_fix_control, L"Also apply in SDR" },
+			                                           { curve_channel, L"Choose curve channel" },
+			                                           { import_button, L"Import 1D LUT" },
+			                                           { export_1d_button, L"Export effects as 1D LUT" } };
 		for (const auto& item : help)
 			ui::SetHelpText(item.first, item.second);
 	}
-	DiscoverPresets(0);
-	DiscoverPresets(1);
+	DiscoverPresets(preset_role::Look);
+	DiscoverPresets(preset_role::Correction);
 	LoadPresetControls();
-	SendMessageW(autosaveControl, BM_SETCHECK, autosave ? BST_CHECKED : BST_UNCHECKED, 0);
+	SendMessageW(autosave_control, BM_SETCHECK, autosave_enabled ? BST_CHECKED : BST_UNCHECKED, 0);
 	{
 		const int family = wcscmp(ui::FontFamily(), L"Bahnschrift") == 0 ? 0
 		                   : wcscmp(ui::FontFamily(), L"Segoe UI") == 0  ? 1
 		                                                                 : 2;
-		SendMessageW(fontChoice, CB_SETCURSEL, family, 0);
+		SendMessageW(font_choice, CB_SETCURSEL, family, 0);
 	}
 	RefreshColorFilters();
-	for (const auto& source : sources)
-		SendMessageW(sourceChoice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(source.label.c_str()));
-	SelectSource(selectedSource);
-	SendMessageW(shortcutControl, HKM_SETHOTKEY, activeShortcut, 0);
+	for (const auto& source : display_sources)
+		SendMessageW(source_choice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(source.label.c_str()));
+	SelectSource(selected_source);
+	SendMessageW(shortcut_control, HKM_SETHOTKEY, active_shortcut, 0);
 	LayoutEditorControls();
 	RefreshInterface();
 }
 
-LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 {
-	static const HBRUSH sidebar = CreateSolidBrush(ui::Sidebar);
-	const auto paintBackground = [&](HDC dc)
+	static const HBRUSH sidebar = CreateSolidBrush(ui::THEME_SIDEBAR);
+	const auto paint_background = [&](HDC dc)
 	{
 		RECT rect {};
 		GetClientRect(hwnd, &rect);
 		FillRect(dc, &rect, ui::BackgroundBrush());
-		rect.right = std::max(0L, ScaleForDpi(SidebarWidth) - ui::ViewportOffset(hwnd).x);
+		rect.right = std::max(0L, ScaleForDpi(SIDEBAR_WIDTH) - ui::ViewportOffset(hwnd).x);
 		FillRect(dc, &rect, sidebar);
 	};
 	if (message == WM_ERASEBKGND || message == WM_PRINTCLIENT)
 	{
-		paintBackground(reinterpret_cast<HDC>(wParam));
+		paint_background(reinterpret_cast<HDC>(w_param));
 		return 1;
 	}
 	if (message == WM_PAINT)
 	{
 		PAINTSTRUCT paint {};
 		const auto dc = BeginPaint(hwnd, &paint);
-		paintBackground(dc);
+		paint_background(dc);
 		EndPaint(hwnd, &paint);
 		return 0;
 	}
 	if ((message == WM_CTLCOLORSTATIC &&
-	     (reinterpret_cast<HWND>(lParam) == listLabel || reinterpret_cast<HWND>(lParam) == effectsLabel ||
-	      reinterpret_cast<HWND>(lParam) == orderHint)) ||
+	     (reinterpret_cast<HWND>(l_param) == corrections_heading || reinterpret_cast<HWND>(l_param) == effects_label ||
+	      reinterpret_cast<HWND>(l_param) == order_hint)) ||
 	    (message == WM_CTLCOLORLISTBOX &&
-	     (reinterpret_cast<HWND>(lParam) == layers || reinterpret_cast<HWND>(lParam) == correctionLayers ||
-	      reinterpret_cast<HWND>(lParam) == windowsLayers)))
+	     (reinterpret_cast<HWND>(l_param) == effect_list || reinterpret_cast<HWND>(l_param) == correction_list ||
+	      reinterpret_cast<HWND>(l_param) == windows_effect_list)))
 	{
-		const auto dc = reinterpret_cast<HDC>(wParam);
-		SetBkColor(dc, ui::Sidebar);
-		SetTextColor(dc, ui::Text);
+		const auto dc = reinterpret_cast<HDC>(w_param);
+		SetBkColor(dc, ui::THEME_SIDEBAR);
+		SetTextColor(dc, ui::THEME_TEXT);
 		return reinterpret_cast<LRESULT>(sidebar);
 	}
-	LRESULT themeResult = 0;
+	LRESULT theme_result = 0;
 	// Client geometry must already match the eventual custom title bar, even
 	// while its painting, fonts and interactive controls are deferred.
-	if ((editorReady || message == WM_NCCALCSIZE) && ui::HandleThemeMessage(hwnd, message, wParam, lParam, themeResult))
-		return themeResult;
-	if (explorerRestart && message == explorerRestart)
+	if ((editor_ready || message == WM_NCCALCSIZE) &&
+	    ui::HandleThemeMessage(hwnd, message, w_param, l_param, theme_result))
+		return theme_result;
+	if (taskbar_created_message && message == taskbar_created_message)
 	{
 		InstallTray();
 		return 0;
@@ -3671,14 +3735,14 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 	switch (message)
 	{
 		case WM_CREATE:
-			window = hwnd;
+			main_window = hwnd;
 			InitializePresets();
-			runtimeReady = true;
-			if (!renderOnly)
+			runtime_ready = true;
+			if (!render_only)
 			{
 				try
 				{
-					appConfig = applications::Read(SettingsFilePath());
+					profile_configuration = applications::Read(SettingsFilePath());
 				}
 				catch (const std::exception& error)
 				{
@@ -3686,85 +3750,85 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 				}
 			}
 			RefreshSources();
-			if (!renderOnly)
+			if (!render_only)
 				LoadAndBindHotkey();
-			if (!deferEditor)
+			if (!defer_editor)
 				CreateEditorIfNeeded();
-			if (!renderOnly && !InstallTray())
+			if (!render_only && !InstallTray())
 				CreateEditorIfNeeded();
 			return 0;
 		case WM_MEASUREITEM:
-			if (reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->CtlID == Layers ||
-			    reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->CtlID == CorrectionLayers)
+			if (reinterpret_cast<MEASUREITEMSTRUCT*>(l_param)->CtlID == ID_EFFECT_LIST ||
+			    reinterpret_cast<MEASUREITEMSTRUCT*>(l_param)->CtlID == ID_CORRECTION_LAYERS)
 			{
-				reinterpret_cast<MEASUREITEMSTRUCT*>(lParam)->itemHeight = ScaleForDpi(effects::RowHeight);
+				reinterpret_cast<MEASUREITEMSTRUCT*>(l_param)->itemHeight = ScaleForDpi(effects::ROW_HEIGHT);
 				return TRUE;
 			}
 			break;
 		case WM_DRAWITEM:
-			if (reinterpret_cast<DRAWITEMSTRUCT*>(lParam)->hwndItem == orderHint)
+			if (reinterpret_cast<DRAWITEMSTRUCT*>(l_param)->hwndItem == order_hint)
 			{
-				const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(lParam);
-				HBRUSH brush = CreateSolidBrush(ui::Sidebar);
+				const auto& item = *reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
+				HBRUSH brush = CreateSolidBrush(ui::THEME_SIDEBAR);
 				FillRect(item.hDC, &item.rcItem, brush);
 				DeleteObject(brush);
 				const auto previous =
-					SelectObject(item.hDC, reinterpret_cast<HFONT>(SendMessageW(orderHint, WM_GETFONT, 0, 0)));
+					SelectObject(item.hDC, reinterpret_cast<HFONT>(SendMessageW(order_hint, WM_GETFONT, 0, 0)));
 				SetBkMode(item.hDC, TRANSPARENT);
-				SetTextColor(item.hDC, ui::Muted);
+				SetTextColor(item.hDC, ui::THEME_MUTED);
 				wchar_t text[128] {};
-				GetWindowTextW(orderHint, text, 128);
+				GetWindowTextW(order_hint, text, 128);
 				RECT area = item.rcItem;
 				DrawTextW(item.hDC, text, -1, &area,
 				          DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
 				SelectObject(item.hDC, previous);
 				return TRUE;
 			}
-			if (effects::Draw(*reinterpret_cast<DRAWITEMSTRUCT*>(lParam)))
+			if (effects::Draw(*reinterpret_cast<DRAWITEMSTRUCT*>(l_param)))
 				return TRUE;
 			break;
 		case WM_NOTIFY:
-			if (reinterpret_cast<NMHDR*>(lParam)->hwndFrom == monitorTips &&
-			    reinterpret_cast<NMHDR*>(lParam)->code == TTN_GETDISPINFOW)
+			if (reinterpret_cast<NMHDR*>(l_param)->hwndFrom == monitor_tips &&
+			    reinterpret_cast<NMHDR*>(l_param)->code == TTN_GETDISPINFOW)
 			{
-				auto tip = reinterpret_cast<NMTTDISPINFOW*>(lParam);
+				auto tip = reinterpret_cast<NMTTDISPINFOW*>(l_param);
 				const HWND button = reinterpret_cast<HWND>(tip->hdr.idFrom);
 				static std::wstring text;
-				if (button == infoButton)
+				if (button == info_button)
 				{
 					wchar_t details[2048] {};
-					GetWindowTextW(status, details, 2048);
+					GetWindowTextW(status_label, details, 2048);
 					text = details;
 				}
-				else if (button == websiteLink)
+				else if (button == website_link)
 					text = L"Visit CeeJay.dk";
 				else
-					text = button == hdrButton ? std::wstring(ui::HdrTooltip(hdrState.on, hdrState.available))
-					       : button == powerButton
-					           ? std::wstring(correctionsRequested ? L"Turn off (Alt+P)" : L"Turn on (Alt+P)")
-					       : button == monitorSettingsButton ? std::wstring(ui::wording::Settings)
-					                                         : std::wstring(ui::wording::ApplicationProfiles);
+					text = button == hdr_button ? std::wstring(ui::HdrTooltip(hdr_state.on, hdr_state.available))
+					       : button == power_button
+					           ? std::wstring(corrections_requested ? L"Turn off (Alt+P)" : L"Turn on (Alt+P)")
+					       : button == monitor_settings_button ? std::wstring(ui::wording::LABEL_SETTINGS)
+					                                           : std::wstring(ui::wording::LABEL_APPLICATION_PROFILES);
 				tip->lpszText = text.data();
 				return 0;
 			}
 			break;
 		case WM_HSCROLL:
-			if (LOWORD(wParam) == TB_THUMBTRACK && !sliderDragging)
+			if (LOWORD(w_param) == TB_THUMBTRACK && !slider_dragging)
 			{
-				lookDirtyBeforeDrag = CurrentPreset(0).IsDirty();
-				sliderDragging = true;
-				if (selected != 9)
-					KillTimer(hwnd, PresetTimer);
+				look_dirty_before_drag = CurrentPreset(preset_role::Look).IsDirty();
+				slider_dragging = true;
+				if (selected_effect != effect::NightLight)
+					KillTimer(hwnd, TIMER_PRESET);
 			}
-			if (LOWORD(wParam) == TB_THUMBPOSITION || LOWORD(wParam) == TB_ENDTRACK)
-				sliderDragging = false;
+			if (LOWORD(w_param) == TB_THUMBPOSITION || LOWORD(w_param) == TB_ENDTRACK)
+				slider_dragging = false;
 			{
-				const int index = GetDlgCtrlID(reinterpret_cast<HWND>(lParam)) - AdjustmentBase;
+				const int index = GetDlgCtrlID(reinterpret_cast<HWND>(l_param)) - ID_ADJUSTMENT_BASE;
 				const auto fields = SliderParameters();
 				if (index >= 0 && static_cast<size_t>(index) < fields.size())
 				{
-					int value = static_cast<int>(SendMessageW(adjustmentSliders[index], TBM_GETPOS, 0, 0));
-					if (selected == 4)
+					int value = static_cast<int>(SendMessageW(adjustment_sliders[index], TBM_GETPOS, 0, 0));
+					if (selected_effect == effect::Levels)
 					{
 						if (index % 2 == 0)
 							value = std::min(value, *fields[index + 1].value - 5);
@@ -3772,154 +3836,155 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 							value = std::max(value, *fields[index - 1].value + 5);
 					}
 					*fields[index].value = value;
-					if (selected == 9)
+					if (selected_effect == effect::NightLight)
 					{
-						if (!renderOnly && LOWORD(wParam) != TB_THUMBTRACK)
+						if (!render_only && LOWORD(w_param) != TB_THUMBTRACK)
 							PersistPresetChoices();
 						UpdateNightLightSchedule();
 					}
 					else
-						OnPresetEdited(0);
+						OnPresetEdited(preset_role::Look);
 				}
 			}
-			contrastPosition = static_cast<int>(SendMessageW(contrastSlider, TBM_GETPOS, 0, 0));
-			pivotPosition = static_cast<int>(SendMessageW(pivotSlider, TBM_GETPOS, 0, 0));
-			whitePosition = static_cast<int>(SendMessageW(whiteSlider, TBM_GETPOS, 0, 0));
-			if (reinterpret_cast<HWND>(lParam) == contrastSlider || reinterpret_cast<HWND>(lParam) == pivotSlider)
-				OnPresetEdited(0);
+			contrast_position = static_cast<int>(SendMessageW(contrast_slider, TBM_GETPOS, 0, 0));
+			pivot_position = static_cast<int>(SendMessageW(pivot_slider, TBM_GETPOS, 0, 0));
+			white_position = static_cast<int>(SendMessageW(white_slider, TBM_GETPOS, 0, 0));
+			if (reinterpret_cast<HWND>(l_param) == contrast_slider || reinterpret_cast<HWND>(l_param) == pivot_slider)
+				OnPresetEdited(preset_role::Look);
 			RefreshInterface();
-			if (correctionsRequested)
-				SetTimer(hwnd, ApplyTimer, 100, nullptr);
+			if (corrections_requested)
+				SetTimer(hwnd, TIMER_APPLY, 100, nullptr);
 			return 0;
 		case WM_COMMAND:
-			if (LOWORD(wParam) == NightDisplay && HIWORD(wParam) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_NIGHT_DISPLAY && HIWORD(w_param) == CBN_SELCHANGE)
 			{
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == NightSchedule || LOWORD(wParam) == NightInclude)
+			if (LOWORD(w_param) == ID_NIGHT_SCHEDULE || LOWORD(w_param) == ID_NIGHT_INCLUDE)
 			{
-				if (LOWORD(wParam) == NightSchedule)
-					nightConfig.scheduled = SendMessageW(nightSchedule, BM_GETCHECK, 0, 0) == BST_CHECKED;
+				if (LOWORD(w_param) == ID_NIGHT_SCHEDULE)
+					night_config.Scheduled = SendMessageW(night_schedule, BM_GETCHECK, 0, 0) == BST_CHECKED;
 				else
 				{
-					const auto index = SendMessageW(nightDisplay, CB_GETCURSEL, 0, 0);
-					if (index >= 0 && static_cast<size_t>(index) < sources.size())
-						night::SetDisplayIncluded(nightConfig, sources[index].identity,
-						                          SendMessageW(nightInclude, BM_GETCHECK, 0, 0) == BST_CHECKED);
+					const auto source_index = SendMessageW(night_display, CB_GETCURSEL, 0, 0);
+					if (source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size())
+						night::SetDisplayIncluded(night_config, display_sources[source_index].identity,
+						                          SendMessageW(night_include, BM_GETCHECK, 0, 0) == BST_CHECKED);
 				}
-				if (!renderOnly)
+				if (!render_only)
 					PersistPresetChoices();
 				ApplyLiveCorrections();
 				RefreshInterface();
 				return 0;
 			}
-			if ((LOWORD(wParam) == NightStart || LOWORD(wParam) == NightEnd) && HIWORD(wParam) == EN_KILLFOCUS)
+			if ((LOWORD(w_param) == ID_NIGHT_START || LOWORD(w_param) == ID_NIGHT_END) &&
+			    HIWORD(w_param) == EN_KILLFOCUS)
 			{
-				if (closing)
+				if (is_closing)
 					return 0;
 				wchar_t text[16] {};
-				GetWindowTextW(reinterpret_cast<HWND>(lParam), text, 16);
+				GetWindowTextW(reinterpret_cast<HWND>(l_param), text, 16);
 				const int value = night::ParseTime(text);
-				const bool start = LOWORD(wParam) == NightStart;
-				if (value < 0 || value == (start ? nightConfig.end : nightConfig.start))
+				const bool start = LOWORD(w_param) == ID_NIGHT_START;
+				if (value < 0 || value == (start ? night_config.End : night_config.Start))
 				{
-					nightMessage = L"Use HH:MM, with different start and end times.";
+					night_message = L"Use HH:MM, with different start and end times.";
 					RefreshInterface();
 					return 0;
 				}
-				if (value == (start ? nightConfig.start : nightConfig.end))
+				if (value == (start ? night_config.Start : night_config.End))
 					return 0;
-				(start ? nightConfig.start : nightConfig.end) = value;
-				nightMessage.clear();
-				if (!renderOnly)
+				(start ? night_config.Start : night_config.End) = value;
+				night_message.clear();
+				if (!render_only)
 					PersistPresetChoices();
 				ApplyLiveCorrections();
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == SaturationReport)
+			if (LOWORD(w_param) == ID_SATURATION_REPORT)
 			{
-				if (!renderOnly)
+				if (!render_only)
 					try
 					{
-						const auto report = matrixSession.WriteReport();
-						ShellExecuteW(window, L"open", report.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+						const auto report = matrix_session.WriteReport();
+						ShellExecuteW(main_window, L"open", report.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 					}
 					catch (const std::exception&)
 					{
-						matrixMessage = L"The saturation report could not be saved.";
+						matrix_message = L"The saturation report could not be saved.";
 						RefreshInterface();
 					}
 				return 0;
 			}
-			if (LOWORD(wParam) == OutputInfo)
+			if (LOWORD(w_param) == ID_OUTPUT_INFO)
 			{
-				SendMessageW(monitorTips, TTM_POPUP, 0, 0);
+				SendMessageW(monitor_tips, TTM_POPUP, 0, 0);
 				return 0;
 			}
-			if (LOWORD(wParam) == SelectedEffectToggle && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_SELECTED_EFFECT_TOGGLE && HIWORD(w_param) == BN_CLICKED)
 			{
-				ToggleEffect(selected);
+				ToggleEffect(selected_effect);
 				return 0;
 			}
-			if (LOWORD(wParam) == ToggleWindowsHdr)
+			if (LOWORD(w_param) == ID_TOGGLE_WINDOWS_HDR)
 			{
 				ToggleWindowsHdrMode();
 				return 0;
 			}
-			if (LOWORD(wParam) == PresetChoice && HIWORD(wParam) == CBN_DROPDOWN)
+			if (LOWORD(w_param) == ID_PRESET_CHOICE && HIWORD(w_param) == CBN_DROPDOWN)
 			{
 				DiscoverPresets(SelectedPresetRole());
 				RefreshPresetChoice();
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == Import1D || LOWORD(wParam) == Export1D)
+			if (LOWORD(w_param) == ID_IMPORT_1D || LOWORD(w_param) == ID_EXPORT_1D)
 			{
-				ImportOrExportLut(LOWORD(wParam) == Import1D);
+				ImportOrExportLut(LOWORD(w_param) == ID_IMPORT_1D);
 				return 0;
 			}
-			if (LOWORD(wParam) == SettingsPage)
+			if (LOWORD(w_param) == ID_SETTINGS_PAGE)
 			{
-				settingsPage = !settingsPage;
+				settings_page = !settings_page;
 				RefreshColorFilters();
 				LayoutEditorControls();
-				SetFocus(settingsPage ? fontChoice : EffectListForRole(selected));
+				SetFocus(settings_page ? font_choice : EffectListForRole(selected_effect));
 				return 0;
 			}
-			if (LOWORD(wParam) == ColorFilterChoice && HIWORD(wParam) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_COLOR_FILTER_CHOICE && HIWORD(w_param) == CBN_SELCHANGE)
 			{
-				const auto choice = SendMessageW(filterChoice, CB_GETCURSEL, 0, 0);
+				const auto choice = SendMessageW(filter_choice, CB_GETCURSEL, 0, 0);
 				if (choice >= 0)
-					ChangeWindowsFilter(filterState.on, static_cast<DWORD>(choice), true);
+					ChangeWindowsFilter(filter_state.on, static_cast<DWORD>(choice), true);
 				return 0;
 			}
-			if (LOWORD(wParam) == ColorFilterSettings)
+			if (LOWORD(w_param) == ID_COLOR_FILTER_SETTINGS)
 			{
-				if (!renderOnly)
+				if (!render_only)
 					try
 					{
-						windows_controls::OpenColorFilterSettings(window);
+						windows_controls::OpenColorFilterSettings(main_window);
 					}
 					catch (const std::exception& error)
 					{
-						filterMessage = ui::messages::FriendlyError(error.what());
-						filterError = true;
+						filter_message = ui::messages::FriendlyError(error.what());
+						filter_error = true;
 						RefreshInterface();
 					}
 				return 0;
 			}
-			if (LOWORD(wParam) == StartWithWindows)
+			if (LOWORD(w_param) == ID_START_WITH_WINDOWS)
 			{
-				if (!renderOnly)
+				if (!render_only)
 				{
 					try
 					{
-						const bool enabled = SendMessageW(startupControl, BM_GETCHECK, 0, 0) == BST_CHECKED;
+						const bool enabled = SendMessageW(startup_control, BM_GETCHECK, 0, 0) == BST_CHECKED;
 						app_settings::StartWithWindows(app_settings::ExecutablePath(), enabled);
-						startupEnabled = enabled;
-						presetMessage.clear();
+						startup_enabled = enabled;
+						preset_message.clear();
 					}
 					catch (const std::exception& error)
 					{
@@ -3929,53 +3994,53 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == StartMinimized && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_START_MINIMIZED && HIWORD(w_param) == BN_CLICKED)
 			{
-				const bool previous = startMinimized;
-				startMinimized = SendMessageW(startMinimizedControl, BM_GETCHECK, 0, 0) == BST_CHECKED;
+				const bool previous = start_minimized;
+				start_minimized = SendMessageW(start_minimized_control, BM_GETCHECK, 0, 0) == BST_CHECKED;
 				if (!PersistPresetChoices())
-					startMinimized = previous;
+					start_minimized = previous;
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == FontChoice && HIWORD(wParam) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_FONT_CHOICE && HIWORD(w_param) == CBN_SELCHANGE)
 			{
 				wchar_t name[80] {};
-				GetWindowTextW(fontChoice, name, 80);
+				GetWindowTextW(font_choice, name, 80);
 				ui::SetFontFamily(name);
 				PersistPresetChoices();
 				LayoutEditorControls();
 				profile_editor::RefreshAppearance();
 				return 0;
 			}
-			if (LOWORD(wParam) == CurveChannel && HIWORD(wParam) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_CURVE_CHANNEL && HIWORD(w_param) == CBN_SELCHANGE)
 			{
-				editingChannel = static_cast<int>(SendMessageW(curveChannel, CB_GETCURSEL, 0, 0));
+				editing_channel = static_cast<int>(SendMessageW(curve_channel, CB_GETCURSEL, 0, 0));
 				InvalidateGraph();
 				return 0;
 			}
-			if (LOWORD(wParam) == ApplicationProfiles)
+			if (LOWORD(w_param) == ID_APPLICATION_PROFILES)
 			{
 				ShowProfiles();
 				return 0;
 			}
-			if (LOWORD(wParam) == MonitorProfile && HIWORD(wParam) == STN_CLICKED)
+			if (LOWORD(w_param) == ID_MONITOR_PROFILE && HIWORD(w_param) == STN_CLICKED)
 			{
-				ShowProfiles(renderOnly);
+				ShowProfiles(render_only);
 				return 0;
 			}
-			if (LOWORD(wParam) == WebsiteLink && HIWORD(wParam) == STN_CLICKED)
+			if (LOWORD(w_param) == ID_WEBSITE_LINK && HIWORD(w_param) == STN_CLICKED)
 			{
-				if (!renderOnly)
+				if (!render_only)
 					ShellExecuteW(hwnd, L"open", L"https://CeeJay.dk", nullptr, nullptr, SW_SHOWNORMAL);
 				return 0;
 			}
-			if (LOWORD(wParam) == RevertPreset)
+			if (LOWORD(w_param) == ID_REVERT_PRESET)
 			{
 				auto& entry = CurrentPreset(SelectedPresetRole());
 				entry.current = entry.saved;
-				presetMessage.clear();
-				if (selected != 1)
+				preset_message.clear();
+				if (selected_effect != effect::HdrGamma)
 					ManualLookOverride();
 				LoadPresetControls();
 				RefreshPresetChoice();
@@ -3983,16 +4048,16 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == PresetChoice && HIWORD(wParam) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_PRESET_CHOICE && HIWORD(w_param) == CBN_SELCHANGE)
 			{
-				const auto index = SendMessageW(presetChoice, CB_GETCURSEL, 0, 0);
-				if (index >= 0 && static_cast<size_t>(index) < presetLibrary[SelectedPresetRole()].size())
+				const auto index = SendMessageW(preset_choice, CB_GETCURSEL, 0, 0);
+				if (index >= 0 && static_cast<size_t>(index) < preset_library[SelectedPresetRole()].size())
 				{
-					const int role = SelectedPresetRole();
+					const int preset_role = SelectedPresetRole();
 					try
 					{
 						if (index > 0)
-							ReadPreset(role, presetLibrary[role][index].path);
+							ReadPreset(preset_role, preset_library[preset_role][index].path);
 					}
 					catch (const std::exception& error)
 					{
@@ -4002,8 +4067,8 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 						return 0;
 					}
 					FlushPresetAutosave();
-					presetIndex[role] = static_cast<size_t>(index);
-					if (selected != 1)
+					preset_index[preset_role] = static_cast<size_t>(index);
+					if (selected_effect != effect::HdrGamma)
 						ManualLookOverride();
 					PersistPresetChoices();
 					LoadPresetControls();
@@ -4013,7 +4078,7 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 				}
 				return 0;
 			}
-			if (LOWORD(wParam) == SavePreset)
+			if (LOWORD(w_param) == ID_SAVE_PRESET)
 			{
 				if (CurrentPreset(SelectedPresetRole()).path.empty())
 					PresetFileDialog(true);
@@ -4025,18 +4090,18 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 				}
 				return 0;
 			}
-			if (LOWORD(wParam) == SavePresetAs)
+			if (LOWORD(w_param) == ID_SAVE_PRESET_AS)
 			{
 				PresetFileDialog(true);
 				return 0;
 			}
-			if (LOWORD(wParam) == OpenPreset)
+			if (LOWORD(w_param) == ID_OPEN_PRESET)
 			{
-				const auto folder = PresetFolder(0).parent_path();
+				const auto folder = PresetFolder(preset_role::Look).parent_path();
 				try
 				{
 					std::filesystem::create_directories(folder);
-					ShellExecuteW(window, L"explore", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+					ShellExecuteW(main_window, L"explore", folder.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 				}
 				catch (const std::exception& error)
 				{
@@ -4045,79 +4110,80 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 				}
 				return 0;
 			}
-			if (LOWORD(wParam) == Autosave && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_AUTOSAVE && HIWORD(w_param) == BN_CLICKED)
 			{
-				autosave = SendMessageW(autosaveControl, BM_GETCHECK, 0, 0) == BST_CHECKED;
+				autosave_enabled = SendMessageW(autosave_control, BM_GETCHECK, 0, 0) == BST_CHECKED;
 				FlushPresetAutosave();
 				PersistPresetChoices();
 				RefreshPresetChoice();
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == SetShortcut && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_SET_SHORTCUT && HIWORD(w_param) == BN_CLICKED)
 			{
-				const WORD requested = static_cast<WORD>(SendMessageW(shortcutControl, HKM_GETHOTKEY, 0, 0));
-				if (renderOnly)
+				const WORD requested = static_cast<WORD>(SendMessageW(shortcut_control, HKM_GETHOTKEY, 0, 0));
+				if (render_only)
 					return 0;
 				if (BindHotkey(requested))
 				{
-					preferredShortcut = requested;
-					hotkeyMessage = PersistPresetChoices()
-					                    ? L""
-					                    : L"This shortcut works now, but could not be saved for next time.";
+					preferred_shortcut = requested;
+					hotkey_message = PersistPresetChoices()
+					                     ? L""
+					                     : L"This shortcut works now, but could not be saved for next time.";
 				}
 				else
 				{
-					hotkeyMessage = hotkeyError == ERROR_INVALID_PARAMETER
-					                    ? L"Choose a key with Ctrl, Alt or Shift. Windows reserves F12."
-					                    : L"That shortcut is unavailable. " +
-					                          std::wstring(hotkeyRegistered ? L"Your previous shortcut still works."
-					                                                        : L"Choose another combination.");
+					hotkey_message = hotkey_error == ERROR_INVALID_PARAMETER
+					                     ? L"Choose a key with Ctrl, Alt or Shift. Windows reserves F12."
+					                     : L"That shortcut is unavailable. " +
+					                           std::wstring(hotkey_registered ? L"Your previous shortcut still works."
+					                                                          : L"Choose another combination.");
 				}
 				RefreshInterface();
 				return 0;
 			}
-			if (LOWORD(wParam) == Exit)
+			if (LOWORD(w_param) == ID_EXIT)
 			{
 				if (ConfirmExit())
 					DestroyWindow(hwnd);
 				return 0;
 			}
-			if (LOWORD(wParam) == SourceChoice && HIWORD(wParam) == CBN_SELCHANGE)
+			if (LOWORD(w_param) == ID_SOURCE_CHOICE && HIWORD(w_param) == CBN_SELCHANGE)
 			{
-				const auto index = SelectedSourceIndex();
-				hdrState = index >= 0 && static_cast<size_t>(index) < sources.size()
-				               ? hdr::ReadHdrState(sources[index].name)
-				               : hdr::State {};
+				const auto source_index = SelectedSourceIndex();
+				hdr_state = source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size()
+				                ? hdr::ReadHdrState(display_sources[source_index].name)
+				                : hdr::State {};
 				ReconcileLiveCorrections();
 			}
-			if (LOWORD(wParam) == TestContrast && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_TEST_CONTRAST && HIWORD(w_param) == BN_CLICKED)
 			{
 				ToggleCorrections();
 			}
-			if (LOWORD(wParam) == Bypass && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_BYPASS && HIWORD(w_param) == BN_CLICKED)
 				ToggleBypass();
-			if (LOWORD(wParam) == HdrFix && HIWORD(wParam) == BN_CLICKED)
+			if (LOWORD(w_param) == ID_HDR_FIX && HIWORD(w_param) == BN_CLICKED)
 			{
-				CurrentPreset(1).current.applyInSdr = SendMessageW(hdrFixControl, BM_GETCHECK, 0, 0) == BST_CHECKED;
-				OnPresetEdited(1);
+				CurrentPreset(preset_role::Correction).current.ApplyInSdr =
+					SendMessageW(hdr_fix_control, BM_GETCHECK, 0, 0) == BST_CHECKED;
+				OnPresetEdited(preset_role::Correction);
 				ApplyLiveCorrections();
 				RefreshInterface();
 			}
-			if ((LOWORD(wParam) == Layers || LOWORD(wParam) == CorrectionLayers ||
-			     LOWORD(wParam) == WindowsCorrectionLayers) &&
-			    HIWORD(wParam) == LBN_SELCHANGE)
+			if ((LOWORD(w_param) == ID_EFFECT_LIST || LOWORD(w_param) == ID_CORRECTION_LAYERS ||
+			     LOWORD(w_param) == ID_WINDOWS_CORRECTION_LAYERS) &&
+			    HIWORD(w_param) == LBN_SELCHANGE)
 			{
-				const auto list = LOWORD(wParam) == Layers                    ? layers
-				                  : LOWORD(wParam) == WindowsCorrectionLayers ? windowsLayers
-				                                                              : correctionLayers;
+				const auto list = LOWORD(w_param) == ID_EFFECT_LIST                 ? effect_list
+				                  : LOWORD(w_param) == ID_WINDOWS_CORRECTION_LAYERS ? windows_effect_list
+				                                                                    : correction_list;
 				const auto row = SendMessageW(list, LB_GETCURSEL, 0, 0);
 				if (row >= 0)
-					selected = static_cast<int>(SendMessageW(list, LB_GETITEMDATA, row, 0));
+					selected_effect = static_cast<int>(SendMessageW(list, LB_GETITEMDATA, row, 0));
 				RefreshColorFilters();
-				if (settingsPage)
+				if (settings_page)
 				{
-					settingsPage = false;
+					settings_page = false;
 					LayoutEditorControls();
 				}
 				else
@@ -4126,65 +4192,67 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 					RefreshInterface();
 				}
 			}
-			if ((LOWORD(wParam) == Gamma || LOWORD(wParam) == GammaOther) && HIWORD(wParam) == BN_CLICKED)
+			if ((LOWORD(w_param) == ID_GAMMA || LOWORD(w_param) == ID_GAMMA_OTHER) && HIWORD(w_param) == BN_CLICKED)
 			{
-				gammaPosition = LOWORD(wParam) == Gamma ? 0 : 1;
-				OnPresetEdited(1);
+				gamma_position = LOWORD(w_param) == ID_GAMMA ? 0 : 1;
+				OnPresetEdited(preset_role::Correction);
 				ApplyLiveCorrections();
 				RefreshInterface();
 			}
-			if (LOWORD(wParam) == Export)
+			if (LOWORD(w_param) == ID_EXPORT)
 				ExportCurve();
-			if (LOWORD(wParam) == Reset && (selected < 8 || selected == 9 || selected >= 10))
+			if (LOWORD(w_param) == ID_RESET &&
+			    (selected_effect < effect::FirstWindows || selected_effect == effect::NightLight ||
+			     selected_effect >= effect::Saturation))
 			{
-				if (selected == 9)
+				if (selected_effect == effect::NightLight)
 				{
-					nightConfig.strength = 35;
-					nightConfig.fade = 10;
-					if (!renderOnly)
+					night_config.Strength = 35;
+					night_config.Fade = 10;
+					if (!render_only)
 						PersistPresetChoices();
 					ApplyLiveCorrections();
 					RefreshInterface();
 					return 0;
 				}
-				if (selected == 11)
-					CurrentPreset(0).current.monochrome = { 21, 72, 7 };
-				else if (selected == 10)
-					CurrentPreset(0).current.saturation = 100;
-				else if (selected == 0)
+				if (selected_effect == effect::ChannelMixer)
+					CurrentPreset(preset_role::Look).current.Monochrome = { 21, 72, 7 };
+				else if (selected_effect == effect::Saturation)
+					CurrentPreset(preset_role::Look).current.Saturation = 100;
+				else if (selected_effect == effect::ContrastCurves)
 				{
-					contrastPosition = 0;
-					pivotPosition = 50;
-					SendMessageW(contrastSlider, TBM_SETPOS, TRUE, 0);
-					SendMessageW(pivotSlider, TBM_SETPOS, TRUE, 50);
+					contrast_position = 0;
+					pivot_position = 50;
+					SendMessageW(contrast_slider, TBM_SETPOS, TRUE, 0);
+					SendMessageW(pivot_slider, TBM_SETPOS, TRUE, 50);
 				}
-				else if (selected >= 2)
+				else if (selected_effect >= effect::FirstCreative)
 				{
-					auto& a = CurrentPreset(0).current.adjustments;
+					auto& adjustments = CurrentPreset(preset_role::Look).current.Adjustments;
 					const color::Adjustments defaults;
-					if (selected == 2)
-						a.balance = defaults.balance;
-					else if (selected == 3)
-						a.midtone = 100;
-					else if (selected == 4)
-						a.levels = defaults.levels;
-					else if (selected == 5)
+					if (selected_effect == effect::ColorBalance)
+						adjustments.Balance = defaults.Balance;
+					else if (selected_effect == effect::MidtoneGamma)
+						adjustments.Midtone = 100;
+					else if (selected_effect == effect::Levels)
+						adjustments.Levels = defaults.Levels;
+					else if (selected_effect == effect::ShadowsHighlights)
 					{
-						a.shadows = 0;
-						a.highlights = 0;
+						adjustments.Shadows = 0;
+						adjustments.Highlights = 0;
 					}
-					else if (selected == 6)
-						a.curves = {};
+					else if (selected_effect == effect::CustomCurves)
+						adjustments.Curves = {};
 					else
-						a.imported = {};
+						adjustments.Imported = {};
 				}
 				else
 				{
-					whitePosition = 200;
-					gammaPosition = 0;
-					SendMessageW(whiteSlider, TBM_SETPOS, TRUE, 200);
-					SendMessageW(gammaChoice, BM_SETCHECK, BST_CHECKED, 0);
-					SendMessageW(gammaOther, BM_SETCHECK, BST_UNCHECKED, 0);
+					white_position = 200;
+					gamma_position = 0;
+					SendMessageW(white_slider, TBM_SETPOS, TRUE, 200);
+					SendMessageW(gamma_choice, BM_SETCHECK, BST_CHECKED, 0);
+					SendMessageW(gamma_other, BM_SETCHECK, BST_UNCHECKED, 0);
 				}
 				OnPresetEdited(SelectedPresetRole());
 				ApplyLiveCorrections();
@@ -4192,164 +4260,164 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 			}
 			return 0;
 		case WM_TIMECHANGE:
-			if (!renderOnly)
+			if (!render_only)
 			{
 				UpdateNightLightSchedule();
 				ApplyLiveCorrections();
 			}
 			return 0;
 		case WM_DISPLAYCHANGE:
-			curveScratch.Reset();
+			curve_scratch.Reset();
 			[[fallthrough]];
 		case WM_SETTINGCHANGE:
 		case WM_DEVICECHANGE:
-			if (!renderOnly)
+			if (!render_only)
 			{
-				displayAttempts = 0;
-				SetTimer(hwnd, DisplayTimer, 500, nullptr);
+				display_attempts = 0;
+				SetTimer(hwnd, TIMER_DISPLAY, 500, nullptr);
 			}
 			return 0;
 		case WM_TIMER:
-			if (wParam == NightTimer)
+			if (w_param == TIMER_NIGHT)
 			{
-				KillTimer(hwnd, NightTimer);
+				KillTimer(hwnd, TIMER_NIGHT);
 				ApplyLiveCorrections();
 				return 0;
 			}
-			if (wParam == ColorFilterTimer)
+			if (w_param == TIMER_COLOR_FILTER)
 			{
 				try
 				{
-					if (!filterController.Poll())
+					if (!filter_controller.Poll())
 						return 0;
-					filterMessage = filterController.Notice();
-					filterError = false;
+					filter_message = filter_controller.Notice();
+					filter_error = false;
 				}
 				catch (const std::exception& error)
 				{
-					filterMessage = ui::messages::FriendlyError(error.what());
-					filterError = true;
+					filter_message = ui::messages::FriendlyError(error.what());
+					filter_error = true;
 				}
-				KillTimer(hwnd, ColorFilterTimer);
+				KillTimer(hwnd, TIMER_COLOR_FILTER);
 				RefreshColorFilters();
 				SyncColorMatrix(true);
 				RefreshInterface();
 				return 0;
 			}
-			if (wParam == HdrTimer)
+			if (w_param == TIMER_HDR)
 			{
-				KillTimer(hwnd, HdrTimer);
-				const auto state = hdr::ReadHdrState(hdrSource);
-				if (state.available && state.on == hdrDesired && state.target == hdrTransition.target &&
-				    state.adapter.HighPart == hdrTransition.adapter.HighPart &&
-				    state.adapter.LowPart == hdrTransition.adapter.LowPart)
+				KillTimer(hwnd, TIMER_HDR);
+				const auto state = hdr::ReadHdrState(hdr_source);
+				if (state.available && state.on == hdr_desired && state.target == hdr_transition.target &&
+				    state.adapter.HighPart == hdr_transition.adapter.HighPart &&
+				    state.adapter.LowPart == hdr_transition.adapter.LowPart)
 				{
-					hdrPending = false;
+					hdr_pending = false;
 					RefreshSources();
-					const auto index = SelectedSourceIndex();
-					if (hdrResume && index >= 0 && static_cast<size_t>(index) < sources.size() &&
-					    sources[index].name == hdrSource)
+					const auto source_index = SelectedSourceIndex();
+					if (hdr_resume && source_index >= 0 && static_cast<size_t>(source_index) < display_sources.size() &&
+					    display_sources[source_index].name == hdr_source)
 					{
-						correctionsRequested = true;
+						corrections_requested = true;
 						ReconcileLiveCorrections();
 					}
 					else
-						liveMessage = hdrDesired ? L"Windows HDR is on." : L"Windows HDR is off.";
-					hdrResume = false;
+						live_message = hdr_desired ? L"Windows HDR is on." : L"Windows HDR is off.";
+					hdr_resume = false;
 					RefreshInterface();
 				}
-				else if (++hdrAttempts < 6)
-					SetTimer(hwnd, HdrTimer, 600, nullptr);
+				else if (++hdr_attempts < 6)
+					SetTimer(hwnd, TIMER_HDR, 600, nullptr);
 				else
 				{
-					hdrPending = false;
-					hdrResume = false;
-					modeResetPending = false;
+					hdr_pending = false;
+					hdr_resume = false;
+					mode_reset_pending = false;
 					RefreshSources();
-					liveMessage =
+					live_message =
 						L"MonitorMage could not confirm the HDR change. Check Windows display settings, then turn MonitorMage on again.";
-					liveError = true;
+					live_error = true;
 					RefreshInterface();
 				}
 				return 0;
 			}
-			if (wParam == ForegroundTimer)
+			if (w_param == TIMER_FOREGROUND)
 			{
-				KillTimer(hwnd, ForegroundTimer);
-				CheckForegroundProgram(pendingForeground);
+				KillTimer(hwnd, TIMER_FOREGROUND);
+				CheckForegroundProgram(pending_foreground);
 				SyncColorMatrix(true);
 				ScheduleColorMatrixRecovery();
-				pendingForeground = nullptr;
+				pending_foreground = nullptr;
 				return 0;
 			}
-			if (wParam == MatrixRecoveryTimer)
+			if (w_param == TIMER_MATRIX_RECOVERY)
 			{
-				KillTimer(hwnd, MatrixRecoveryTimer);
-				const auto state = matrixSession.CurrentState();
+				KillTimer(hwnd, TIMER_MATRIX_RECOVERY);
+				const auto state = matrix_session.CurrentState();
 				if (!IsColorMatrixNeeded() || state == matrix_effect::State::OtherTool ||
 				    state == matrix_effect::State::ExternalChange)
 					return 0;
 				SyncColorMatrix(true);
-				if (const auto delay = matrixRecovery.NextDelay())
-					SetTimer(hwnd, MatrixRecoveryTimer, delay, nullptr);
+				if (const auto delay = matrix_recovery.NextDelay())
+					SetTimer(hwnd, TIMER_MATRIX_RECOVERY, delay, nullptr);
 				return 0;
 			}
-			if (wParam == PresetTimer)
+			if (w_param == TIMER_PRESET)
 			{
 				FlushPresetAutosave();
 				RefreshPresetChoice();
 				RefreshInterface();
 				return 0;
 			}
-			if (wParam == IdleTimer)
+			if (w_param == TIMER_IDLE)
 			{
-				KillTimer(hwnd, IdleTimer);
-				const double cpuMs = (ProcessCpuTime() - idleCpuStart) / 10000.0;
+				KillTimer(hwnd, TIMER_IDLE);
+				const double cpu_ms = (ProcessCpuTime() - idle_cpu_start) / 10000.0;
 				PROCESS_MEMORY_COUNTERS_EX memory {};
 				memory.cb = sizeof(memory);
 				const bool measured =
 					GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),
 				                         sizeof(memory)) != FALSE;
 				{
-					std::ofstream report(idleReport);
+					std::ofstream report(idle_report);
 					report.imbue(std::locale::classic());
-					report << "{\"elapsed_ms\":" << GetTickCount64() - idleStart << ",\"cpu_ms\":" << cpuMs
+					report << "{\"elapsed_ms\":" << GetTickCount64() - idle_start << ",\"cpu_ms\":" << cpu_ms
 						   << ",\"working_set_mib\":" << memory.WorkingSetSize / 1048576.0
 						   << ",\"private_commit_mib\":" << memory.PrivateUsage / 1048576.0
-						   << ",\"page_faults\":" << memory.PageFaultCount - idleFaultStart
+						   << ",\"page_faults\":" << memory.PageFaultCount - idle_fault_start
 						   << ",\"memory_query_ok\":" << (measured ? "true" : "false")
-						   << ",\"foreground_hook_ok\":" << (foregroundHook ? "true" : "false")
+						   << ",\"foreground_hook_ok\":" << (foreground_hook ? "true" : "false")
 						   << ",\"mode\":\"hidden editor, corrections disabled, no recovery helper\"}\n";
 				}
 				DestroyWindow(hwnd);
 				return 0;
 			}
-			if (wParam == ApplyTimer)
+			if (w_param == TIMER_APPLY)
 			{
-				KillTimer(hwnd, ApplyTimer);
+				KillTimer(hwnd, TIMER_APPLY);
 				ApplyLiveCorrections();
 			}
-			if (wParam == DisplayTimer)
+			if (w_param == TIMER_DISPLAY)
 			{
-				KillTimer(hwnd, DisplayTimer);
+				KillTimer(hwnd, TIMER_DISPLAY);
 				RefreshSources();
 				SyncColorMatrix(true);
 				ScheduleColorMatrixRecovery();
 				RefreshColorFilters();
-				if (resumeAfterWake)
-					resumeAfterWake = false;
+				if (resume_after_wake)
+					resume_after_wake = false;
 				ReconcileLiveCorrections();
 				RefreshInterface();
 			}
 			return 0;
-		case matrix_effect::Changed:
-			if (matrixSession.CurrentState() == matrix_effect::State::OtherTool ||
-			    matrixSession.CurrentState() == matrix_effect::State::ExternalChange)
-				KillTimer(hwnd, MatrixRecoveryTimer);
+		case matrix_effect::MESSAGE_MATRIX_CHANGED:
+			if (matrix_session.CurrentState() == matrix_effect::State::OtherTool ||
+			    matrix_session.CurrentState() == matrix_effect::State::ExternalChange)
+				KillTimer(hwnd, TIMER_MATRIX_RECOVERY);
 			RefreshInterface();
 			return 0;
 		case WM_ACTIVATE:
-			if (LOWORD(wParam) != WA_INACTIVE && filterChoice)
+			if (LOWORD(w_param) != WA_INACTIVE && filter_choice)
 			{
 				RefreshColorFilters();
 				SyncColorMatrix(true);
@@ -4357,35 +4425,35 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 			}
 			break;
 		case WM_HOTKEY:
-			if (hotkeyRegistered && wParam == static_cast<WPARAM>(activeHotkeyId))
+			if (hotkey_registered && w_param == static_cast<WPARAM>(active_hotkey_id))
 				ToggleBypass();
 			return 0;
-		case ForegroundMessage:
-			if (!renderOnly || !idleReport.empty())
+		case MESSAGE_FOREGROUND:
+			if (!render_only || !idle_report.empty())
 			{
-				pendingForeground = reinterpret_cast<HWND>(lParam);
-				SetTimer(hwnd, ForegroundTimer, 100, nullptr);
+				pending_foreground = reinterpret_cast<HWND>(l_param);
+				SetTimer(hwnd, TIMER_FOREGROUND, 100, nullptr);
 			}
 			return 0;
 		case WM_POWERBROADCAST:
-			if (wParam == PBT_APMSUSPEND)
+			if (w_param == PBT_APMSUSPEND)
 			{
-				powerSuspended = true;
-				resumeAfterWake = correctionsRequested;
-				if (liveSession.IsActive())
-					profilePausedIdentity = liveOutput.identity;
+				power_suspended = true;
+				resume_after_wake = corrections_requested;
+				if (live_session.IsActive())
+					profile_paused_identity = live_output.identity;
 				DisableLiveCorrections(true);
 				RefreshInterface();
 			}
-			if (wParam == PBT_APMRESUMEAUTOMATIC || wParam == PBT_APMRESUMESUSPEND)
+			if (w_param == PBT_APMRESUMEAUTOMATIC || w_param == PBT_APMRESUMESUSPEND)
 			{
-				powerSuspended = false;
-				if (resumeAfterWake)
-					SetTimer(hwnd, DisplayTimer, 1500, nullptr);
+				power_suspended = false;
+				if (resume_after_wake)
+					SetTimer(hwnd, TIMER_DISPLAY, 1500, nullptr);
 			}
 			return TRUE;
 		case WM_CONTEXTMENU:
-			if (renderOnly && reinterpret_cast<HWND>(wParam) == hwnd)
+			if (render_only && reinterpret_cast<HWND>(w_param) == hwnd)
 			{
 				ShowTrayMenu();
 				return 0;
@@ -4395,94 +4463,94 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM l
 			FlushPresetAutosave();
 			DisableLiveCorrections();
 			return TRUE;
-		case TrayMessage:
-			if (LOWORD(lParam) == NIN_SELECT || LOWORD(lParam) == NIN_KEYSELECT)
+		case MESSAGE_TRAY:
+			if (LOWORD(l_param) == NIN_SELECT || LOWORD(l_param) == NIN_KEYSELECT)
 				ShowEditor();
-			else if (LOWORD(lParam) == WM_CONTEXTMENU)
+			else if (LOWORD(l_param) == WM_CONTEXTMENU)
 				ShowTrayMenu();
 			return 0;
 		case WM_DPICHANGED:
 		{
-			dpi = HIWORD(wParam);
-			const auto rect = reinterpret_cast<RECT*>(lParam);
+			dpi = HIWORD(w_param);
+			const auto rect = reinterpret_cast<RECT*>(l_param);
 			SetWindowPos(hwnd, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top,
 			             SWP_NOZORDER | SWP_NOACTIVATE);
 			LayoutEditorControls();
-			if (editorReady)
+			if (editor_ready)
 				ui::ApplyWindowFrameTheme(hwnd);
 			return 0;
 		}
 		case WM_SHOWWINDOW:
-			if (wParam)
+			if (w_param)
 			{
 				EditorSync sync;
 				CreateEditorIfNeeded();
 				RefreshInterface();
 			}
 			else
-				curveScratch.Reset();
+				curve_scratch.Reset();
 			break;
 		case WM_SIZE:
-			if (wParam == SIZE_MINIMIZED)
-				curveScratch.Reset();
-			if (editorReady)
+			if (w_param == SIZE_MINIMIZED)
+				curve_scratch.Reset();
+			if (editor_ready)
 				ui::ApplyWindowFrameTheme(hwnd);
 			return 0;
 		case WM_CLOSE:
-			if (trayInstalled)
+			if (tray_installed)
 				ShowWindow(hwnd, SW_HIDE);
 			else if (ConfirmExit())
 				DestroyWindow(hwnd);
 			return 0;
 		case WM_DESTROY:
-			closing = true;
-			KillTimer(hwnd, MatrixRecoveryTimer);
+			is_closing = true;
+			KillTimer(hwnd, TIMER_MATRIX_RECOVERY);
 			// Request matrix restoration before waiting on independent LUT helpers.
-			if (!renderOnly)
-				matrixSession.Stop();
-			KillTimer(hwnd, NightTimer);
-			nightOutputs.Stop();
-			curveScratch.Reset();
-			KillTimer(hwnd, ColorFilterTimer);
-			if (foregroundHook)
+			if (!render_only)
+				matrix_session.Stop();
+			KillTimer(hwnd, TIMER_NIGHT);
+			night_outputs.Stop();
+			curve_scratch.Reset();
+			KillTimer(hwnd, TIMER_COLOR_FILTER);
+			if (foreground_hook)
 			{
-				UnhookWinEvent(foregroundHook);
-				foregroundHook = nullptr;
+				UnhookWinEvent(foreground_hook);
+				foreground_hook = nullptr;
 			}
 			if (profile_editor::ProfileEditorHandle())
 				DestroyWindow(profile_editor::ProfileEditorHandle());
-			KillTimer(hwnd, ForegroundTimer);
-			KillTimer(hwnd, ApplyTimer);
-			KillTimer(hwnd, DisplayTimer);
-			KillTimer(hwnd, IdleTimer);
-			KillTimer(hwnd, PresetTimer);
-			liveSession.Stop();
-			if (hotkeyRegistered)
+			KillTimer(hwnd, TIMER_FOREGROUND);
+			KillTimer(hwnd, TIMER_APPLY);
+			KillTimer(hwnd, TIMER_DISPLAY);
+			KillTimer(hwnd, TIMER_IDLE);
+			KillTimer(hwnd, TIMER_PRESET);
+			live_session.Stop();
+			if (hotkey_registered)
 			{
-				UnregisterHotKey(hwnd, activeHotkeyId);
-				hotkeyRegistered = false;
+				UnregisterHotKey(hwnd, active_hotkey_id);
+				hotkey_registered = false;
 			}
-			if (activeTest)
+			if (active_test)
 			{
-				CloseHandle(activeTest);
-				activeTest = nullptr;
+				CloseHandle(active_test);
+				active_test = nullptr;
 			}
-			if (trayInstalled)
-				Shell_NotifyIconW(NIM_DELETE, &tray);
-			if (hintFont)
+			if (tray_installed)
+				Shell_NotifyIconW(NIM_DELETE, &tray_icon);
+			if (hint_font)
 			{
-				DeleteObject(hintFont);
-				hintFont = nullptr;
+				DeleteObject(hint_font);
+				hint_font = nullptr;
 			}
-			if (font)
+			if (ui_font)
 			{
-				DeleteObject(font);
-				font = nullptr;
+				DeleteObject(ui_font);
+				ui_font = nullptr;
 			}
 			PostQuitMessage(0);
 			return 0;
 	}
-	return DefWindowProcW(hwnd, message, wParam, lParam);
+	return DefWindowProcW(hwnd, message, w_param, l_param);
 }
 
 bool PreparePresetUiTest()
@@ -4497,21 +4565,22 @@ bool PreparePresetUiTest()
 			(L"LutPresetUi-" + std::to_wstring(GetCurrentProcessId()) + L"-" + std::to_wstring(GetTickCount64()));
 		if (!std::filesystem::create_directory(folder))
 			return false;
-		testSettingsPath = (folder / L"MonitorMage.ini").wstring();
-		std::filesystem::create_directories(PresetFolder(0));
-		std::filesystem::create_directories(PresetFolder(1));
+		test_settings_path = (folder / L"MonitorMage.ini").wstring();
+		std::filesystem::create_directories(PresetFolder(preset_role::Look));
+		std::filesystem::create_directories(PresetFolder(preset_role::Correction));
 		presets::Data a, b, c;
-		a.contrast = 10;
-		b.contrast = -10;
+		a.Contrast = 10;
+		b.Contrast = -10;
 		c.kind = presets::Kind::Correction;
-		c.gamma = 24;
-		c.hdrFix = false;
-		const auto look = PresetFolder(0) / L"A.lutpreset", correction = PresetFolder(1) / L"C.lutpreset";
+		c.Gamma = 24;
+		c.HdrFix = false;
+		const auto look = PresetFolder(preset_role::Look) / L"A.lutpreset",
+				   correction = PresetFolder(preset_role::Correction) / L"C.lutpreset";
 		presets::Write(look, a, false);
-		presets::Write(PresetFolder(0) / L"B.lutpreset", b, false);
+		presets::Write(PresetFolder(preset_role::Look) / L"B.lutpreset", b, false);
 		presets::Write(correction, c, false);
-		return WritePrivateProfileStringW(L"Presets", L"Look", look.c_str(), testSettingsPath.c_str()) &&
-		       WritePrivateProfileStringW(L"Presets", L"Correction", correction.c_str(), testSettingsPath.c_str());
+		return WritePrivateProfileStringW(L"Presets", L"Look", look.c_str(), test_settings_path.c_str()) &&
+		       WritePrivateProfileStringW(L"Presets", L"Correction", correction.c_str(), test_settings_path.c_str());
 	}
 	catch (...)
 	{
@@ -4521,31 +4590,33 @@ bool PreparePresetUiTest()
 
 int RunPresetUiTest()
 {
-	// Drive our own hidden controls. renderOnly prevents every live LUT operation.
+	// Drive our own hidden controls. render_only prevents every live LUT operation.
 	auto command = [&](int id, int notification = BN_CLICKED)
 	{
-		SendMessageW(window, WM_COMMAND, MAKEWPARAM(id, notification), 0);
+		SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(id, notification), 0);
 	};
-	auto switchLook = [&](const wchar_t* name)
+	auto switch_look = [&](const wchar_t* name)
 	{
-		SendMessageW(presetChoice, CB_SETCURSEL, FindPreset(0, PresetFolder(0) / name), 0);
-		command(PresetChoice, CBN_SELCHANGE);
+		SendMessageW(preset_choice, CB_SETCURSEL, FindPreset(preset_role::Look, PresetFolder(preset_role::Look) / name),
+		             0);
+		command(ID_PRESET_CHOICE, CBN_SELCHANGE);
 	};
-	auto editContrast = [&](int value)
+	auto edit_contrast = [&](int value)
 	{
-		SendMessageW(contrastSlider, TBM_SETPOS, TRUE, value);
-		SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrastSlider));
+		SendMessageW(contrast_slider, TBM_SETPOS, TRUE, value);
+		SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrast_slider));
 	};
-	const auto look = PresetFolder(0) / L"A.lutpreset", correction = PresetFolder(1) / L"C.lutpreset";
+	const auto look = PresetFolder(preset_role::Look) / L"A.lutpreset",
+			   correction = PresetFolder(preset_role::Correction) / L"C.lutpreset";
 	try
 	{
-		if (contrastPosition != 10 || gammaPosition != 1 || hdrFixEnabled || autosave)
+		if (contrast_position != 10 || gamma_position != 1 || hdr_fix_enabled || autosave_enabled)
 			return 10;
 		for (bool minimized : { true, false })
 		{
-			SendMessageW(startMinimizedControl, BM_SETCHECK, minimized ? BST_CHECKED : BST_UNCHECKED, 0);
-			command(StartMinimized);
-			if (startMinimized != minimized ||
+			SendMessageW(start_minimized_control, BM_SETCHECK, minimized ? BST_CHECKED : BST_UNCHECKED, 0);
+			command(ID_START_MINIMIZED);
+			if (start_minimized != minimized ||
 			    GetPrivateProfileIntW(L"Startup", L"Minimized", 2, SettingsFilePath().c_str()) !=
 			        static_cast<UINT>(minimized))
 				return 282;
@@ -4555,151 +4626,157 @@ int RunPresetUiTest()
 			        static_cast<UINT>(minimized))
 				return 283;
 		}
-		const auto unopened = FindPreset(0, PresetFolder(0) / L"B.lutpreset");
-		if (unopened == presetLibrary[0].size() || presetLibrary[0][unopened].loaded ||
-		    presetLibrary[0][unopened].IsDirty())
+		const auto unopened = FindPreset(preset_role::Look, PresetFolder(preset_role::Look) / L"B.lutpreset");
+		if (unopened == preset_library[preset_role::Look].size() ||
+		    preset_library[preset_role::Look][unopened].loaded || preset_library[preset_role::Look][unopened].IsDirty())
 			return 191;
 		// An invalid unopened file must neither slow startup with parsing nor
 		// replace the active draft when the user selects it later.
-		const auto invalid = PresetFolder(0) / L"Invalid.lutpreset";
+		const auto invalid = PresetFolder(preset_role::Look) / L"Invalid.lutpreset";
 		presets::WriteBytes(invalid, "not a MonitorMage preset", false);
-		DiscoverPresets(0);
+		DiscoverPresets(preset_role::Look);
 		RefreshPresetChoice();
-		const auto badIndex = FindPreset(0, invalid), originalIndex = presetIndex[0];
-		const auto originalData = CurrentPreset(0).current;
-		SendMessageW(presetChoice, CB_SETCURSEL, badIndex, 0);
-		command(PresetChoice, CBN_SELCHANGE);
-		if (presetIndex[0] != originalIndex || CurrentPreset(0).current != originalData ||
-		    presetLibrary[0][badIndex].loaded)
+		const auto bad_index = FindPreset(preset_role::Look, invalid), original_index = preset_index[preset_role::Look];
+		const auto original_data = CurrentPreset(preset_role::Look).current;
+		SendMessageW(preset_choice, CB_SETCURSEL, bad_index, 0);
+		command(ID_PRESET_CHOICE, CBN_SELCHANGE);
+		if (preset_index[preset_role::Look] != original_index ||
+		    CurrentPreset(preset_role::Look).current != original_data ||
+		    preset_library[preset_role::Look][bad_index].loaded)
 			return 192;
 		std::filesystem::remove(invalid);
-		presetLibrary[0].erase(presetLibrary[0].begin() + static_cast<std::ptrdiff_t>(badIndex));
-		presetMessage.clear();
+		preset_library[preset_role::Look].erase(preset_library[preset_role::Look].begin() +
+		                                        static_cast<std::ptrdiff_t>(bad_index));
+		preset_message.clear();
 		RefreshPresetChoice();
-		editContrast(20);
-		if (!CurrentPreset(0).IsDirty() || presets::Read(look).contrast != 10)
+		edit_contrast(20);
+		if (!CurrentPreset(preset_role::Look).IsDirty() || presets::Read(look).Contrast != 10)
 			return 11;
-		switchLook(L"B.lutpreset");
-		if (contrastPosition != -10 || !CurrentPreset(0).loaded)
+		switch_look(L"B.lutpreset");
+		if (contrast_position != -10 || !CurrentPreset(preset_role::Look).loaded)
 			return 12;
-		switchLook(L"A.lutpreset");
-		if (contrastPosition != 20 || !CurrentPreset(0).IsDirty())
+		switch_look(L"A.lutpreset");
+		if (contrast_position != 20 || !CurrentPreset(preset_role::Look).IsDirty())
 			return 13;
-		command(RevertPreset);
-		if (contrastPosition != 10 || CurrentPreset(0).IsDirty())
+		command(ID_REVERT_PRESET);
+		if (contrast_position != 10 || CurrentPreset(preset_role::Look).IsDirty())
 			return 14;
-		editContrast(23);
-		SavePresetAsPath(0, PresetFolder(0) / L"Copy.lutpreset", false);
-		if (CurrentPreset(0).IsDirty() || presets::Read(CurrentPreset(0).path).contrast != 23)
+		edit_contrast(23);
+		SavePresetAsPath(preset_role::Look, PresetFolder(preset_role::Look) / L"Copy.lutpreset", false);
+		if (CurrentPreset(preset_role::Look).IsDirty() ||
+		    presets::Read(CurrentPreset(preset_role::Look).path).Contrast != 23)
 			return 23;
-		switchLook(L"A.lutpreset");
-		if (contrastPosition != 10 || CurrentPreset(0).IsDirty() || presets::Read(look).contrast != 10)
+		switch_look(L"A.lutpreset");
+		if (contrast_position != 10 || CurrentPreset(preset_role::Look).IsDirty() || presets::Read(look).Contrast != 10)
 			return 24;
-		editContrast(20);
-		command(SavePreset);
-		if (presets::Read(look).contrast != 20 || CurrentPreset(0).IsDirty())
+		edit_contrast(20);
+		command(ID_SAVE_PRESET);
+		if (presets::Read(look).Contrast != 20 || CurrentPreset(preset_role::Look).IsDirty())
 			return 15;
-		SendMessageW(autosaveControl, BM_SETCHECK, BST_CHECKED, 0);
-		command(Autosave);
-		editContrast(15);
-		SendMessageW(window, WM_TIMER, PresetTimer, 0);
-		if (presets::Read(look).contrast != 15 || CurrentPreset(0).IsDirty())
+		SendMessageW(autosave_control, BM_SETCHECK, BST_CHECKED, 0);
+		command(ID_AUTOSAVE);
+		edit_contrast(15);
+		SendMessageW(main_window, WM_TIMER, TIMER_PRESET, 0);
+		if (presets::Read(look).Contrast != 15 || CurrentPreset(preset_role::Look).IsDirty())
 			return 16;
-		SendMessageW(correctionLayers, LB_SETCURSEL, EffectListRow(1), 0);
-		command(CorrectionLayers, LBN_SELCHANGE);
-		command(Gamma);
-		SendMessageW(window, WM_TIMER, PresetTimer, 0);
-		if (presets::Read(correction).gamma != 22 || presets::Read(look).contrast != 15)
+		SendMessageW(correction_list, LB_SETCURSEL, EffectListRow(effect::HdrGamma), 0);
+		command(ID_CORRECTION_LAYERS, LBN_SELCHANGE);
+		command(ID_GAMMA);
+		SendMessageW(main_window, WM_TIMER, TIMER_PRESET, 0);
+		if (presets::Read(correction).Gamma != 22 || presets::Read(look).Contrast != 15)
 			return 17;
-		SendMessageW(autosaveControl, BM_SETCHECK, BST_UNCHECKED, 0);
-		command(Autosave);
-		ToggleEffect(1);
-		if (!CurrentPreset(1).IsDirty() || presets::Read(correction).hdrFix)
+		SendMessageW(autosave_control, BM_SETCHECK, BST_UNCHECKED, 0);
+		command(ID_AUTOSAVE);
+		ToggleEffect(effect::HdrGamma);
+		if (!CurrentPreset(preset_role::Correction).IsDirty() || presets::Read(correction).HdrFix)
 			return 18;
 		bool rejected = false;
 		try
 		{
-			ReadPreset(0, correction);
+			ReadPreset(preset_role::Look, correction);
 		}
 		catch (...)
 		{
 			rejected = true;
 		}
-		if (!rejected || contrastPosition != 15)
+		if (!rejected || contrast_position != 15)
 			return 19;
 		// Simulate restoring settings in a new editor session using the saved configuration.
-		presetLibrary = {};
-		presetIndex = {};
+		preset_library = {};
+		preset_index = {};
 		InitializePresets();
-		if (contrastPosition != 15 || gammaPosition != 0 || hdrFixEnabled || autosave)
+		if (contrast_position != 15 || gamma_position != 0 || hdr_fix_enabled || autosave_enabled)
 			return 20;
-		const auto unicodePath = PresetFolder(0) / L"Farver-\u00e6\u00f8\u00e5.lutpreset";
-		SavePresetAsPath(0, unicodePath, false);
-		preferredShortcut = MAKEWORD(VK_F10, HOTKEYF_CONTROL | HOTKEYF_SHIFT);
+		const auto unicode_path = PresetFolder(preset_role::Look) / L"Farver-\u00e6\u00f8\u00e5.lutpreset";
+		SavePresetAsPath(preset_role::Look, unicode_path, false);
+		preferred_shortcut = MAKEWORD(VK_F10, HOTKEYF_CONTROL | HOTKEYF_SHIFT);
 		if (!PersistPresetChoices())
 			return 25;
-		presetLibrary = {};
-		presetIndex = {};
+		preset_library = {};
+		preset_index = {};
 		InitializePresets();
-		if (CurrentPreset(0).path != unicodePath || contrastPosition != 15 ||
-		    GetPrivateProfileIntW(L"Hotkey", L"Bypass", 0, testSettingsPath.c_str()) != preferredShortcut)
+		if (CurrentPreset(preset_role::Look).path != unicode_path || contrast_position != 15 ||
+		    GetPrivateProfileIntW(L"Hotkey", L"Bypass", 0, test_settings_path.c_str()) != preferred_shortcut)
 			return 26;
 		wchar_t stored[32768] {};
 		GetPrivateProfileStringW(L"Presets", L"Look", L"", stored, static_cast<DWORD>(std::size(stored)),
-		                         testSettingsPath.c_str());
+		                         test_settings_path.c_str());
 		if (std::filesystem::path(stored).is_absolute())
 			return 27;
 		// A fresh installation selects the bundled all-off presets. Saved
 		// effect switches, including a mixture of on/off, win on later loads.
-		for (int role = 0; role < 2; ++role)
-			presets::Write(PresetFolder(role) / L"Off.lutpreset", presets::InactivePreset(PresetKindForRole(role)),
-			               false);
-		WritePrivateProfileStringW(L"Presets", L"Look", nullptr, testSettingsPath.c_str());
-		WritePrivateProfileStringW(L"Presets", L"Correction", nullptr, testSettingsPath.c_str());
-		presetLibrary = {};
-		presetIndex = {};
+		for (int preset_role = preset_role::Look; preset_role < preset_role::Count; ++preset_role)
+			presets::Write(PresetFolder(preset_role) / L"Off.lutpreset",
+			               presets::InactivePreset(PresetKindForRole(preset_role)), false);
+		WritePrivateProfileStringW(L"Presets", L"Look", nullptr, test_settings_path.c_str());
+		WritePrivateProfileStringW(L"Presets", L"Correction", nullptr, test_settings_path.c_str());
+		preset_library = {};
+		preset_index = {};
 		InitializePresets();
-		for (int role = 0; role < 2; ++role)
-			if (CurrentPreset(role).current != presets::InactivePreset(PresetKindForRole(role)) ||
-			    CurrentPreset(role).path.filename() != L"Off.lutpreset")
+		for (int preset_role = preset_role::Look; preset_role < preset_role::Count; ++preset_role)
+			if (CurrentPreset(preset_role).current != presets::InactivePreset(PresetKindForRole(preset_role)) ||
+			    CurrentPreset(preset_role).path.filename() != L"Off.lutpreset")
 				return 150;
-		if (contrastEnabled || hdrFixEnabled)
+		if (contrast_enabled || hdr_fix_enabled)
 			return 151;
-		auto& mixed = CurrentPreset(0).current;
-		mixed.contrastEnabled = true;
-		mixed.contrast = 12;
-		mixed.adjustments.balanceEnabled = true;
-		mixed.adjustments.balance[3] = 15;
-		CurrentPreset(1).current.hdrFix = true;
-		const auto savedMixed = mixed;
-		if (!SaveExistingPreset(0) || !SaveExistingPreset(1) || !PersistPresetChoices())
+		auto& mixed = CurrentPreset(preset_role::Look).current;
+		mixed.ContrastEnabled = true;
+		mixed.Contrast = 12;
+		mixed.Adjustments.BalanceEnabled = true;
+		mixed.Adjustments.Balance[color::BALANCE_WARMTH] = 15;
+		CurrentPreset(preset_role::Correction).current.HdrFix = true;
+		const auto saved_mixed = mixed;
+		if (!SaveExistingPreset(preset_role::Look) || !SaveExistingPreset(preset_role::Correction) ||
+		    !PersistPresetChoices())
 			return 152;
-		presetLibrary = {};
-		presetIndex = {};
+		preset_library = {};
+		preset_index = {};
 		InitializePresets();
-		if (CurrentPreset(0).current != savedMixed || !contrastEnabled || !hdrFixEnabled)
+		if (CurrentPreset(preset_role::Look).current != saved_mixed || !contrast_enabled || !hdr_fix_enabled)
 			return 153;
-		SendMessageW(hdrFixControl, BM_SETCHECK, BST_CHECKED, 0);
-		command(HdrFix);
-		if (!hdrFixEnabled || !CurrentPreset(1).current.applyInSdr || !CurrentSettings().applyInSdr ||
-		    !CurrentPreset(1).IsDirty())
+		SendMessageW(hdr_fix_control, BM_SETCHECK, BST_CHECKED, 0);
+		command(ID_HDR_FIX);
+		if (!hdr_fix_enabled || !CurrentPreset(preset_role::Correction).current.ApplyInSdr ||
+		    !CurrentSettings().ApplyInSdr || !CurrentPreset(preset_role::Correction).IsDirty())
 			return 163;
-		if (!SaveExistingPreset(1))
+		if (!SaveExistingPreset(preset_role::Correction))
 			return 164;
-		presetLibrary = {};
-		presetIndex = {};
+		preset_library = {};
+		preset_index = {};
 		InitializePresets();
-		if (!hdrFixEnabled || !CurrentPreset(1).current.applyInSdr ||
-		    SendMessageW(hdrFixControl, BM_GETCHECK, 0, 0) != BST_CHECKED)
+		if (!hdr_fix_enabled || !CurrentPreset(preset_role::Correction).current.ApplyInSdr ||
+		    SendMessageW(hdr_fix_control, BM_GETCHECK, 0, 0) != BST_CHECKED)
 			return 165;
-		const auto beforeFolderImport = CurrentPreset(1).current;
-		presets::Write(PresetFolder(1) / L"Added from folder.lutpreset",
+		const auto before_folder_import = CurrentPreset(preset_role::Correction).current;
+		presets::Write(PresetFolder(preset_role::Correction) / L"Added from folder.lutpreset",
 		               presets::InactivePreset(presets::Kind::Correction), false);
-		SendMessageW(window, WM_COMMAND, MAKEWPARAM(PresetChoice, CBN_DROPDOWN), 0);
-		if (FindPreset(1, PresetFolder(1) / L"Added from folder.lutpreset") == presetLibrary[1].size() ||
-		    CurrentPreset(1).current != beforeFolderImport)
+		SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(ID_PRESET_CHOICE, CBN_DROPDOWN), 0);
+		if (FindPreset(preset_role::Correction,
+		               PresetFolder(preset_role::Correction) / L"Added from folder.lutpreset") ==
+		        preset_library[preset_role::Correction].size() ||
+		    CurrentPreset(preset_role::Correction).current != before_folder_import)
 			return 168;
-		if (liveSession.IsActive())
+		if (live_session.IsActive())
 			return 21;
 		return 0;
 	}
@@ -4714,140 +4791,141 @@ int RunProfileUiTest()
 	using applications::Action;
 	auto command = [&](int id, int event = BN_CLICKED)
 	{
-		SendMessageW(window, WM_COMMAND, MAKEWPARAM(id, event), 0);
+		SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(id, event), 0);
 	};
-	auto chooseLook = [&](const wchar_t* name)
+	auto choose_look = [&](const wchar_t* name)
 	{
-		SendMessageW(presetChoice, CB_SETCURSEL, FindPreset(0, PresetFolder(0) / name), 0);
-		command(PresetChoice, CBN_SELCHANGE);
+		SendMessageW(preset_choice, CB_SETCURSEL, FindPreset(preset_role::Look, PresetFolder(preset_role::Look) / name),
+		             0);
+		command(ID_PRESET_CHOICE, CBN_SELCHANGE);
 	};
 	auto indicator = [&]
 	{
 		wchar_t text[1024] {};
-		GetWindowTextW(activeLookLabel, text, static_cast<int>(std::size(text)));
+		GetWindowTextW(active_look_label, text, static_cast<int>(std::size(text)));
 		return std::wstring(text);
 	};
-	auto monitorIndicator = [&]
+	auto monitor_indicator = [&]
 	{
 		wchar_t text[1024] {};
-		GetWindowTextW(monitorProfile, text, static_cast<int>(std::size(text)));
+		GetWindowTextW(monitor_profile, text, static_cast<int>(std::size(text)));
 		return std::wstring(text);
 	};
 	try
 	{
 		// The regular look may be an unsaved experiment; an app override must leave it intact.
-		SendMessageW(contrastSlider, TBM_SETPOS, TRUE, 20);
-		SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrastSlider));
+		SendMessageW(contrast_slider, TBM_SETPOS, TRUE, 20);
+		SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrast_slider));
 		presets::Data manual;
-		manual.contrast = 23;
-		presets::Write(PresetFolder(0) / L"Copy.lutpreset", manual, false);
-		ReadPreset(0, PresetFolder(0) / L"Copy.lutpreset");
+		manual.Contrast = 23;
+		presets::Write(PresetFolder(preset_role::Look) / L"Copy.lutpreset", manual, false);
+		ReadPreset(preset_role::Look, PresetFolder(preset_role::Look) / L"Copy.lutpreset");
 		applications::Configuration config;
-		config.enabled = true;
-		config.rules = { { L"C:\\Tests\\Game.exe", PresetFolder(0) / L"B.lutpreset", Action::Look },
+		config.Enabled = true;
+		config.Rules = { { L"C:\\Tests\\Game.exe", PresetFolder(preset_role::Look) / L"B.lutpreset", Action::Look },
 			             { L"C:\\Tests\\Movie.exe", {}, Action::Bypass },
 			             { L"C:\\Tests\\HDR.exe", {}, Action::Disable },
-			             { L"C:\\Tests\\Second.exe", PresetFolder(0) / L"A.lutpreset", Action::Look } };
+			             { L"C:\\Tests\\Second.exe", PresetFolder(preset_role::Look) / L"A.lutpreset", Action::Look } };
 		if (!ApplyProfileConfiguration(config))
 			return 30;
 		OnForegroundProgramChanged(L"C:\\Tests\\Game.exe");
-		if (contrastPosition != -10 || gammaPosition != 1 || hdrFixEnabled)
+		if (contrast_position != -10 || gamma_position != 1 || hdr_fix_enabled)
 			return 31;
 		if (indicator().find(L"Application profile: Game.exe") == std::wstring::npos ||
 		    indicator().find(L" | B") == std::wstring::npos)
 			return 48;
-		if (monitorIndicator() != L"Profile: Game.exe | B")
+		if (monitor_indicator() != L"Profile: Game.exe | B")
 			return 215;
 		if (!PersistPresetChoices())
 			return 49;
-		wchar_t storedLook[32768] {};
-		GetPrivateProfileStringW(L"Presets", L"Look", L"", storedLook, static_cast<DWORD>(std::size(storedLook)),
+		wchar_t stored_look[32768] {};
+		GetPrivateProfileStringW(L"Presets", L"Look", L"", stored_look, static_cast<DWORD>(std::size(stored_look)),
 		                         SettingsFilePath().c_str());
-		if (std::filesystem::path(storedLook).filename() != L"A.lutpreset")
+		if (std::filesystem::path(stored_look).filename() != L"A.lutpreset")
 			return 50;
-		chooseLook(L"Copy.lutpreset");
+		choose_look(L"Copy.lutpreset");
 		OnForegroundProgramChanged(L"c:\\tests\\GAME.EXE");
-		if (contrastPosition != 23 || !appFocus.IsManualOverride())
+		if (contrast_position != 23 || !foreground_program.IsManualOverride())
 			return 32;
-		if (monitorIndicator() != L"Desktop profile")
+		if (monitor_indicator() != L"Desktop profile")
 			return 216;
 		if (indicator().find(L"Manual override: Game.exe") == std::wstring::npos ||
 		    indicator().find(L"Copy") == std::wstring::npos)
 			return 51;
-		SendMessageW(correctionLayers, LB_SETCURSEL, EffectListRow(1), 0);
-		command(CorrectionLayers, LBN_SELCHANGE);
+		SendMessageW(correction_list, LB_SETCURSEL, EffectListRow(effect::HdrGamma), 0);
+		command(ID_CORRECTION_LAYERS, LBN_SELCHANGE);
 		if (indicator().find(L"Manual override: Game.exe") == std::wstring::npos ||
 		    indicator().find(L"Copy") == std::wstring::npos)
 			return 52;
-		SendMessageW(layers, LB_SETCURSEL, 0, 0);
-		command(Layers, LBN_SELCHANGE);
+		SendMessageW(effect_list, LB_SETCURSEL, 0, 0);
+		command(ID_EFFECT_LIST, LBN_SELCHANGE);
 		OnForegroundProgramChanged(L"C:\\Tests\\Other.exe");
-		if (contrastPosition != 20 || appFocus.IsManualOverride() || applicationContextActive ||
-		    !CurrentPreset(0).IsDirty())
+		if (contrast_position != 20 || foreground_program.IsManualOverride() || application_context_active ||
+		    !CurrentPreset(preset_role::Look).IsDirty())
 			return 33;
-		if (monitorIndicator() != L"Desktop profile")
+		if (monitor_indicator() != L"Desktop profile")
 			return 217;
 		if (indicator().find(L"Manual look | A *") == std::wstring::npos ||
-		    presets::Read(PresetFolder(0) / L"A.lutpreset").contrast != 10)
+		    presets::Read(PresetFolder(preset_role::Look) / L"A.lutpreset").Contrast != 10)
 			return 53;
 		// Consecutive profiled programs must not replace the original return look.
 		OnForegroundProgramChanged(L"C:\\Tests\\Game.exe");
 		OnForegroundProgramChanged(L"C:\\Tests\\Second.exe");
-		if (contrastPosition != 20 || !applicationContextActive)
+		if (contrast_position != 20 || !application_context_active)
 			return 54;
 		OnForegroundProgramChanged(L"C:\\Tests\\Game.exe");
 		OnForegroundProgramChanged(L"C:\\Tests\\Movie.exe");
-		if (!CurrentSettings().bypass || profileAction != Action::Bypass || hdrFixEnabled || gammaPosition != 1)
+		if (!CurrentSettings().Bypass || profile_action != Action::Bypass || hdr_fix_enabled || gamma_position != 1)
 			return 34;
 		OnForegroundProgramChanged(L"C:\\Tests\\Other.exe");
-		if (contrastPosition != 20 || CurrentSettings().bypass || applicationContextActive)
+		if (contrast_position != 20 || CurrentSettings().Bypass || application_context_active)
 			return 55;
 		OnForegroundProgramChanged(L"C:\\Tests\\Movie.exe");
-		chooseLook(L"A.lutpreset");
-		if (CurrentSettings().bypass || !appFocus.IsManualOverride())
+		choose_look(L"A.lutpreset");
+		if (CurrentSettings().Bypass || !foreground_program.IsManualOverride())
 			return 35;
-		// Synthetic output only: renderOnly still forbids opening a LUT session.
-		sources.clear();
+		// Synthetic output only: render_only still forbids opening a LUT session.
+		display_sources.clear();
 		live::Output output;
 		output.identity = L"test identity";
 		output.name = L"test source";
 		output.supported = true;
-		sources.push_back(output);
-		SendMessageW(sourceChoice, CB_RESETCONTENT, 0, 0);
-		SendMessageW(sourceChoice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Test display"));
-		SendMessageW(sourceChoice, CB_SETCURSEL, 0, 0);
-		sources[0].hdr = true;
+		display_sources.push_back(output);
+		SendMessageW(source_choice, CB_RESETCONTENT, 0, 0);
+		SendMessageW(source_choice, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Test display"));
+		SendMessageW(source_choice, CB_SETCURSEL, 0, 0);
+		display_sources[0].hdr = true;
 		if (CurrentIconState() != app_icons::State::DisabledHdr)
 			return 57;
-		sources[0].hdr = false;
+		display_sources[0].hdr = false;
 		if (CurrentIconState() != app_icons::State::Disabled)
 			return 58;
 		OnForegroundProgramChanged(L"C:\\Tests\\HDR.exe");
 		ToggleCorrections();
-		if (!correctionsRequested || profileAction != Action::Disable || liveSession.IsActive() ||
-		    profilePausedIdentity != output.identity)
+		if (!corrections_requested || profile_action != Action::Disable || live_session.IsActive() ||
+		    profile_paused_identity != output.identity)
 			return 36;
 		OnForegroundProgramChanged(L"C:\\Tests\\Game.exe");
-		if (!correctionsRequested || profileAction != Action::Look || !profilePausedIdentity.empty())
+		if (!corrections_requested || profile_action != Action::Look || !profile_paused_identity.empty())
 			return 37;
 		OnForegroundProgramChanged(L"C:\\Tests\\HDR.exe");
-		sources[0].identity = L"changed mode";
+		display_sources[0].identity = L"changed mode";
 		ReconcileLiveCorrections();
-		if (!correctionsRequested || liveSession.IsActive())
+		if (!corrections_requested || live_session.IsActive())
 			return 38;
 		OnForegroundProgramChanged(L"C:\\Tests\\Game.exe");
-		if (!correctionsRequested)
+		if (!corrections_requested)
 			return 39; // Mode changes retain the user's master-power request.
-		powerSuspended = true;
-		correctionsRequested = true;
-		profilePausedIdentity = L"pre-suspend identity";
+		power_suspended = true;
+		corrections_requested = true;
+		profile_paused_identity = L"pre-suspend identity";
 		ReconcileLiveCorrections();
-		if (!correctionsRequested || profilePausedIdentity != L"pre-suspend identity")
+		if (!corrections_requested || profile_paused_identity != L"pre-suspend identity")
 			return 47;
-		powerSuspended = false;
+		power_suspended = false;
 		DisableLiveCorrections();
 		const auto restored = applications::Read(SettingsFilePath());
-		if (!restored.enabled || restored.rules.size() != 4)
+		if (!restored.Enabled || restored.Rules.size() != 4)
 			return 40;
 		ShowProfiles(true);
 		HWND editor = profile_editor::ProfileEditorHandle();
@@ -4859,39 +4937,40 @@ int RunProfileUiTest()
 		if (SendMessageW(GetDlgItem(editor, 203), LB_GETCOUNT, 0, 0) != 5)
 			return 42;
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(212, BN_CLICKED), 0);
-		if (appConfig.rules.size() != 5 || appConfig.rules.back().action != Action::Bypass)
+		if (profile_configuration.Rules.size() != 5 || profile_configuration.Rules.back().Action != Action::Bypass)
 			return 43;
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(210, BN_CLICKED), 0);
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(212, BN_CLICKED), 0);
-		if (appConfig.rules.size() != 4)
+		if (profile_configuration.Rules.size() != 4)
 			return 44;
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(213, BN_CLICKED), 0);
-		if (profile_editor::ProfileEditorHandle() || liveSession.IsActive() || correctionsRequested)
+		if (profile_editor::ProfileEditorHandle() || live_session.IsActive() || corrections_requested)
 			return 45;
 		// HDR-only pausing must leave the preset and creative look intact, including drafts.
-		config.rules.push_back({ L"C:\\Tests\\NativeHDR.exe", {}, Action::PauseHdr });
+		config.Rules.push_back({ L"C:\\Tests\\NativeHDR.exe", {}, Action::PauseHdr });
 		if (!ApplyProfileConfiguration(config))
 			return 59;
-		ToggleEffect(1);
-		const auto correctionBeforePause = CurrentPreset(1).current;
-		const auto contrastBeforePause = contrastPosition;
+		ToggleEffect(effect::HdrGamma);
+		const auto correction_before_pause = CurrentPreset(preset_role::Correction).current;
+		const auto contrast_before_pause = contrast_position;
 		OnForegroundProgramChanged(L"C:\\Tests\\NativeHDR.exe");
-		if (!hdrFixEnabled || CurrentSettings().hdrFix || CurrentSettings().bypass ||
-		    contrastPosition != contrastBeforePause || CurrentPreset(1).current != correctionBeforePause ||
+		if (!hdr_fix_enabled || CurrentSettings().HdrFix || CurrentSettings().Bypass ||
+		    contrast_position != contrast_before_pause ||
+		    CurrentPreset(preset_role::Correction).current != correction_before_pause ||
 		    indicator().find(L"HDR gamma paused") == std::wstring::npos)
 			return 60;
 		ToggleBypass();
-		if (!CurrentSettings().bypass || CurrentSettings().hdrFix)
+		if (!CurrentSettings().Bypass || CurrentSettings().HdrFix)
 			return 61;
 		ToggleBypass();
-		if (CurrentSettings().bypass || CurrentSettings().hdrFix)
+		if (CurrentSettings().Bypass || CurrentSettings().HdrFix)
 			return 62;
 		OnForegroundProgramChanged(L"C:\\Tests\\Other.exe");
-		if (!CurrentSettings().hdrFix || contrastPosition != 20 || applicationContextActive)
+		if (!CurrentSettings().HdrFix || contrast_position != 20 || application_context_active)
 			return 63;
 		OnForegroundProgramChanged(L"C:\\Tests\\NativeHDR.exe");
-		chooseLook(L"Copy.lutpreset");
-		if (!CurrentSettings().hdrFix || !appFocus.IsManualOverride() || contrastPosition != 23)
+		choose_look(L"Copy.lutpreset");
+		if (!CurrentSettings().HdrFix || !foreground_program.IsManualOverride() || contrast_position != 23)
 			return 64;
 		OnForegroundProgramChanged(L"C:\\Tests\\Other.exe");
 		// Exercise the actual editor and persisted action, not just policy resolution.
@@ -4906,14 +4985,14 @@ int RunProfileUiTest()
 			return 66;
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(209, BN_CLICKED), 0);
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(212, BN_CLICKED), 0);
-		const auto hdrRules = applications::Read(SettingsFilePath());
-		if (hdrRules.rules.back().action != Action::PauseHdr)
+		const auto hdr_rules = applications::Read(SettingsFilePath());
+		if (hdr_rules.Rules.back().Action != Action::PauseHdr)
 			return 67;
 		SendMessageW(editor, WM_COMMAND, MAKEWPARAM(213, BN_CLICKED), 0);
 		// Turning off auto-selection releases the temporary application look too.
 		auto disabled = config;
-		disabled.enabled = false;
-		if (!ApplyProfileConfiguration(disabled) || contrastPosition != 20 || applicationContextActive ||
+		disabled.Enabled = false;
+		if (!ApplyProfileConfiguration(disabled) || contrast_position != 20 || application_context_active ||
 		    IsLookBypassed())
 			return 56;
 		return 0;
@@ -4926,16 +5005,16 @@ int RunProfileUiTest()
 
 int RunEffectUiTest()
 {
-	const auto choose = [&](int role)
+	const auto choose = [&](int effect)
 	{
-		auto list = EffectListForRole(role);
-		SendMessageW(list, LB_SETCURSEL, EffectListRow(role), 0);
-		SendMessageW(window, WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(list), LBN_SELCHANGE), 0);
+		auto list = EffectListForRole(effect);
+		SendMessageW(list, LB_SETCURSEL, EffectListRow(effect), 0);
+		SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(list), LBN_SELCHANGE), 0);
 	};
-	const auto click = [&](int role)
+	const auto click = [&](int effect)
 	{
-		auto list = EffectListForRole(role);
-		const int row = EffectListRow(role);
+		auto list = EffectListForRole(effect);
+		const int row = EffectListRow(effect);
 		SendMessageW(list, LB_SETTOPINDEX, row, 0);
 		RECT r {};
 		SendMessageW(list, LB_GETITEMRECT, row, reinterpret_cast<LPARAM>(&r));
@@ -4947,21 +5026,24 @@ int RunEffectUiTest()
 	};
 	const auto edit = [&](size_t index, int value)
 	{
-		SendMessageW(adjustmentSliders[index], TBM_SETPOS, TRUE, value);
-		SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(adjustmentSliders[index]));
+		SendMessageW(adjustment_sliders[index], TBM_SETPOS, TRUE, value);
+		SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(adjustment_sliders[index]));
 	};
 	try
 	{
-		if (correctionFirst || !contrastEnabled || selected != 0 || effectOrder.size() != 8 || effectOrder.back() != 1)
+		if (correction_first || !contrast_enabled || selected_effect != effect::ContrastCurves ||
+		    effect_order.size() != 8 || effect_order.back() != 1)
 			return 70;
 		// Real rapid input is DOWN, UP, DBLCLK, UP, not two DOWN messages.
 		// Verify every press on every switch, including off-screen rows after
 		// scrolling, and that each toggle selects its effect's controls.
-		for (int effect = 0; effect < 8; ++effect)
+		for (int effect = effect::ContrastCurves; effect < effect::FirstWindows; ++effect)
 		{
 			const auto enabled = [&]()
 			{
-				return effect == 0 ? contrastEnabled : effect == 1 ? hdrFixEnabled : AdjustmentEnabled(effect);
+				return effect == effect::ContrastCurves ? contrast_enabled
+				       : effect == effect::HdrGamma     ? hdr_fix_enabled
+				                                        : AdjustmentEnabled(effect);
 			};
 			const bool initial = enabled();
 			auto list = EffectListForRole(effect);
@@ -4975,136 +5057,153 @@ int RunEffectUiTest()
 			{
 				SendMessageW(list, press % 2 ? WM_LBUTTONDBLCLK : WM_LBUTTONDOWN, MK_LBUTTON, at);
 				SendMessageW(list, WM_LBUTTONUP, 0, at);
-				if (enabled() != (press % 2 == 0 ? !initial : initial) || selected != effect)
+				if (enabled() != (press % 2 == 0 ? !initial : initial) || selected_effect != effect)
 					return 161;
 			}
-			if ((SendMessageW(selectedEffectToggle, BM_GETCHECK, 0, 0) == BST_CHECKED) != initial)
+			if ((SendMessageW(selected_effect_toggle, BM_GETCHECK, 0, 0) == BST_CHECKED) != initial)
 				return 201;
 			// The heading switch uses the same stage state as the sidebar,
 			// retaining every parameter and leaving the other preset alone.
-			const auto look = CurrentPreset(0).current, correction = CurrentPreset(1).current;
-			SendMessageW(selectedEffectToggle, BM_CLICK, 0, 0);
-			if (enabled() == initial || selected != effect ||
-			    (SendMessageW(selectedEffectToggle, BM_GETCHECK, 0, 0) == BST_CHECKED) != enabled())
+			const auto look = CurrentPreset(preset_role::Look).current,
+					   correction = CurrentPreset(preset_role::Correction).current;
+			SendMessageW(selected_effect_toggle, BM_CLICK, 0, 0);
+			if (enabled() == initial || selected_effect != effect ||
+			    (SendMessageW(selected_effect_toggle, BM_GETCHECK, 0, 0) == BST_CHECKED) != enabled())
 				return 202;
-			if (effect == 1 ? CurrentPreset(0).current != look : CurrentPreset(1).current != correction)
+			if (effect == effect::HdrGamma ? CurrentPreset(preset_role::Look).current != look
+			                               : CurrentPreset(preset_role::Correction).current != correction)
 				return 203;
-			SendMessageW(selectedEffectToggle, BM_CLICK, 0, 0);
-			if (enabled() != initial || CurrentPreset(0).current != look || CurrentPreset(1).current != correction)
+			SendMessageW(selected_effect_toggle, BM_CLICK, 0, 0);
+			if (enabled() != initial || CurrentPreset(preset_role::Look).current != look ||
+			    CurrentPreset(preset_role::Correction).current != correction)
 				return 204;
 		}
-		const auto before = CurrentPreset(0).current;
-		choose(1);
-		click(0);
-		if (selected != 0 || contrastEnabled || CurrentSettings().contrast != 0 || !CurrentPreset(0).IsDirty() ||
-		    !(GetWindowLongPtrW(contrastSlider, GWL_STYLE) & WS_VISIBLE))
+		const auto before = CurrentPreset(preset_role::Look).current;
+		choose(effect::HdrGamma);
+		click(effect::ContrastCurves);
+		if (selected_effect != effect::ContrastCurves || contrast_enabled || CurrentSettings().Contrast != 0 ||
+		    !CurrentPreset(preset_role::Look).IsDirty() ||
+		    !(GetWindowLongPtrW(contrast_slider, GWL_STYLE) & WS_VISIBLE))
 			return 71;
-		click(0);
-		if (!contrastEnabled || selected != 0 || CurrentPreset(0).IsDirty())
+		click(effect::ContrastCurves);
+		if (!contrast_enabled || selected_effect != effect::ContrastCurves ||
+		    CurrentPreset(preset_role::Look).IsDirty())
 			return 73;
-		choose(0);
-		SendMessageW(layers, WM_KEYDOWN, VK_SPACE, 0);
-		if (contrastEnabled || !SaveExistingPreset(0) || presets::Read(CurrentPreset(0).path).contrastEnabled)
+		choose(effect::ContrastCurves);
+		SendMessageW(effect_list, WM_KEYDOWN, VK_SPACE, 0);
+		if (contrast_enabled || !SaveExistingPreset(preset_role::Look) ||
+		    presets::Read(CurrentPreset(preset_role::Look).path).ContrastEnabled)
 			return 74;
-		SendMessageW(contrastSlider, TBM_SETPOS, TRUE, 17);
-		SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrastSlider));
-		if (contrastEnabled || CurrentPreset(0).current.contrast != 17 || CurrentSettings().contrast != 0)
+		SendMessageW(contrast_slider, TBM_SETPOS, TRUE, 17);
+		SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrast_slider));
+		if (contrast_enabled || CurrentPreset(preset_role::Look).current.Contrast != 17 ||
+		    CurrentSettings().Contrast != 0)
 			return 75;
-		SendMessageW(layers, LB_SETTOPINDEX, 0, 0);
-		SendMessageW(layers, WM_LBUTTONDOWN, MK_LBUTTON,
-		             MAKELPARAM(ScaleForDpi(12), ScaleForDpi(effects::RowHeight / 2)));
-		SendMessageW(layers, WM_MOUSEMOVE, MK_LBUTTON,
-		             MAKELPARAM(ScaleForDpi(12), ScaleForDpi(effects::RowHeight * 3 / 2)));
-		SendMessageW(layers, WM_LBUTTONUP, 0, MAKELPARAM(ScaleForDpi(12), ScaleForDpi(effects::RowHeight * 3 / 2)));
-		if (EffectListRow(0) != 1 || effectOrder.front() != 2 || selected != 0)
+		SendMessageW(effect_list, LB_SETTOPINDEX, 0, 0);
+		SendMessageW(effect_list, WM_LBUTTONDOWN, MK_LBUTTON,
+		             MAKELPARAM(ScaleForDpi(12), ScaleForDpi(effects::ROW_HEIGHT / 2)));
+		SendMessageW(effect_list, WM_MOUSEMOVE, MK_LBUTTON,
+		             MAKELPARAM(ScaleForDpi(12), ScaleForDpi(effects::ROW_HEIGHT * 3 / 2)));
+		SendMessageW(effect_list, WM_LBUTTONUP, 0,
+		             MAKELPARAM(ScaleForDpi(12), ScaleForDpi(effects::ROW_HEIGHT * 3 / 2)));
+		if (EffectListRow(effect::ContrastCurves) != 1 || effect_order.front() != 2 ||
+		    selected_effect != effect::ContrastCurves)
 			return 76;
-		MoveEffect(1, 0);
-		if (!correctionFirst || effectOrder.front() != 1 || selected != 0)
+		MoveEffect(effect::HdrGamma, 0);
+		if (!correction_first || effect_order.front() != 1 || selected_effect != effect::ContrastCurves)
 			return 77;
-		choose(1);
-		const bool hdr = hdrFixEnabled;
-		click(1);
-		if (selected != 1 || hdrFixEnabled == hdr || CurrentPreset(1).current.hdrFix != hdrFixEnabled)
+		choose(effect::HdrGamma);
+		const bool hdr = hdr_fix_enabled;
+		click(effect::HdrGamma);
+		if (selected_effect != effect::HdrGamma || hdr_fix_enabled == hdr ||
+		    CurrentPreset(preset_role::Correction).current.HdrFix != hdr_fix_enabled)
 			return 78;
 		for (int i = 0; i < 7; ++i)
-			SendMessageW(correctionLayers, WM_SYSKEYDOWN, VK_DOWN, 0);
-		if (!correctionFirst || effectOrder.front() != 1 || selected != 1)
+			SendMessageW(correction_list, WM_SYSKEYDOWN, VK_DOWN, 0);
+		if (!correction_first || effect_order.front() != 1 || selected_effect != effect::HdrGamma)
 			return 79;
 		// New effects retain disabled parameters, own their role, and survive save/load.
-		choose(2);
-		click(2);
+		choose(effect::ColorBalance);
+		click(effect::ColorBalance);
 		edit(0, 85);
-		if (selected != 2 || SelectedPresetRole() != 0 || CurrentPreset(0).current.adjustments.balanceEnabled ||
-		    CurrentPreset(0).current.adjustments.balance[0] != 85)
+		if (selected_effect != effect::ColorBalance || SelectedPresetRole() != 0 ||
+		    CurrentPreset(preset_role::Look).current.Adjustments.BalanceEnabled ||
+		    CurrentPreset(preset_role::Look).current.Adjustments.Balance[color::BALANCE_RED] != 85)
 			return 84;
-		choose(4);
+		choose(effect::Levels);
 		edit(0, 95);
 		edit(1, 5);
-		if (CurrentPreset(0).current.adjustments.levels[1] - CurrentPreset(0).current.adjustments.levels[0] < 5)
+		if (CurrentPreset(preset_role::Look).current.Adjustments.Levels[color::INPUT_WHITE] -
+		        CurrentPreset(preset_role::Look).current.Adjustments.Levels[color::INPUT_BLACK] <
+		    5)
 			return 85;
-		SendMessageW(window, WM_COMMAND, Reset, 0);
-		choose(6);
-		editingChannel = 1;
-		const auto plot = CurvePlotRect(canvas);
+		SendMessageW(main_window, WM_COMMAND, ID_RESET, 0);
+		choose(effect::CustomCurves);
+		editing_channel = 1;
+		const auto plot = CurvePlotRect(curve_canvas);
 		const LPARAM at =
 			MAKELPARAM((plot.left + plot.right) / 2, plot.bottom - static_cast<int>((plot.bottom - plot.top) * .57));
-		SendMessageW(canvas, WM_LBUTTONDOWN, MK_LBUTTON, at);
-		SendMessageW(canvas, WM_LBUTTONUP, 0, at);
-		const auto& points = CurrentPreset(0).current.adjustments.curves[1];
-		if (points.size() != 9 || points[4] <= .5 || sliderDragging || draggedPoint != -1)
+		SendMessageW(curve_canvas, WM_LBUTTONDOWN, MK_LBUTTON, at);
+		SendMessageW(curve_canvas, WM_LBUTTONUP, 0, at);
+		const auto& points = CurrentPreset(preset_role::Look).current.Adjustments.Curves[1];
+		if (points.size() != 9 || points[4] <= .5 || slider_dragging || dragged_point != -1)
 			return 86;
-		const auto otherPoints = points;
-		SendMessageW(canvas, WM_LBUTTONDBLCLK, MK_LBUTTON, at);
-		SendMessageW(canvas, WM_LBUTTONUP, 0, at);
-		const auto& resetPoints = CurrentPreset(0).current.adjustments.curves[1];
-		if (resetPoints[4] != .5 || sliderDragging || draggedPoint != -1)
+		const auto other_points = points;
+		SendMessageW(curve_canvas, WM_LBUTTONDBLCLK, MK_LBUTTON, at);
+		SendMessageW(curve_canvas, WM_LBUTTONUP, 0, at);
+		const auto& reset_points = CurrentPreset(preset_role::Look).current.Adjustments.Curves[1];
+		if (reset_points[4] != .5 || slider_dragging || dragged_point != -1)
 			return 275;
-		for (size_t i = 0; i < resetPoints.size(); ++i)
-			if (i != 4 && resetPoints[i] != otherPoints[i])
+		for (size_t i = 0; i < reset_points.size(); ++i)
+			if (i != 4 && reset_points[i] != other_points[i])
 				return 276;
-		CurrentPreset(0).current.adjustments.imported = lut1d::DecodeCube("LUT_1D_SIZE 2\n0 0 0\n1 .9 .8\n");
-		if (!SaveExistingPreset(0))
+		CurrentPreset(preset_role::Look).current.Adjustments.Imported =
+			lut1d::DecodeCube("LUT_1D_SIZE 2\n0 0 0\n1 .9 .8\n");
+		if (!SaveExistingPreset(preset_role::Look))
 			return 87;
-		const auto saved = CurrentPreset(0).current;
-		const auto savedOrder = effectOrder;
-		if (presets::Read(CurrentPreset(0).path) != saved || !PersistPresetChoices())
+		const auto saved = CurrentPreset(preset_role::Look).current;
+		const auto saved_order = effect_order;
+		if (presets::Read(CurrentPreset(preset_role::Look).path) != saved || !PersistPresetChoices())
 			return 88;
-		presetLibrary = {};
-		presetIndex = {};
-		effectOrder = { 0, 2, 3, 4, 5, 6, 7, 1 };
+		preset_library = {};
+		preset_index = {};
+		effect_order = { effect::ContrastCurves,    effect::ColorBalance, effect::MidtoneGamma,  effect::Levels,
+			             effect::ShadowsHighlights, effect::CustomCurves, effect::Imported1dLut, effect::HdrGamma };
 		InitializePresets();
 		RefreshInterface();
-		if (CurrentPreset(0).current != saved || effectOrder != savedOrder || contrastEnabled)
+		if (CurrentPreset(preset_role::Look).current != saved || effect_order != saved_order || contrast_enabled)
 			return 81;
-		SendMessageW(window, WM_COMMAND, SettingsPage, 0);
-		if (!settingsPage || !(GetWindowLongPtrW(layers, GWL_STYLE) & WS_VISIBLE) ||
-		    (GetWindowLongPtrW(title, GWL_STYLE) & WS_VISIBLE))
+		SendMessageW(main_window, WM_COMMAND, ID_SETTINGS_PAGE, 0);
+		if (!settings_page || !(GetWindowLongPtrW(effect_list, GWL_STYLE) & WS_VISIBLE) ||
+		    (GetWindowLongPtrW(effect_title, GWL_STYLE) & WS_VISIBLE))
 			return 89;
-		SendMessageW(fontChoice, CB_SETCURSEL, 1, 0);
-		SendMessageW(window, WM_COMMAND, MAKEWPARAM(FontChoice, CBN_SELCHANGE), 0);
+		SendMessageW(font_choice, CB_SETCURSEL, 1, 0);
+		SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(ID_FONT_CHOICE, CBN_SELCHANGE), 0);
 		if (wcscmp(ui::FontFamily(), L"Segoe UI"))
 			return 146;
-		SendMessageW(window, WM_COMMAND, SettingsPage, 0);
-		if (settingsPage)
+		SendMessageW(main_window, WM_COMMAND, ID_SETTINGS_PAGE, 0);
+		if (settings_page)
 			return 147;
-		for (int role : { 0, 1, 2, 3, 4, 5, 9, 10, 11 })
+		for (int effect :
+		     { effect::ContrastCurves, effect::HdrGamma, effect::ColorBalance, effect::MidtoneGamma, effect::Levels,
+		       effect::ShadowsHighlights, effect::NightLight, effect::Saturation, effect::ChannelMixer })
 		{
-			selected = role;
+			selected_effect = effect;
 			RefreshInterface();
 			const auto fields = SliderParameters();
 			std::vector<HWND> sliders;
-			if (role == 0)
-				sliders = { contrastSlider, pivotSlider };
-			else if (role == 1)
-				sliders = { whiteSlider };
+			if (effect == effect::ContrastCurves)
+				sliders = { contrast_slider, pivot_slider };
+			else if (effect == effect::HdrGamma)
+				sliders = { white_slider };
 			else
 				for (size_t i = 0; i < fields.size(); ++i)
-					sliders.push_back(adjustmentSliders[i]);
+					sliders.push_back(adjustment_sliders[i]);
 			for (HWND slider : sliders)
 			{
-				std::vector<int> previousValues;
+				std::vector<int> previous_values;
 				for (const auto& field : fields)
-					previousValues.push_back(*field.value);
+					previous_values.push_back(*field.value);
 				const int baseline =
 					static_cast<int>(reinterpret_cast<INT_PTR>(GetPropW(slider, L"LutSliderDefault")) - 32769);
 				const int maximum = static_cast<int>(SendMessageW(slider, TBM_GETRANGEMAX, 0, 0));
@@ -5114,11 +5213,12 @@ int RunEffectUiTest()
 				if (SendMessageW(slider, TBM_GETPOS, 0, 0) != baseline)
 					return 265;
 				for (size_t i = 0; i < fields.size(); ++i)
-					if (*fields[i].value != (slider == adjustmentSliders[i] ? baseline : previousValues[i]))
+					if (*fields[i].value != (slider == adjustment_sliders[i] ? baseline : previous_values[i]))
 						return 267;
-				if (role == 0 && (slider == contrastSlider ? contrastPosition : pivotPosition) != baseline)
+				if (effect == effect::ContrastCurves &&
+				    (slider == contrast_slider ? contrast_position : pivot_position) != baseline)
 					return 268;
-				if (role == 1 && whitePosition != baseline)
+				if (effect == effect::HdrGamma && white_position != baseline)
 					return 269;
 				SendMessageW(slider, TBM_SETPOS, TRUE, baseline == maximum ? baseline - 1 : baseline + 1);
 				SendMessageW(slider, WM_LBUTTONDBLCLK, MK_LBUTTON, 0);
@@ -5127,17 +5227,17 @@ int RunEffectUiTest()
 					return 274;
 				RECT thumb {};
 				SendMessageW(slider, TBM_GETTHUMBRECT, 0, reinterpret_cast<LPARAM>(&thumb));
-				const LPARAM sliderPoint = MAKELPARAM((thumb.left + thumb.right) / 2, (thumb.top + thumb.bottom) / 2);
-				SendMessageW(slider, WM_LBUTTONDOWN, MK_LBUTTON, sliderPoint);
-				SendMessageW(slider, WM_LBUTTONUP, 0, sliderPoint);
+				const LPARAM slider_point = MAKELPARAM((thumb.left + thumb.right) / 2, (thumb.top + thumb.bottom) / 2);
+				SendMessageW(slider, WM_LBUTTONDOWN, MK_LBUTTON, slider_point);
+				SendMessageW(slider, WM_LBUTTONUP, 0, slider_point);
 				SendMessageW(slider, TBM_SETPOS, TRUE, baseline == maximum ? baseline - 1 : baseline + 1);
-				SendMessageW(slider, WM_LBUTTONDOWN, MK_LBUTTON, sliderPoint);
-				SendMessageW(slider, WM_LBUTTONUP, 0, sliderPoint);
+				SendMessageW(slider, WM_LBUTTONDOWN, MK_LBUTTON, slider_point);
+				SendMessageW(slider, WM_LBUTTONUP, 0, slider_point);
 				if (SendMessageW(slider, TBM_GETPOS, 0, 0) != baseline)
 					return 277;
 			}
 		}
-		return liveSession.IsActive() || correctionsRequested ? 82 : 0;
+		return live_session.IsActive() || corrections_requested ? 82 : 0;
 	}
 	catch (...)
 	{
@@ -5145,41 +5245,42 @@ int RunEffectUiTest()
 	}
 }
 
-LRESULT CALLBACK CountSurfaceChanges(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR data)
+LRESULT CALLBACK CountSurfaceChanges(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR data)
 {
-	if (msg == WM_SETTEXT || msg == WM_ENABLE || msg == BM_SETCHECK || msg == CB_RESETCONTENT || msg == LB_SETCURSEL ||
-	    msg == LB_SETITEMHEIGHT)
+	if (message == WM_SETTEXT || message == WM_ENABLE || message == BM_SETCHECK || message == CB_RESETCONTENT ||
+	    message == LB_SETCURSEL || message == LB_SETITEMHEIGHT)
 		++*reinterpret_cast<int*>(data);
-	return DefSubclassProc(hwnd, msg, wp, lp);
+	return DefSubclassProc(hwnd, message, w_param, l_param);
 }
 
 int RunTabUiTest()
 {
-	const auto savedSelected = selected;
-	const bool savedPage = settingsPage;
-	const auto savedFocus = GetFocus();
-	BYTE savedKeys[256] {}, keys[256] {};
-	GetKeyboardState(savedKeys);
+	const auto saved_selected = selected_effect;
+	const bool saved_page = settings_page;
+	const auto saved_focus = GetFocus();
+	BYTE saved_keys[256] {}, keys[256] {};
+	GetKeyboardState(saved_keys);
 	SetKeyboardState(keys);
 	int result = 0;
 	for (int page = 0; page < 11 && !result; ++page)
 	{
-		settingsPage = page == 8;
-		selected = settingsPage ? 0 : page >= 9 ? page + 1 : page;
+		settings_page = page == 8;
+		selected_effect = settings_page ? 0 : page >= 9 ? page + 1 : page;
 		RefreshInterface();
-		const auto originalLook = CurrentPreset(0).current, originalCorrection = CurrentPreset(1).current;
-		if (((GetWindowLongPtrW(resetButton, GWL_STYLE) & WS_VISIBLE) != 0) == settingsPage ||
-		    ((GetWindowLongPtrW(selectedEffectToggle, GWL_STYLE) & WS_VISIBLE) != 0) == settingsPage)
+		const auto original_look = CurrentPreset(preset_role::Look).current,
+				   original_correction = CurrentPreset(preset_role::Correction).current;
+		if (((GetWindowLongPtrW(reset_button, GWL_STYLE) & WS_VISIBLE) != 0) == settings_page ||
+		    ((GetWindowLongPtrW(selected_effect_toggle, GWL_STYLE) & WS_VISIBLE) != 0) == settings_page)
 		{
 			result = 205;
 			break;
 		}
-		if (!settingsPage)
+		if (!settings_page)
 		{
 			RECT heading {}, reset {}, toggle {};
-			GetWindowRect(title, &heading);
-			GetWindowRect(resetButton, &reset);
-			GetWindowRect(selectedEffectToggle, &toggle);
+			GetWindowRect(effect_title, &heading);
+			GetWindowRect(reset_button, &reset);
+			GetWindowRect(selected_effect_toggle, &toggle);
 			if ((heading.top + heading.bottom) / 2 != reset.top + ScaleForDpi(14) ||
 			    (toggle.top + toggle.bottom) / 2 != reset.top + ScaleForDpi(14))
 			{
@@ -5188,27 +5289,28 @@ int RunTabUiTest()
 			}
 		}
 		const auto order = TabStopControls();
-		if (order.empty() || order.front() != correctionLayers || order.back() != monitorProfile ||
-		    NextTabStop(layers, false) != presetChoice || NextTabStop(presetChoice, false) != autosaveControl ||
-		    NextTabStop(autosaveControl, false) != savePresetButton ||
-		    NextTabStop(savePresetButton, false) != saveAsButton)
+		if (order.empty() || order.front() != correction_list || order.back() != monitor_profile ||
+		    NextTabStop(effect_list, false) != preset_choice || NextTabStop(preset_choice, false) != autosave_control ||
+		    NextTabStop(autosave_control, false) != save_preset_button ||
+		    NextTabStop(save_preset_button, false) != save_as_button)
 		{
 			result = 180;
 			break;
 		}
-		const auto firstInput = settingsPage                       ? fontChoice
-		                        : selected == 0                    ? contrastSlider
-		                        : selected == 1                    ? (IsWindowEnabled(whiteSlider) ? whiteSlider
-		                                                              : gammaPosition == 0         ? gammaChoice
-		                                                                                           : gammaOther)
-		                        : (selected < 6 || selected >= 10) ? adjustmentSliders[0]
-		                        : selected == 6                    ? curveChannel
-		                                                           : importButton;
-		const auto lastToolbar = IsWindowEnabled(revertPresetButton) ? revertPresetButton : exportButton;
-		if (settingsPage ? NextTabStop(lastToolbar, false) != firstInput
-		                 : (NextTabStop(lastToolbar, false) != selectedEffectToggle ||
-		                    NextTabStop(selectedEffectToggle, false) != resetButton ||
-		                    NextTabStop(resetButton, false) != firstInput))
+		const auto first_input = settings_page                               ? font_choice
+		                         : selected_effect == effect::ContrastCurves ? contrast_slider
+		                         : selected_effect == effect::HdrGamma ? (IsWindowEnabled(white_slider) ? white_slider
+		                                                                  : gamma_position == 0         ? gamma_choice
+		                                                                                                : gamma_other)
+		                         : (selected_effect < effect::CustomCurves || selected_effect >= effect::Saturation)
+		                             ? adjustment_sliders[0]
+		                         : selected_effect == effect::CustomCurves ? curve_channel
+		                                                                   : import_button;
+		const auto last_toolbar = IsWindowEnabled(revert_preset_button) ? revert_preset_button : export_button;
+		if (settings_page ? NextTabStop(last_toolbar, false) != first_input
+		                  : (NextTabStop(last_toolbar, false) != selected_effect_toggle ||
+		                     NextTabStop(selected_effect_toggle, false) != reset_button ||
+		                     NextTabStop(reset_button, false) != first_input))
 		{
 			result = 181;
 			break;
@@ -5221,12 +5323,13 @@ int RunTabUiTest()
 				result = 182;
 				break;
 			}
-			if (!settingsPage && (order[i] == fontChoice || order[i] == shortcutControl || order[i] == startupControl))
+			if (!settings_page &&
+			    (order[i] == font_choice || order[i] == shortcut_control || order[i] == startup_control))
 			{
 				result = 183;
 				break;
 			}
-			if (order[i] == canvas && (settingsPage || selected != 6))
+			if (order[i] == curve_canvas && (settings_page || selected_effect != effect::CustomCurves))
 			{
 				result = 184;
 				break;
@@ -5263,22 +5366,23 @@ int RunTabUiTest()
 			keys[VK_SHIFT] = keys[VK_LSHIFT] = 0;
 			SetKeyboardState(keys);
 		}
-		if (!result && (CurrentPreset(0).current != originalLook || CurrentPreset(1).current != originalCorrection))
+		if (!result && (CurrentPreset(preset_role::Look).current != original_look ||
+		                CurrentPreset(preset_role::Correction).current != original_correction))
 			result = 187;
 	}
-	settingsPage = savedPage;
-	selected = savedSelected;
+	settings_page = saved_page;
+	selected_effect = saved_selected;
 	RefreshInterface();
-	SetKeyboardState(savedKeys);
-	if (savedFocus)
-		SetFocus(savedFocus);
+	SetKeyboardState(saved_keys);
+	if (saved_focus)
+		SetFocus(saved_focus);
 	return result;
 }
 
 bool PartialGraphMatchesFull()
 {
 	RECT bounds {};
-	GetClientRect(canvas, &bounds);
+	GetClientRect(curve_canvas, &bounds);
 	BITMAPINFO info {};
 	info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	info.bmiHeader.biWidth = bounds.right;
@@ -5300,63 +5404,63 @@ bool PartialGraphMatchesFull()
 	const auto old = SelectObject(dc, bitmap);
 	auto pixels = static_cast<uint32_t*>(raw);
 	const size_t count = static_cast<size_t>(bounds.right) * bounds.bottom;
-	const auto oldLook = CurrentPreset(0).current;
-	const int oldPosition = contrastPosition;
-	const bool oldEnabled = contrastEnabled, oldError = liveError;
-	const auto oldMessage = liveMessage;
-	SendMessageW(canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
+	const auto old_look = CurrentPreset(preset_role::Look).current;
+	const int old_position = contrast_position;
+	const bool old_enabled = contrast_enabled, old_error = live_error;
+	const auto old_message = live_message;
+	SendMessageW(curve_canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
 	GdiFlush();
-	const auto fullBytes = lastGraphPaintBytes;
+	const auto full_bytes = last_graph_paint_bytes;
 	bool okay = true;
 	for (int stage = 0; stage < 3; ++stage)
 	{
-		ValidateRect(canvas, nullptr);
+		ValidateRect(curve_canvas, nullptr);
 		if (stage == 0)
 		{
-			contrastPosition = 15;
-			contrastEnabled = true;
-			CurrentPreset(0).current.contrast = 15;
-			CurrentPreset(0).current.contrastEnabled = true;
+			contrast_position = 15;
+			contrast_enabled = true;
+			CurrentPreset(preset_role::Look).current.Contrast = 15;
+			CurrentPreset(preset_role::Look).current.ContrastEnabled = true;
 		}
 		else
 		{
-			liveError = stage == 1;
-			liveMessage =
+			live_error = stage == 1;
+			live_message =
 				stage == 1
 					? L"This is a deliberately long warning used to verify that wrapped graph messages are fully erased when the warning is cleared."
-					: oldMessage;
+					: old_message;
 		}
 		RefreshInterface();
 		HRGN dirty = CreateRectRgn(0, 0, 0, 0);
 		// Hidden native windows may discard their update region. In that
 		// fixture case, replay the exact rectangles requested by the painter.
-		if (GetUpdateRgn(canvas, dirty, FALSE) <= NULLREGION)
-			for (unsigned i = 0; i < graphAuditCount; ++i)
+		if (GetUpdateRgn(curve_canvas, dirty, FALSE) <= NULLREGION)
+			for (unsigned i = 0; i < graph_audit_count; ++i)
 			{
-				HRGN part = CreateRectRgnIndirect(&graphAuditDamage[i]);
+				HRGN part = CreateRectRgnIndirect(&graph_audit_damage[i]);
 				CombineRgn(dirty, dirty, part, RGN_OR);
 				DeleteObject(part);
 			}
 		const int saved = SaveDC(dc);
 		SelectClipRgn(dc, dirty);
-		SendMessageW(canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
+		SendMessageW(curve_canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
 		GdiFlush();
-		if (stage == 0 && lastGraphPaintBytes >= fullBytes)
+		if (stage == 0 && last_graph_paint_bytes >= full_bytes)
 			okay = false;
 		RestoreDC(dc, saved);
 		DeleteObject(dirty);
 		std::vector<uint32_t> partial(pixels, pixels + count);
-		SendMessageW(canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
+		SendMessageW(curve_canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
 		GdiFlush();
 		for (size_t i = 0; i < count; ++i)
 			if ((partial[i] & 0xffffff) != (pixels[i] & 0xffffff))
 				okay = false;
 	}
-	CurrentPreset(0).current = oldLook;
-	contrastPosition = oldPosition;
-	contrastEnabled = oldEnabled;
-	liveError = oldError;
-	liveMessage = oldMessage;
+	CurrentPreset(preset_role::Look).current = old_look;
+	contrast_position = old_position;
+	contrast_enabled = old_enabled;
+	live_error = old_error;
+	live_message = old_message;
 	RefreshInterface();
 	SelectObject(dc, old);
 	DeleteObject(bitmap);
@@ -5367,8 +5471,8 @@ bool PartialGraphMatchesFull()
 bool ClippedListMatchesFull()
 {
 	RECT bounds {}, dirty {};
-	GetClientRect(layers, &bounds);
-	if (SendMessageW(layers, LB_GETITEMRECT, 1, reinterpret_cast<LPARAM>(&dirty)) == LB_ERR)
+	GetClientRect(effect_list, &bounds);
+	if (SendMessageW(effect_list, LB_GETITEMRECT, 1, reinterpret_cast<LPARAM>(&dirty)) == LB_ERR)
 		return false;
 	InflateRect(&dirty, -ScaleForDpi(4), -ScaleForDpi(3));
 	BITMAPINFO info {};
@@ -5390,14 +5494,14 @@ bool ClippedListMatchesFull()
 		return false;
 	}
 	const auto old = SelectObject(dc, bitmap);
-	SendMessageW(layers, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
+	SendMessageW(effect_list, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
 	GdiFlush();
 	const size_t count = static_cast<size_t>(bounds.right) * bounds.bottom;
 	auto values = static_cast<uint32_t*>(pixels);
 	std::vector<uint32_t> reference(values, values + count);
 	std::fill(values, values + count, 0);
 	IntersectClipRect(dc, dirty.left, dirty.top, dirty.right, dirty.bottom);
-	SendMessageW(layers, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
+	SendMessageW(effect_list, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
 	GdiFlush();
 	bool same = true;
 	for (int y = 0; y < bounds.bottom; ++y)
@@ -5420,47 +5524,51 @@ int RunSurfaceUiTest()
 		return 255;
 	if (!PartialGraphMatchesFull())
 		return 260;
-	for (HWND control :
-	     { presetChoice,   autosaveControl,  sourceChoice,  fontChoice,   shortcutControl,      shortcutButton,
-	       startupControl, openPresetButton, bypassButton,  filterChoice, filterSettingsButton, saturationReportButton,
-	       contrastSlider, pivotSlider,      whiteSlider,   gammaChoice,  gammaOther,           hdrFixControl,
-	       curveChannel,   importButton,     export1DButton })
+	for (HWND control : { preset_choice,    autosave_control, source_choice,          font_choice,
+	                      shortcut_control, shortcut_button,  startup_control,        open_preset_button,
+	                      bypass_button,    filter_choice,    filter_settings_button, saturation_report_button,
+	                      contrast_slider,  pivot_slider,     white_slider,           gamma_choice,
+	                      gamma_other,      hdr_fix_control,  curve_channel,          import_button,
+	                      export_1d_button })
 		if (!*ui::HelpTextForRegion(control) || wcslen(ui::HelpTextForRegion(control)) > 48)
 			return 233;
-	for (int effect = 0; effect < 10; ++effect)
+	for (int effect = effect::ContrastCurves; effect < effect::Saturation; ++effect)
 		if (!*ui::HelpTextForRegion(EffectListForRole(effect), effect + 1) ||
 		    wcslen(ui::HelpTextForRegion(EffectListForRole(effect), effect + 1)) > 48 ||
 		    !*ui::HelpTextForRegion(EffectListForRole(effect), 100 + effect))
 			return 234;
-	const int savedSelected = selected;
-	const auto savedLook = CurrentPreset(0).current, savedCorrection = CurrentPreset(1).current;
-	const auto savedFilter = filterState;
-	for (int role : { 8, 9 })
+	const int saved_selected = selected_effect;
+	const auto saved_look = CurrentPreset(preset_role::Look).current,
+			   saved_correction = CurrentPreset(preset_role::Correction).current;
+	const auto saved_filter = filter_state;
+	for (int effect : { effect::ColorFilters, effect::NightLight })
 	{
-		SendMessageW(windowsLayers, LB_SETCURSEL, role - 8, 0);
-		SendMessageW(window, WM_COMMAND, MAKEWPARAM(WindowsCorrectionLayers, LBN_SELCHANGE), 0);
-		if (selected != role || settingsPage || (GetWindowLongPtrW(presetChoice, GWL_STYLE) & WS_VISIBLE) ||
-		    (role == 8 && (GetWindowLongPtrW(resetButton, GWL_STYLE) & WS_VISIBLE)))
+		SendMessageW(windows_effect_list, LB_SETCURSEL, effect - effect::FirstWindows, 0);
+		SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(ID_WINDOWS_CORRECTION_LAYERS, LBN_SELCHANGE), 0);
+		if (selected_effect != effect || settings_page || (GetWindowLongPtrW(preset_choice, GWL_STYLE) & WS_VISIBLE) ||
+		    (effect == effect::ColorFilters && (GetWindowLongPtrW(reset_button, GWL_STYLE) & WS_VISIBLE)))
 			return 235;
 		const auto order = TabStopControls();
-		if (std::find(order.begin(), order.end(), windowsLayers) == order.end() ||
-		    std::find(order.begin(), order.end(), presetChoice) != order.end())
+		if (std::find(order.begin(), order.end(), windows_effect_list) == order.end() ||
+		    std::find(order.begin(), order.end(), preset_choice) != order.end())
 			return 236;
-		if (role == 9 && !(GetWindowLongPtrW(selectedEffectToggle, GWL_STYLE) & WS_VISIBLE))
+		if (effect == effect::NightLight && !(GetWindowLongPtrW(selected_effect_toggle, GWL_STYLE) & WS_VISIBLE))
 			return 237;
-		if (role == 8 && !(GetWindowLongPtrW(filterChoice, GWL_STYLE) & WS_VISIBLE))
+		if (effect == effect::ColorFilters && !(GetWindowLongPtrW(filter_choice, GWL_STYLE) & WS_VISIBLE))
 			return 238;
 	}
-	if (CurrentPreset(0).current != savedLook || CurrentPreset(1).current != savedCorrection ||
-	    filterState.on != savedFilter.on || filterState.filter != savedFilter.filter || filterController.IsBusy())
+	if (CurrentPreset(preset_role::Look).current != saved_look ||
+	    CurrentPreset(preset_role::Correction).current != saved_correction || filter_state.on != saved_filter.on ||
+	    filter_state.filter != saved_filter.filter || filter_controller.IsBusy())
 		return 239;
-	const auto savedNight = nightConfig;
-	const bool savedBypass = bypassed;
-	selected = 9;
-	nightConfig.enabled = false;
-	nightConfig.scheduled = false;
+	const auto saved_night = night_config;
+	const bool saved_bypass = bypassed;
+	selected_effect = effect::NightLight;
+	night_config.Enabled = false;
+	night_config.Scheduled = false;
 	RefreshInterface();
-	for (const auto& pair : { std::pair<HWND, HWND> { nightStart, nightStartLabel }, { nightEnd, nightEndLabel } })
+	for (const auto& pair :
+	     { std::pair<HWND, HWND> { night_start, night_start_label }, { night_end, night_end_label } })
 	{
 		RECT outer {}, client {}, label {};
 		GetWindowRect(pair.first, &outer);
@@ -5482,102 +5590,105 @@ int RunSurfaceUiTest()
 		if (wcscmp(edited, L"22:00"))
 			return 280;
 	}
-	SendMessageW(window, WM_COMMAND, SelectedEffectToggle, 0);
-	SendMessageW(adjustmentSliders[0], TBM_SETPOS, TRUE, 70);
-	SendMessageW(window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustmentSliders[0]));
-	if (!nightConfig.enabled || nightConfig.strength != 70 || CurrentPreset(0).current != savedLook ||
-	    CurrentSettings().nightWarmth != .7)
+	SendMessageW(main_window, WM_COMMAND, ID_SELECTED_EFFECT_TOGGLE, 0);
+	SendMessageW(adjustment_sliders[0], TBM_SETPOS, TRUE, 70);
+	SendMessageW(main_window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustment_sliders[0]));
+	if (!night_config.Enabled || night_config.Strength != 70 ||
+	    CurrentPreset(preset_role::Look).current != saved_look || CurrentSettings().NightWarmth != .7)
 		return 270;
 	bypassed = true;
-	if (CurrentSettings().nightWarmth != .7)
+	if (CurrentSettings().NightWarmth != .7)
 		return 271;
-	SendMessageW(adjustmentSliders[0], WM_RBUTTONUP, 0, 0);
-	if (nightConfig.strength != 35)
+	SendMessageW(adjustment_sliders[0], WM_RBUTTONUP, 0, 0);
+	if (night_config.Strength != 35)
 		return 272;
-	SetWindowTextW(nightStart, L"24:99");
-	SendMessageW(window, WM_COMMAND, MAKEWPARAM(NightStart, EN_KILLFOCUS), reinterpret_cast<LPARAM>(nightStart));
-	if (nightConfig.start != savedNight.start || nightMessage.empty())
+	SetWindowTextW(night_start, L"24:99");
+	SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(ID_NIGHT_START, EN_KILLFOCUS),
+	             reinterpret_cast<LPARAM>(night_start));
+	if (night_config.Start != saved_night.Start || night_message.empty())
 		return 273;
-	nightConfig = savedNight;
-	bypassed = savedBypass;
-	nightMessage.clear();
+	night_config = saved_night;
+	bypassed = saved_bypass;
+	night_message.clear();
 	UpdateNightLightSchedule();
 	RefreshInterface();
-	selected = savedSelected;
+	selected_effect = saved_selected;
 	RefreshInterface();
 	// New global effect uses the same preset and keyboard/UI contracts, but
 	// hidden UI tests must never start a hardware worker.
-	selected = 10;
-	settingsPage = false;
+	selected_effect = effect::Saturation;
+	settings_page = false;
 	RefreshInterface();
-	if (EffectListForRole(10) != layers || EffectListRow(10) != 7 || !*ui::HelpTextForRegion(layers, 11) ||
-	    SliderParameters().size() != 1)
+	if (EffectListForRole(effect::Saturation) != effect_list || EffectListRow(effect::Saturation) != 7 ||
+	    !*ui::HelpTextForRegion(effect_list, 11) || SliderParameters().size() != 1)
 		return 247;
-	if (!(GetWindowLongPtrW(presetChoice, GWL_STYLE) & WS_VISIBLE) ||
-	    !(GetWindowLongPtrW(resetButton, GWL_STYLE) & WS_VISIBLE))
+	if (!(GetWindowLongPtrW(preset_choice, GWL_STYLE) & WS_VISIBLE) ||
+	    !(GetWindowLongPtrW(reset_button, GWL_STYLE) & WS_VISIBLE))
 		return 248;
-	const auto beforeMatrix = CurrentPreset(0).current;
-	SendMessageW(window, WM_COMMAND, SelectedEffectToggle, 0);
-	if (CurrentPreset(0).current.saturationEnabled == beforeMatrix.saturationEnabled ||
-	    matrixSession.CurrentState() != matrix_effect::State::Off)
+	const auto before_matrix = CurrentPreset(preset_role::Look).current;
+	SendMessageW(main_window, WM_COMMAND, ID_SELECTED_EFFECT_TOGGLE, 0);
+	if (CurrentPreset(preset_role::Look).current.SaturationEnabled == before_matrix.SaturationEnabled ||
+	    matrix_session.CurrentState() != matrix_effect::State::Off)
 		return 249;
-	SendMessageW(adjustmentSliders[0], TBM_SETPOS, FALSE, 50);
-	SendMessageW(window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustmentSliders[0]));
-	if (CurrentPreset(0).current.saturation != 50 || matrixSession.CurrentState() != matrix_effect::State::Off)
+	SendMessageW(adjustment_sliders[0], TBM_SETPOS, FALSE, 50);
+	SendMessageW(main_window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustment_sliders[0]));
+	if (CurrentPreset(preset_role::Look).current.Saturation != 50 ||
+	    matrix_session.CurrentState() != matrix_effect::State::Off)
 		return 250;
-	SendMessageW(adjustmentSliders[0], TBM_SETPOS, FALSE, color::SaturationMaximum);
-	SendMessageW(window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustmentSliders[0]));
-	if (CurrentPreset(0).current.saturation != color::SaturationMaximum)
+	SendMessageW(adjustment_sliders[0], TBM_SETPOS, FALSE, color::SATURATION_MAXIMUM);
+	SendMessageW(main_window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustment_sliders[0]));
+	if (CurrentPreset(preset_role::Look).current.Saturation != color::SATURATION_MAXIMUM)
 		return 252;
-	SendMessageW(window, WM_COMMAND, Reset, 0);
-	if (CurrentPreset(0).current.saturation != 100)
+	SendMessageW(main_window, WM_COMMAND, ID_RESET, 0);
+	if (CurrentPreset(preset_role::Look).current.Saturation != 100)
 		return 251;
-	selected = 11;
+	selected_effect = effect::ChannelMixer;
 	RefreshInterface();
-	if (SliderParameters().size() != 3 || EffectListRow(11) != 8)
+	if (SliderParameters().size() != 3 || EffectListRow(effect::ChannelMixer) != 8)
 		return 288;
-	SendMessageW(window, WM_COMMAND, SelectedEffectToggle, 0);
-	if (CurrentPreset(0).current.monochromeEnabled == beforeMatrix.monochromeEnabled ||
-	    matrixSession.CurrentState() != matrix_effect::State::Off)
+	SendMessageW(main_window, WM_COMMAND, ID_SELECTED_EFFECT_TOGGLE, 0);
+	if (CurrentPreset(preset_role::Look).current.MonochromeEnabled == before_matrix.MonochromeEnabled ||
+	    matrix_session.CurrentState() != matrix_effect::State::Off)
 		return 289;
-	SendMessageW(adjustmentSliders[0], TBM_SETPOS, FALSE, 90);
-	SendMessageW(window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustmentSliders[0]));
-	if (CurrentPreset(0).current.monochrome[0] != 90)
+	SendMessageW(adjustment_sliders[0], TBM_SETPOS, FALSE, 90);
+	SendMessageW(main_window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(adjustment_sliders[0]));
+	if (CurrentPreset(preset_role::Look).current.Monochrome[0] != 90)
 		return 290;
-	SendMessageW(window, WM_COMMAND, Reset, 0);
-	if (CurrentPreset(0).current.monochrome != std::array<int, 3> { 21, 72, 7 })
+	SendMessageW(main_window, WM_COMMAND, ID_RESET, 0);
+	if (CurrentPreset(preset_role::Look).current.Monochrome != std::array<int, 3> { 21, 72, 7 })
 		return 291;
-	CurrentPreset(0).current = beforeMatrix;
-	selected = savedSelected;
+	CurrentPreset(preset_role::Look).current = before_matrix;
+	selected_effect = saved_selected;
 	RefreshInterface();
 	ShowProfiles(true);
-	const auto helpEditor = profile_editor::ProfileEditorHandle();
-	if (!helpEditor)
+	const auto help_editor = profile_editor::ProfileEditorHandle();
+	if (!help_editor)
 		return 240;
 	for (int id : { 201, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220 })
-		if (!*ui::HelpTextForRegion(GetDlgItem(helpEditor, id)) ||
-		    wcslen(ui::HelpTextForRegion(GetDlgItem(helpEditor, id))) > 48)
+		if (!*ui::HelpTextForRegion(GetDlgItem(help_editor, id)) ||
+		    wcslen(ui::HelpTextForRegion(GetDlgItem(help_editor, id))) > 48)
 			return 241;
-	DestroyWindow(helpEditor);
+	DestroyWindow(help_editor);
 	// Simulate Windows shrinking our fixed layout without changing the real
 	// display mode. A mode-change notification must restore the intended size.
 	RECT before {};
-	GetWindowRect(window, &before);
-	SetWindowPos(window, nullptr, 0, 0, ScaleForDpi(400), ScaleForDpi(260), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-	if (!ui::WindowNeedsSizeRepair(window))
+	GetWindowRect(main_window, &before);
+	SetWindowPos(main_window, nullptr, 0, 0, ScaleForDpi(400), ScaleForDpi(260),
+	             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	if (!ui::WindowNeedsSizeRepair(main_window))
 		return 242;
-	ui::RevealControl(window, sourceChoice);
-	const auto scroll = ui::ViewportOffset(window);
-	RECT visibleControl {}, viewport {};
-	GetWindowRect(sourceChoice, &visibleControl);
-	MapWindowPoints(nullptr, window, reinterpret_cast<POINT*>(&visibleControl), 2);
-	GetClientRect(window, &viewport);
-	if (scroll.y <= 0 || visibleControl.top < 0 || visibleControl.bottom > viewport.bottom || visibleControl.left < 0 ||
-	    visibleControl.right > viewport.right)
+	ui::RevealControl(main_window, source_choice);
+	const auto scroll = ui::ViewportOffset(main_window);
+	RECT visible_control {}, viewport {};
+	GetWindowRect(source_choice, &visible_control);
+	MapWindowPoints(nullptr, main_window, reinterpret_cast<POINT*>(&visible_control), 2);
+	GetClientRect(main_window, &viewport);
+	if (scroll.y <= 0 || visible_control.top < 0 || visible_control.bottom > viewport.bottom ||
+	    visible_control.left < 0 || visible_control.right > viewport.right)
 		return 284;
-	SendMessageW(window, WM_DISPLAYCHANGE, 32, MAKELPARAM(640, 480));
+	SendMessageW(main_window, WM_DISPLAYCHANGE, 32, MAKELPARAM(640, 480));
 	const auto deadline = GetTickCount64() + 1500;
-	while (ui::WindowNeedsSizeRepair(window) && GetTickCount64() < deadline)
+	while (ui::WindowNeedsSizeRepair(main_window) && GetTickCount64() < deadline)
 	{
 		MSG event {};
 		while (PeekMessageW(&event, nullptr, 0, 0, PM_REMOVE))
@@ -5588,15 +5699,16 @@ int RunSurfaceUiTest()
 		Sleep(5);
 	}
 	RECT after {};
-	GetWindowRect(window, &after);
+	GetWindowRect(main_window, &after);
 	if (after.right - after.left != before.right - before.left ||
 	    after.bottom - after.top != before.bottom - before.top)
 		return 243;
-	if (ui::ViewportOffset(window).x || ui::ViewportOffset(window).y)
+	if (ui::ViewportOffset(main_window).x || ui::ViewportOffset(main_window).y)
 		return 285;
-	SetWindowPos(window, nullptr, 0, 0, ScaleForDpi(400), ScaleForDpi(260), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-	SendMessageW(window, WM_SYSCOMMAND, SC_RESTORE, 0);
-	GetWindowRect(window, &after);
+	SetWindowPos(main_window, nullptr, 0, 0, ScaleForDpi(400), ScaleForDpi(260),
+	             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	SendMessageW(main_window, WM_SYSCOMMAND, SC_RESTORE, 0);
+	GetWindowRect(main_window, &after);
 	if (after.right - after.left != before.right - before.left ||
 	    after.bottom - after.top != before.bottom - before.top)
 		return 244;
@@ -5605,119 +5717,122 @@ int RunSurfaceUiTest()
 	const auto small = ui::FitWindowRect({ 300, 200, 1500, 1100 }, preferred, low);
 	if (small.left || small.top || small.right != 640 || small.bottom != 480)
 		return 245;
-	const auto normalSize = ui::FitWindowRect(small, preferred, high);
-	if (normalSize.right - normalSize.left != 1200 || normalSize.bottom - normalSize.top != 900)
+	const auto normal_size = ui::FitWindowRect(small, preferred, high);
+	if (normal_size.right - normal_size.left != 1200 || normal_size.bottom - normal_size.top != 900)
 		return 246;
 	// Verify real page/font clearance, including dropdown and button pages.
-	for (int role : { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 })
+	for (int effect : { effect::ContrastCurves, effect::HdrGamma, effect::ColorBalance, effect::MidtoneGamma,
+	                    effect::Levels, effect::ShadowsHighlights, effect::CustomCurves, effect::Imported1dLut,
+	                    effect::ColorFilters, effect::NightLight, effect::Saturation, effect::ChannelMixer })
 	{
-		selected = role;
-		settingsPage = false;
+		selected_effect = effect;
+		settings_page = false;
 		RefreshInterface();
-		RECT textBounds {};
-		GetWindowRect(description, &textBounds);
-		HWND first = role == 0   ? contrastSlider
-		             : role == 1 ? whiteSlider
-		             : role == 6 ? curveChannel
-		             : role == 7 ? importButton
-		             : role == 8 ? filterChoice
-		                         : adjustmentSliders[0];
-		RECT controlBounds {};
-		GetWindowRect(first, &controlBounds);
-		if (controlBounds.top - textBounds.bottom < ScaleForDpi(6))
+		RECT text_bounds {};
+		GetWindowRect(effect_description, &text_bounds);
+		HWND first = effect == effect::ContrastCurves  ? contrast_slider
+		             : effect == effect::HdrGamma      ? white_slider
+		             : effect == effect::CustomCurves  ? curve_channel
+		             : effect == effect::Imported1dLut ? import_button
+		             : effect == effect::ColorFilters  ? filter_choice
+		                                               : adjustment_sliders[0];
+		RECT control_bounds {};
+		GetWindowRect(first, &control_bounds);
+		if (control_bounds.top - text_bounds.bottom < ScaleForDpi(6))
 			return 253;
 		wchar_t words[1024] {};
-		GetWindowTextW(description, words, 1024);
-		RECT measured { 0, 0, textBounds.right - textBounds.left, 0 };
-		HDC dc = GetDC(description);
-		const auto prior = SelectObject(dc, font);
+		GetWindowTextW(effect_description, words, 1024);
+		RECT measured { 0, 0, text_bounds.right - text_bounds.left, 0 };
+		HDC dc = GetDC(effect_description);
+		const auto prior = SelectObject(dc, ui_font);
 		DrawTextW(dc, words, -1, &measured, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
 		SelectObject(dc, prior);
-		ReleaseDC(description, dc);
-		if (measured.bottom > textBounds.bottom - textBounds.top)
+		ReleaseDC(effect_description, dc);
+		if (measured.bottom > text_bounds.bottom - text_bounds.top)
 			return 254;
 	}
-	selected = savedSelected;
+	selected_effect = saved_selected;
 	RefreshInterface();
-	const auto tabResult = RunTabUiTest();
-	if (tabResult)
-		return tabResult;
-	const bool priorPower = correctionsRequested;
-	selected = 8;
+	const auto tab_result = RunTabUiTest();
+	if (tab_result)
+		return tab_result;
+	const bool prior_power = corrections_requested;
+	selected_effect = effect::ColorFilters;
 	RefreshInterface();
-	if (!(GetWindowLongPtrW(filterChoice, GWL_STYLE) & WS_VISIBLE) || IsWindowEnabled(selectedEffectToggle) ||
-	    IsWindowEnabled(filterChoice))
+	if (!(GetWindowLongPtrW(filter_choice, GWL_STYLE) & WS_VISIBLE) || IsWindowEnabled(selected_effect_toggle) ||
+	    IsWindowEnabled(filter_choice))
 		return 224;
-	SendMessageW(window, WM_COMMAND, SelectedEffectToggle, 0);
-	if (filterController.IsBusy() || correctionsRequested != priorPower)
+	SendMessageW(main_window, WM_COMMAND, ID_SELECTED_EFFECT_TOGGLE, 0);
+	if (filter_controller.IsBusy() || corrections_requested != prior_power)
 		return 225;
-	SendMessageW(window, WM_COMMAND, SettingsPage, 0);
-	if (!settingsPage || (GetWindowLongPtrW(filterChoice, GWL_STYLE) & WS_VISIBLE) ||
-	    !(GetWindowLongPtrW(fontChoice, GWL_STYLE) & WS_VISIBLE))
+	SendMessageW(main_window, WM_COMMAND, ID_SETTINGS_PAGE, 0);
+	if (!settings_page || (GetWindowLongPtrW(filter_choice, GWL_STYLE) & WS_VISIBLE) ||
+	    !(GetWindowLongPtrW(font_choice, GWL_STYLE) & WS_VISIBLE))
 		return 226;
-	SendMessageW(window, WM_COMMAND, SettingsPage, 0);
-	selected = savedSelected;
+	SendMessageW(main_window, WM_COMMAND, ID_SETTINGS_PAGE, 0);
+	selected_effect = saved_selected;
 	RefreshInterface();
 	// Exercise master startup in the read-only harness, including both power
 	// indicators. Test mode cannot begin a hardware session.
 	TurnOnCorrections();
-	if (!correctionsRequested || liveSession.IsActive() || !GetPropW(powerButton, L"LutMonitorOn") ||
-	    !IsWindowEnabled(sourceChoice))
+	if (!corrections_requested || live_session.IsActive() || !GetPropW(power_button, L"LutMonitorOn") ||
+	    !IsWindowEnabled(source_choice))
 		return 193;
-	if (wcsstr(ui::CaptionTooltip(window, 102), L"off") == nullptr)
+	if (wcsstr(ui::CaptionTooltip(main_window, 102), L"off") == nullptr)
 		return 194;
 	ToggleCorrections();
-	if (correctionsRequested)
+	if (corrections_requested)
 		return 195;
 	// Display settling retries keep master power on, stop at a fixed limit,
 	// and cancel cleanly when the user turns master power off.
-	correctionsRequested = true;
-	modeResetPending = true;
-	displayAttempts = 0;
+	corrections_requested = true;
+	mode_reset_pending = true;
+	display_attempts = 0;
 	for (int i = 0; i < 10; ++i)
-		if (!WaitForDisplay() || !correctionsRequested)
+		if (!WaitForDisplay() || !corrections_requested)
 			return 208;
-	if (WaitForDisplay() || displayAttempts != 11)
+	if (WaitForDisplay() || display_attempts != 11)
 		return 209;
 	DisableLiveCorrections(true);
-	if (!correctionsRequested || !modeResetPending)
+	if (!corrections_requested || !mode_reset_pending)
 		return 210;
 	DisableLiveCorrections();
-	if (correctionsRequested || displayRetryPending || modeResetPending || displayAttempts)
+	if (corrections_requested || display_retry_pending || mode_reset_pending || display_attempts)
 		return 211;
 	for (int hit : { 100, 101, 102, HTHELP, HTMINBUTTON, HTCLOSE, HTSYSMENU })
-		if (!ui::CaptionTooltip(window, hit) || !*ui::CaptionTooltip(window, hit))
+		if (!ui::CaptionTooltip(main_window, hit) || !*ui::CaptionTooltip(main_window, hit))
 			return 196;
-	if (wcscmp(ui::CaptionTooltip(window, HTHELP), ui::wording::Settings) ||
-	    wcscmp(ui::CaptionTooltip(window, 101), ui::wording::ApplicationProfiles))
+	if (wcscmp(ui::CaptionTooltip(main_window, HTHELP), ui::wording::LABEL_SETTINGS) ||
+	    wcscmp(ui::CaptionTooltip(main_window, 101), ui::wording::LABEL_APPLICATION_PROFILES))
 		return 231;
-	for (HWND button : { monitorSettingsButton, profilesButton, monitorProfile })
+	for (HWND button : { monitor_settings_button, profiles_button, monitor_profile })
 	{
 		NMTTDISPINFOW tip {};
-		tip.hdr.hwndFrom = monitorTips;
+		tip.hdr.hwndFrom = monitor_tips;
 		tip.hdr.idFrom = reinterpret_cast<UINT_PTR>(button);
 		tip.hdr.code = TTN_GETDISPINFOW;
-		SendMessageW(window, WM_NOTIFY, 0, reinterpret_cast<LPARAM>(&tip));
-		if (!tip.lpszText || wcscmp(tip.lpszText, button == monitorSettingsButton ? ui::wording::Settings
-		                                                                          : ui::wording::ApplicationProfiles))
+		SendMessageW(main_window, WM_NOTIFY, 0, reinterpret_cast<LPARAM>(&tip));
+		if (!tip.lpszText ||
+		    wcscmp(tip.lpszText, button == monitor_settings_button ? ui::wording::LABEL_SETTINGS
+		                                                           : ui::wording::LABEL_APPLICATION_PROFILES))
 			return 232;
 	}
-	SendMessageW(window, WM_NCMOUSEMOVE, 100, 0);
-	const auto captionTip = reinterpret_cast<HWND>(GetPropW(window, L"LutCaptionTooltip"));
-	if (!captionTip || SendMessageW(captionTip, TTM_GETTOOLCOUNT, 0, 0) != 1)
+	SendMessageW(main_window, WM_NCMOUSEMOVE, 100, 0);
+	const auto caption_tip = reinterpret_cast<HWND>(GetPropW(main_window, L"LutCaptionTooltip"));
+	if (!caption_tip || SendMessageW(caption_tip, TTM_GETTOOLCOUNT, 0, 0) != 1)
 		return 197;
-	for (HWND tip : { captionTip, monitorTips })
+	for (HWND tip : { caption_tip, monitor_tips })
 	{
-		LOGFONTW tipFont {};
-		GetObjectW(reinterpret_cast<HFONT>(SendMessageW(tip, WM_GETFONT, 0, 0)), sizeof(tipFont), &tipFont);
-		if (tipFont.lfHeight != -MulDiv(ui::style::SecondaryTextSize, GetDpiForWindow(tip), 96))
+		LOGFONTW tip_font {};
+		GetObjectW(reinterpret_cast<HFONT>(SendMessageW(tip, WM_GETFONT, 0, 0)), sizeof(tip_font), &tip_font);
+		if (tip_font.lfHeight != -MulDiv(ui::style::SECONDARY_TEXT_SIZE, GetDpiForWindow(tip), 96))
 			return 262;
-		if (SendMessageW(tip, TTM_GETTIPBKCOLOR, 0, 0) != ui::Surface ||
-		    SendMessageW(tip, TTM_GETTIPTEXTCOLOR, 0, 0) != ui::Text)
+		if (SendMessageW(tip, TTM_GETTIPBKCOLOR, 0, 0) != ui::THEME_SURFACE ||
+		    SendMessageW(tip, TTM_GETTIPTEXTCOLOR, 0, 0) != ui::THEME_TEXT)
 			return 263;
 		SendMessageW(tip, TTM_SETTIPBKCOLOR, GetSysColor(COLOR_INFOBK), 0);
 		SendMessageW(tip, WM_THEMECHANGED, 0, 0);
-		if (SendMessageW(tip, TTM_GETTIPBKCOLOR, 0, 0) != ui::Surface)
+		if (SendMessageW(tip, TTM_GETTIPBKCOLOR, 0, 0) != ui::THEME_SURFACE)
 			return 264;
 		SetWindowPos(tip, nullptr, 0, 0, ScaleForDpi(120), ScaleForDpi(24), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 		HRGN region = CreateRectRgn(0, 0, 0, 0);
@@ -5732,7 +5847,7 @@ int RunSurfaceUiTest()
 	// Owner-drawn links and status labels may share a DC during native painting.
 	// Neither their colors nor their pixels may escape the supplied item bounds.
 	{
-		HDC screen = GetDC(canvas), dc = CreateCompatibleDC(screen);
+		HDC screen = GetDC(curve_canvas), dc = CreateCompatibleDC(screen);
 		HBITMAP bitmap = CreateCompatibleBitmap(screen, 64, 32);
 		const auto old = SelectObject(dc, bitmap);
 		RECT all { 0, 0, 64, 32 };
@@ -5741,251 +5856,254 @@ int RunSurfaceUiTest()
 		SetTextColor(dc, sentinel);
 		SetBkMode(dc, OPAQUE);
 		bool isolated = true;
-		for (HWND control : { websiteLink, monitorMode, monitorProfile })
+		for (HWND control : { website_link, monitor_mode, monitor_profile })
 		{
 			DRAWITEMSTRUCT item {};
 			item.CtlType = ODT_STATIC;
 			item.hwndItem = control;
 			item.hDC = dc;
 			item.rcItem = { 8, 8, 56, 24 };
-			SendMessageW(canvas, WM_DRAWITEM, GetDlgCtrlID(control), reinterpret_cast<LPARAM>(&item));
+			SendMessageW(curve_canvas, WM_DRAWITEM, GetDlgCtrlID(control), reinterpret_cast<LPARAM>(&item));
 			isolated = isolated && GetTextColor(dc) == sentinel && GetBkMode(dc) == OPAQUE &&
 			           GetPixel(dc, 0, 0) == RGB(255, 255, 255);
 		}
 		SelectObject(dc, old);
 		DeleteObject(bitmap);
 		DeleteDC(dc);
-		ReleaseDC(canvas, screen);
+		ReleaseDC(curve_canvas, screen);
 		if (!isolated)
 			return 281;
 	}
-	SendMessageW(window, WM_NCMOUSELEAVE, 0, 0);
-	if (GetPropW(window, L"LutCaptionTipHit"))
+	SendMessageW(main_window, WM_NCMOUSELEAVE, 0, 0);
+	if (GetPropW(main_window, L"LutCaptionTipHit"))
 		return 198;
-	const auto previousLive = liveMessage, previousPresetMessage = presetMessage;
-	liveMessage = ui::messages::FriendlyError("Driver rejected the correction");
-	liveError = true;
-	presetMessage = L"Preset saved";
+	const auto previous_live = live_message, previous_preset_message = preset_message;
+	live_message = ui::messages::FriendlyError("Driver rejected the correction");
+	live_error = true;
+	preset_message = L"Preset saved";
 	RefreshInterface();
-	if (!statusError)
+	if (!status_error)
 		return 199;
-	wchar_t failureText[256] {};
-	GetWindowTextW(status, failureText, 256);
-	if (std::wstring(failureText) != ui::messages::FriendlyError("Driver rejected the correction"))
+	wchar_t failure_text[256] {};
+	GetWindowTextW(status_label, failure_text, 256);
+	if (std::wstring(failure_text) != ui::messages::FriendlyError("Driver rejected the correction"))
 		return 203;
 	// A wrapped warning must actually paint below the old one-row boundary.
-	liveMessage =
+	live_message =
 		L"The previous correction carried into this display mode. Restore Windows calibration before re-enabling";
 	RefreshInterface();
 	{
 		RECT bounds {};
-		GetClientRect(canvas, &bounds);
-		const auto g = CalculateMonitorGeometry(canvas);
-		HDC screen = GetDC(canvas), dc = CreateCompatibleDC(screen);
+		GetClientRect(curve_canvas, &bounds);
+		const auto g = CalculateMonitorGeometry(curve_canvas);
+		HDC screen = GetDC(curve_canvas), dc = CreateCompatibleDC(screen);
 		HBITMAP image = CreateCompatibleBitmap(screen, bounds.right, bounds.bottom);
 		const auto old = SelectObject(dc, image);
-		SendMessageW(canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
-		bool secondLine = false;
+		SendMessageW(curve_canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc), PRF_CLIENT);
+		bool second_line = false;
 		for (int y = g.top + g.size; y < std::min(g.bottom, g.top + ScaleForDpi(64)); ++y)
 			for (int x = g.left + g.size + ScaleForDpi(12); x < g.right - ScaleForDpi(12); ++x)
-				if (GetPixel(dc, x, y) == ui::Error)
-					secondLine = true;
+				if (GetPixel(dc, x, y) == ui::THEME_ERROR)
+					second_line = true;
 		SelectObject(dc, old);
 		DeleteObject(image);
 		DeleteDC(dc);
-		ReleaseDC(canvas, screen);
+		ReleaseDC(curve_canvas, screen);
 		wchar_t accessible[256] {};
-		GetWindowTextW(canvas, accessible, 256);
-		if (!secondLine || liveMessage != accessible)
+		GetWindowTextW(curve_canvas, accessible, 256);
+		if (!second_line || live_message != accessible)
 			return 207;
 	}
-	liveMessage = previousLive;
-	presetMessage = previousPresetMessage;
-	liveError = false;
+	live_message = previous_live;
+	preset_message = previous_preset_message;
+	live_error = false;
 	RefreshInterface();
-	if (statusError)
+	if (status_error)
 		return 200;
 	RECT client {}, outer {};
-	GetClientRect(window, &client);
-	GetWindowRect(window, &outer);
-	if (client.right != ScaleForDpi(ClientWidth) || client.bottom != ScaleForDpi(ClientHeight))
+	GetClientRect(main_window, &client);
+	GetWindowRect(main_window, &outer);
+	if (client.right != ScaleForDpi(CLIENT_WIDTH) || client.bottom != ScaleForDpi(CLIENT_HEIGHT))
 		return 90;
 	const auto hit = [&](int x, int y)
 	{
-		return SendMessageW(window, WM_NCHITTEST, 0, MAKELPARAM(x, y));
+		return SendMessageW(main_window, WM_NCHITTEST, 0, MAKELPARAM(x, y));
 	};
 	if (hit(outer.right - ScaleForDpi(20), outer.top + ScaleForDpi(18)) != HTCLOSE ||
 	    hit(outer.right - ScaleForDpi(65), outer.top + ScaleForDpi(18)) != HTMINBUTTON ||
 	    hit(outer.left + ScaleForDpi(150), outer.top + ScaleForDpi(18)) != HTCAPTION)
 		return 91;
 	if (hit(outer.right - ScaleForDpi(164), outer.top + ScaleForDpi(18)) != HTHELP ||
-	    GetParent(powerButton) != canvas || GetParent(hdrButton) != canvas || GetParent(profilesButton) != canvas)
+	    GetParent(power_button) != curve_canvas || GetParent(hdr_button) != curve_canvas ||
+	    GetParent(profiles_button) != curve_canvas)
 		return 154;
 	POINT gear { outer.right - ScaleForDpi(164), outer.top + ScaleForDpi(18) };
-	ScreenToClient(window, &gear);
+	ScreenToClient(main_window, &gear);
 	const auto command = [&]()
 	{
 		MSG event {};
-		return PeekMessageW(&event, window, WM_COMMAND, WM_COMMAND, PM_REMOVE) && LOWORD(event.wParam) == SettingsPage;
+		return PeekMessageW(&event, main_window, WM_COMMAND, WM_COMMAND, PM_REMOVE) &&
+		       LOWORD(event.wParam) == ID_SETTINGS_PAGE;
 	};
-	SendMessageW(window, WM_NCLBUTTONDOWN, HTHELP, 0);
-	SendMessageW(window, WM_LBUTTONUP, 0, MAKELPARAM(ScaleForDpi(250), ScaleForDpi(100)));
+	SendMessageW(main_window, WM_NCLBUTTONDOWN, HTHELP, 0);
+	SendMessageW(main_window, WM_LBUTTONUP, 0, MAKELPARAM(ScaleForDpi(250), ScaleForDpi(100)));
 	if (command())
 		return 155;
-	SendMessageW(window, WM_NCLBUTTONDOWN, HTHELP, 0);
-	SendMessageW(window, WM_LBUTTONUP, 0, MAKELPARAM(gear.x, gear.y));
+	SendMessageW(main_window, WM_NCLBUTTONDOWN, HTHELP, 0);
+	SendMessageW(main_window, WM_LBUTTONUP, 0, MAKELPARAM(gear.x, gear.y));
 	if (!command())
 		return 156;
-	SendMessageW(window, WM_SYSCHAR, L's', 0);
+	SendMessageW(main_window, WM_SYSCHAR, L's', 0);
 	if (!command())
 		return 158;
-	SendMessageW(window, WM_SYSCOMMAND, 0x1F00, 0);
+	SendMessageW(main_window, WM_SYSCOMMAND, 0x1F00, 0);
 	if (!command())
 		return 159;
-	const std::array<ui::CaptionAction, 3> captionTest {
-		{ { ToggleWindowsHdr, false, true }, { ApplicationProfiles, false, true }, { TestContrast, false, true } }
-	};
-	if (GetParent(monitorSettingsButton) != canvas)
+	const std::array<ui::CaptionAction, 3> caption_test { { { ID_TOGGLE_WINDOWS_HDR, false, true },
+		                                                    { ID_APPLICATION_PROFILES, false, true },
+		                                                    { ID_TEST_CONTRAST, false, true } } };
+	if (GetParent(monitor_settings_button) != curve_canvas)
 		return 172;
-	SendMessageW(canvas, WM_COMMAND, SettingsPage, 0);
-	if (!settingsPage)
+	SendMessageW(curve_canvas, WM_COMMAND, ID_SETTINGS_PAGE, 0);
+	if (!settings_page)
 		return 173;
-	SendMessageW(canvas, WM_COMMAND, SettingsPage, 0);
-	if (settingsPage)
+	SendMessageW(curve_canvas, WM_COMMAND, ID_SETTINGS_PAGE, 0);
+	if (settings_page)
 		return 174;
-	ui::CaptionActions(window, captionTest);
+	ui::CaptionActions(main_window, caption_test);
 	for (int i = 0; i < 3; ++i)
 	{
 		POINT at { outer.right - ScaleForDpi(i == 2 ? 118 : 244 - i * 40), outer.top + ScaleForDpi(18) };
 		if (hit(at.x, at.y) != 100 + i)
 			return 170;
-		ScreenToClient(window, &at);
-		SendMessageW(window, WM_NCLBUTTONDOWN, 100 + i, 0);
-		SendMessageW(window, WM_LBUTTONUP, 0, MAKELPARAM(at.x, at.y));
+		ScreenToClient(main_window, &at);
+		SendMessageW(main_window, WM_NCLBUTTONDOWN, 100 + i, 0);
+		SendMessageW(main_window, WM_LBUTTONUP, 0, MAKELPARAM(at.x, at.y));
 		MSG event {};
-		if (!PeekMessageW(&event, window, WM_COMMAND, WM_COMMAND, PM_REMOVE) ||
-		    LOWORD(event.wParam) != captionTest[i].command)
+		if (!PeekMessageW(&event, main_window, WM_COMMAND, WM_COMMAND, PM_REMOVE) ||
+		    LOWORD(event.wParam) != caption_test[i].command)
 			return 171;
 	}
 	RefreshInterface();
-	BYTE previousKeys[256] {}, keys[256] {};
-	GetKeyboardState(previousKeys);
+	BYTE previous_keys[256] {}, keys[256] {};
+	GetKeyboardState(previous_keys);
 	keys[VK_SHIFT] = keys[VK_LSHIFT] = 0x80;
 	SetKeyboardState(keys);
-	SendMessageW(shortcutControl, WM_KEYDOWN, VK_SHIFT, 0);
-	SendMessageW(shortcutControl, WM_KEYDOWN, VK_F20, 0);
-	SendMessageW(shortcutControl, WM_KEYUP, VK_F20, 0);
+	SendMessageW(shortcut_control, WM_KEYDOWN, VK_SHIFT, 0);
+	SendMessageW(shortcut_control, WM_KEYDOWN, VK_F20, 0);
+	SendMessageW(shortcut_control, WM_KEYUP, VK_F20, 0);
 	keys[VK_SHIFT] = keys[VK_LSHIFT] = 0;
 	SetKeyboardState(keys);
-	SendMessageW(shortcutControl, WM_KEYUP, VK_SHIFT, 0);
-	const WORD captured = static_cast<WORD>(SendMessageW(shortcutControl, HKM_GETHOTKEY, 0, 0));
-	SetKeyboardState(previousKeys);
-	SendMessageW(shortcutControl, HKM_SETHOTKEY, activeShortcut, 0);
+	SendMessageW(shortcut_control, WM_KEYUP, VK_SHIFT, 0);
+	const WORD captured = static_cast<WORD>(SendMessageW(shortcut_control, HKM_GETHOTKEY, 0, 0));
+	SetKeyboardState(previous_keys);
+	SendMessageW(shortcut_control, HKM_SETHOTKEY, active_shortcut, 0);
 	if (captured != MAKEWORD(VK_F20, HOTKEYF_SHIFT))
 		return 172;
 	// Render-only input must never reach a real Windows HDR or LUT write.
-	SendMessageW(canvas, WM_COMMAND, ToggleWindowsHdr, 0);
-	if (hdrPending || liveSession.IsActive())
+	SendMessageW(curve_canvas, WM_COMMAND, ID_TOGGLE_WINDOWS_HDR, 0);
+	if (hdr_pending || live_session.IsActive())
 		return 160;
-	const auto savedHdrState = hdrState;
-	const auto hdrMenuItem = []()
+	const auto saved_hdr_state = hdr_state;
+	const auto hdr_menu_item = []()
 	{
 		for (const auto& item : TrayMenuItems())
-			if (item.id == ToggleWindowsHdr)
+			if (item.id == ID_TOGGLE_WINDOWS_HDR)
 				return item;
 		return ui::MenuItem {};
 	};
-	hdrState.available = true;
-	hdrState.on = false;
-	if (!hdrMenuItem().shortcut.empty() || hdrMenuItem().checked || hdrMenuItem().glyph != ui::Glyph::Sun ||
-	    !hdrMenuItem().enabled)
+	hdr_state.available = true;
+	hdr_state.on = false;
+	if (!hdr_menu_item().shortcut.empty() || hdr_menu_item().checked || hdr_menu_item().glyph != ui::Glyph::Sun ||
+	    !hdr_menu_item().enabled)
 		return 218;
-	hdrState.on = true;
-	if (!hdrMenuItem().shortcut.empty() || !hdrMenuItem().checked || !hdrMenuItem().enabled)
+	hdr_state.on = true;
+	if (!hdr_menu_item().shortcut.empty() || !hdr_menu_item().checked || !hdr_menu_item().enabled)
 		return 219;
-	hdrPending = true;
-	if (hdrMenuItem().shortcut != L"SWITCHING" || hdrMenuItem().enabled)
+	hdr_pending = true;
+	if (hdr_menu_item().shortcut != L"SWITCHING" || hdr_menu_item().enabled)
 		return 220;
-	hdrPending = false;
-	hdrState.available = false;
-	if (hdrMenuItem().enabled)
+	hdr_pending = false;
+	hdr_state.available = false;
+	if (hdr_menu_item().enabled)
 		return 221;
-	hdrState = savedHdrState;
-	const bool editorVisible = IsWindowVisible(window) != FALSE;
-	SendMessageW(window, TrayMessage, 0, MAKELPARAM(NIN_SELECT, 1));
-	if (hdrPending || liveSession.IsActive() || !IsWindowVisible(window))
+	hdr_state = saved_hdr_state;
+	const bool editor_visible = IsWindowVisible(main_window) != FALSE;
+	SendMessageW(main_window, MESSAGE_TRAY, 0, MAKELPARAM(NIN_SELECT, 1));
+	if (hdr_pending || live_session.IsActive() || !IsWindowVisible(main_window))
 		return 222;
-	if (!editorVisible)
-		ShowWindow(window, SW_HIDE);
-	bool unavailableRejected = false;
+	if (!editor_visible)
+		ShowWindow(main_window, SW_HIDE);
+	bool unavailable_rejected = false;
 	try
 	{
 		hdr::SetHdrEnabled(hdr::State {}, true);
 	}
 	catch (const std::runtime_error&)
 	{
-		unavailableRejected = true;
+		unavailable_rejected = true;
 	}
-	if (!unavailableRejected)
+	if (!unavailable_rejected)
 		return 169;
 	RECT preview {}, text {};
-	GetWindowRect(canvas, &preview);
-	GetWindowRect(status, &text);
+	GetWindowRect(curve_canvas, &preview);
+	GetWindowRect(status_label, &text);
 	RECT display {};
-	GetWindowRect(sourceChoice, &display);
+	GetWindowRect(source_choice, &display);
 	RECT hint {}, mode {};
-	GetWindowRect(orderHint, &hint);
-	GetWindowRect(monitorProfile, &mode);
+	GetWindowRect(order_hint, &hint);
+	GetWindowRect(monitor_profile, &mode);
 	if (mode.top != display.top || mode.bottom != display.bottom)
 		return 190;
-	RECT effectBounds {};
-	GetWindowRect(layers, &effectBounds);
-	if (hint.left != effectBounds.left || hint.right != effectBounds.right ||
-	    hint.top != effectBounds.bottom + ScaleForDpi(6))
+	RECT effect_bounds {};
+	GetWindowRect(effect_list, &effect_bounds);
+	if (hint.left != effect_bounds.left || hint.right != effect_bounds.right ||
+	    hint.top != effect_bounds.bottom + ScaleForDpi(6))
 		return 223;
-	const auto geometry = CalculateMonitorGeometry(canvas);
+	const auto geometry = CalculateMonitorGeometry(curve_canvas);
 	if (std::abs((display.top + display.bottom) - (2 * preview.top + geometry.body.bottom + geometry.foot.bottom)) > 1)
 		return 220;
-	LOGFONTW hintStyle {}, normalStyle {};
-	GetObjectW(reinterpret_cast<HFONT>(SendMessageW(orderHint, WM_GETFONT, 0, 0)), sizeof(hintStyle), &hintStyle);
-	GetObjectW(font, sizeof(normalStyle), &normalStyle);
-	if (std::abs(hintStyle.lfHeight) >= std::abs(normalStyle.lfHeight))
+	LOGFONTW hint_style {}, normal_style {};
+	GetObjectW(reinterpret_cast<HFONT>(SendMessageW(order_hint, WM_GETFONT, 0, 0)), sizeof(hint_style), &hint_style);
+	GetObjectW(ui_font, sizeof(normal_style), &normal_style);
+	if (std::abs(hint_style.lfHeight) >= std::abs(normal_style.lfHeight))
 		return 221;
 	{
 		RECT area {};
-		GetClientRect(layers, &area);
-		const int originalHeight = area.bottom;
-		SetWindowPos(layers, nullptr, 0, 0, area.right, originalHeight + ScaleForDpi(effects::RowHeight),
+		GetClientRect(effect_list, &area);
+		const int original_height = area.bottom;
+		SetWindowPos(effect_list, nullptr, 0, 0, area.right, original_height + ScaleForDpi(effects::ROW_HEIGHT),
 		             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-		GetClientRect(layers, &area);
-		HDC screen = GetDC(layers), buffer = CreateCompatibleDC(screen);
+		GetClientRect(effect_list, &area);
+		HDC screen = GetDC(effect_list), buffer = CreateCompatibleDC(screen);
 		HBITMAP image = CreateCompatibleBitmap(screen, area.right, area.bottom);
 		auto old = SelectObject(buffer, image);
-		SendMessageW(layers, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
-		const bool darkTail = GetPixel(buffer, area.right / 2, area.bottom - 2) == ui::Sidebar;
+		SendMessageW(effect_list, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
+		const bool dark_tail = GetPixel(buffer, area.right / 2, area.bottom - 2) == ui::THEME_SIDEBAR;
 		SelectObject(buffer, old);
 		DeleteObject(image);
 		DeleteDC(buffer);
-		ReleaseDC(layers, screen);
-		SetWindowPos(layers, nullptr, 0, 0, area.right, originalHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-		if (!darkTail)
+		ReleaseDC(effect_list, screen);
+		SetWindowPos(effect_list, nullptr, 0, 0, area.right, original_height,
+		             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+		if (!dark_tail)
 			return 222;
 	}
-	if (GetParent(sourceChoice) != canvas || !(GetWindowLongPtrW(sourceChoice, GWL_STYLE) & WS_VISIBLE) ||
+	if (GetParent(source_choice) != curve_canvas || !(GetWindowLongPtrW(source_choice, GWL_STYLE) & WS_VISIBLE) ||
 	    display.bottom > preview.bottom ||
 	    display.right > preview.left + (preview.right - preview.left) / 2 - ScaleForDpi(57))
 		return 175;
-	if (GetParent(status) != canvas || preview.right - preview.left != ScaleForDpi(558) ||
+	if (GetParent(status_label) != curve_canvas || preview.right - preview.left != ScaleForDpi(558) ||
 	    preview.bottom - preview.top != ScaleForDpi(268) || text.left <= preview.left || text.right >= preview.right ||
 	    text.top <= preview.top || text.bottom >= preview.bottom)
 		return 97;
-	if ((GetWindowLongPtrW(activeLookLabel, GWL_STYLE) & WS_VISIBLE) ||
-	    (GetWindowLongPtrW(openPresetButton, GWL_STYLE) & WS_VISIBLE) ||
-	    (GetWindowLongPtrW(settingsButton, GWL_STYLE) & WS_VISIBLE))
+	if ((GetWindowLongPtrW(active_look_label, GWL_STYLE) & WS_VISIBLE) ||
+	    (GetWindowLongPtrW(open_preset_button, GWL_STYLE) & WS_VISIBLE) ||
+	    (GetWindowLongPtrW(settings_button, GWL_STYLE) & WS_VISIBLE))
 		return 167;
 	// Updating or focusing any balance slider must not erase an adjacent
 	// slider's thumb. Check actual HWND bounds, including each value label.
-	const auto alignedRow = [&](HWND label, HWND value, HWND slider)
+	const auto aligned_row = [&](HWND label, HWND value, HWND slider)
 	{
 		RECT name {}, number {}, channel {};
 		GetWindowRect(label, &name);
@@ -5995,24 +6113,24 @@ int RunSurfaceUiTest()
 		return name.top == number.top && name.bottom == number.bottom &&
 		       std::abs((name.top + name.bottom) / 2 - (channel.top + channel.bottom) / 2) <= 1;
 	};
-	if (!alignedRow(amountLabel, amountValue, contrastSlider) || !alignedRow(pivotLabel, pivotValue, pivotSlider) ||
-	    !alignedRow(whiteLabel, whiteValue, whiteSlider))
+	if (!aligned_row(amount_label, amount_value, contrast_slider) ||
+	    !aligned_row(pivot_label, pivot_value, pivot_slider) || !aligned_row(white_label, white_value, white_slider))
 		return 188;
-	for (size_t i = 0; i < adjustmentSliders.size(); ++i)
+	for (size_t i = 0; i < adjustment_sliders.size(); ++i)
 	{
-		if (!alignedRow(adjustmentLabels[i], adjustmentValues[i], adjustmentSliders[i]))
+		if (!aligned_row(adjustment_labels[i], adjustment_values[i], adjustment_sliders[i]))
 			return 189;
 		RECT slider {}, label {}, overlap {};
-		GetWindowRect(adjustmentSliders[i], &slider);
-		for (size_t j = 0; j < adjustmentSliders.size(); ++j)
+		GetWindowRect(adjustment_sliders[i], &slider);
+		for (size_t j = 0; j < adjustment_sliders.size(); ++j)
 		{
-			GetWindowRect(adjustmentLabels[j], &label);
+			GetWindowRect(adjustment_labels[j], &label);
 			if (IntersectRect(&overlap, &slider, &label))
 				return 148;
 			if (i != j)
 			{
 				RECT other {};
-				GetWindowRect(adjustmentSliders[j], &other);
+				GetWindowRect(adjustment_sliders[j], &other);
 				if (IntersectRect(&overlap, &slider, &other))
 					return 149;
 			}
@@ -6020,19 +6138,19 @@ int RunSurfaceUiTest()
 	}
 	// First input changes the clean/dirty indicator. Subsequent slider input must
 	// not reset unrelated controls or rebuild the preset dropdown.
-	selected = 0;
-	SendMessageW(contrastSlider, TBM_SETPOS, TRUE, -1);
-	SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrastSlider));
+	selected_effect = effect::ContrastCurves;
+	SendMessageW(contrast_slider, TBM_SETPOS, TRUE, -1);
+	SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrast_slider));
 	int mutations = 0;
-	const HWND watched[] { savePresetButton, saveAsButton, openPresetButton, revertPresetButton,
-		                   profilesButton,   bypassButton, hdrFixControl,    resetButton,
-		                   exportButton,     presetChoice, layers,           window };
+	const HWND watched[] { save_preset_button, save_as_button, open_preset_button, revert_preset_button,
+		                   profiles_button,    bypass_button,  hdr_fix_control,    reset_button,
+		                   export_button,      preset_choice,  effect_list,        main_window };
 	for (HWND control : watched)
 		SetWindowSubclass(control, CountSurfaceChanges, 73, reinterpret_cast<DWORD_PTR>(&mutations));
 	for (int i = -2; i >= -25; --i)
 	{
-		SendMessageW(contrastSlider, TBM_SETPOS, TRUE, i);
-		SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrastSlider));
+		SendMessageW(contrast_slider, TBM_SETPOS, TRUE, i);
+		SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrast_slider));
 	}
 	for (HWND control : watched)
 		RemoveWindowSubclass(control, CountSurfaceChanges, 73);
@@ -6040,131 +6158,134 @@ int RunSurfaceUiTest()
 		return 98;
 	// Drag across the saved value repeatedly: data/preview stay live, but
 	// the dropdown, caption marker and effect selection stay unchanged.
-	autosave = true;
+	autosave_enabled = true;
 	mutations = 0;
 	for (HWND control : watched)
 		SetWindowSubclass(control, CountSurfaceChanges, 73, reinterpret_cast<DWORD_PTR>(&mutations));
 	for (int position : { 10, 12, 10, 12 })
 	{
-		SendMessageW(contrastSlider, TBM_SETPOS, TRUE, position);
-		SendMessageW(window, WM_HSCROLL, TB_THUMBTRACK, reinterpret_cast<LPARAM>(contrastSlider));
-		if (CurrentPreset(0).current.contrast != position || CurrentPreset(0).IsDirty() != (position != 10))
+		SendMessageW(contrast_slider, TBM_SETPOS, TRUE, position);
+		SendMessageW(main_window, WM_HSCROLL, TB_THUMBTRACK, reinterpret_cast<LPARAM>(contrast_slider));
+		if (CurrentPreset(preset_role::Look).current.Contrast != position ||
+		    CurrentPreset(preset_role::Look).IsDirty() != (position != 10))
 			return 140;
 		FlushPresetAutosave();
-		if (presets::Read(CurrentPreset(0).path).contrast != 10)
+		if (presets::Read(CurrentPreset(preset_role::Look).path).Contrast != 10)
 			return 141;
 	}
 	for (HWND control : watched)
 		RemoveWindowSubclass(control, CountSurfaceChanges, 73);
-	if (mutations || !sliderDragging)
+	if (mutations || !slider_dragging)
 		return 142;
-	SendMessageW(contrastSlider, TBM_SETPOS, TRUE, 10);
-	SendMessageW(window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(contrastSlider));
+	SendMessageW(contrast_slider, TBM_SETPOS, TRUE, 10);
+	SendMessageW(main_window, WM_HSCROLL, TB_ENDTRACK, reinterpret_cast<LPARAM>(contrast_slider));
 	wchar_t marker[1024] {};
-	GetWindowTextW(presetChoice, marker, 1024);
-	if (sliderDragging || CurrentPreset(0).IsDirty() || wcschr(marker, L'*'))
+	GetWindowTextW(preset_choice, marker, 1024);
+	if (slider_dragging || CurrentPreset(preset_role::Look).IsDirty() || wcschr(marker, L'*'))
 		return 143;
-	SendMessageW(contrastSlider, TBM_SETPOS, TRUE, 12);
-	SendMessageW(window, WM_HSCROLL, TB_THUMBTRACK, reinterpret_cast<LPARAM>(contrastSlider));
-	GetWindowTextW(presetChoice, marker, 1024);
+	SendMessageW(contrast_slider, TBM_SETPOS, TRUE, 12);
+	SendMessageW(main_window, WM_HSCROLL, TB_THUMBTRACK, reinterpret_cast<LPARAM>(contrast_slider));
+	GetWindowTextW(preset_choice, marker, 1024);
 	if (wcschr(marker, L'*'))
 		return 144;
-	SendMessageW(contrastSlider, TBM_SETPOS, TRUE, 13);
-	SendMessageW(window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrastSlider));
-	GetWindowTextW(presetChoice, marker, 1024);
-	if (sliderDragging || !CurrentPreset(0).IsDirty() || !wcschr(marker, L'*'))
+	SendMessageW(contrast_slider, TBM_SETPOS, TRUE, 13);
+	SendMessageW(main_window, WM_HSCROLL, TB_THUMBPOSITION, reinterpret_cast<LPARAM>(contrast_slider));
+	GetWindowTextW(preset_choice, marker, 1024);
+	if (slider_dragging || !CurrentPreset(preset_role::Look).IsDirty() || !wcschr(marker, L'*'))
 		return 145;
-	autosave = false;
-	KillTimer(window, PresetTimer);
+	autosave_enabled = false;
+	KillTimer(main_window, TIMER_PRESET);
 	// Exercise the synchronous native-button custom-draw route as well as WM_PAINT.
-	HDC screen = GetDC(window), buffer = CreateCompatibleDC(screen);
+	HDC screen = GetDC(main_window), buffer = CreateCompatibleDC(screen);
 	HBITMAP bitmap = CreateCompatibleBitmap(screen, ScaleForDpi(125), ScaleForDpi(30));
 	const auto old = SelectObject(buffer, bitmap);
 	NMCUSTOMDRAW draw {};
-	draw.hdr.hwndFrom = resetButton;
+	draw.hdr.hwndFrom = reset_button;
 	draw.hdr.code = NM_CUSTOMDRAW;
 	draw.dwDrawStage = CDDS_PREPAINT;
 	draw.hdc = buffer;
 	LRESULT result = 0;
-	const bool handled = ui::HandleThemeMessage(window, WM_NOTIFY, 0, reinterpret_cast<LPARAM>(&draw), result);
+	const bool handled = ui::HandleThemeMessage(main_window, WM_NOTIFY, 0, reinterpret_cast<LPARAM>(&draw), result);
 	const auto pixel = GetPixel(buffer, ScaleForDpi(3), ScaleForDpi(14));
 	DRAWITEMSTRUCT item {};
 	item.CtlType = ODT_COMBOBOX;
-	item.hwndItem = curveChannel;
+	item.hwndItem = curve_channel;
 	item.itemID = 0;
 	item.itemState = ODS_SELECTED;
 	item.hDC = buffer;
 	item.rcItem = { 0, 0, ScaleForDpi(125), ScaleForDpi(30) };
-	LRESULT comboResult = 0;
-	if (!ui::HandleThemeMessage(window, WM_DRAWITEM, 0, reinterpret_cast<LPARAM>(&item), comboResult) ||
+	LRESULT combo_result = 0;
+	if (!ui::HandleThemeMessage(main_window, WM_DRAWITEM, 0, reinterpret_cast<LPARAM>(&item), combo_result) ||
 	    GetPixel(buffer, ScaleForDpi(124), ScaleForDpi(14)) != RGB(66, 71, 79))
 		return 201;
-	COMBOBOXINFO comboInfo { sizeof(comboInfo) };
-	if (!GetComboBoxInfo(curveChannel, &comboInfo))
+	COMBOBOXINFO combo_info { sizeof(combo_info) };
+	if (!GetComboBoxInfo(curve_channel, &combo_info))
 		return 202;
-	SetWindowPos(comboInfo.hwndList, nullptr, 0, 0, ScaleForDpi(125), ScaleForDpi(30), SWP_NOACTIVATE | SWP_NOZORDER);
-	SendMessageW(comboInfo.hwndList, WM_PRINT, reinterpret_cast<WPARAM>(buffer), PRF_NONCLIENT | PRF_CLIENT);
-	if (GetPixel(buffer, 0, ScaleForDpi(14)) != ui::FocusBorder)
+	SetWindowPos(combo_info.hwndList, nullptr, 0, 0, ScaleForDpi(125), ScaleForDpi(30), SWP_NOACTIVATE | SWP_NOZORDER);
+	SendMessageW(combo_info.hwndList, WM_PRINT, reinterpret_cast<WPARAM>(buffer), PRF_NONCLIENT | PRF_CLIENT);
+	if (GetPixel(buffer, 0, ScaleForDpi(14)) != ui::THEME_FOCUS_BORDER)
 		return 204;
-	HRGN popupShape = CreateRectRgn(0, 0, 0, 0);
-	const bool roundedPopup = GetWindowRgn(comboInfo.hwndList, popupShape) == COMPLEXREGION &&
-	                          !PtInRegion(popupShape, 0, 0) && PtInRegion(popupShape, ScaleForDpi(10), ScaleForDpi(10));
-	RECT popupBounds {};
-	GetWindowRect(comboInfo.hwndList, &popupBounds);
-	const int popupWidth = popupBounds.right - popupBounds.left, popupHeight = popupBounds.bottom - popupBounds.top;
-	HDC cornerDC = CreateCompatibleDC(screen);
-	HBITMAP cornerBitmap = CreateCompatibleBitmap(screen, popupWidth, popupHeight);
-	const auto cornerOld = SelectObject(cornerDC, cornerBitmap);
-	SendMessageW(comboInfo.hwndList, WM_PRINT, reinterpret_cast<WPARAM>(cornerDC), PRF_NONCLIENT | PRF_CLIENT);
-	bool sameCornerInk = true;
-	for (int inset = 0; inset <= ScaleForDpi(ui::style::CornerRadius) + 1; ++inset)
-		for (int y : { inset, popupHeight - 1 - inset })
+	HRGN popup_shape = CreateRectRgn(0, 0, 0, 0);
+	const bool rounded_popup = GetWindowRgn(combo_info.hwndList, popup_shape) == COMPLEXREGION &&
+	                           !PtInRegion(popup_shape, 0, 0) &&
+	                           PtInRegion(popup_shape, ScaleForDpi(10), ScaleForDpi(10));
+	RECT popup_bounds {};
+	GetWindowRect(combo_info.hwndList, &popup_bounds);
+	const int popup_width = popup_bounds.right - popup_bounds.left,
+			  popup_height = popup_bounds.bottom - popup_bounds.top;
+	HDC corner_dc = CreateCompatibleDC(screen);
+	HBITMAP corner_bitmap = CreateCompatibleBitmap(screen, popup_width, popup_height);
+	const auto corner_old = SelectObject(corner_dc, corner_bitmap);
+	SendMessageW(combo_info.hwndList, WM_PRINT, reinterpret_cast<WPARAM>(corner_dc), PRF_NONCLIENT | PRF_CLIENT);
+	bool same_corner_ink = true;
+	for (int inset = 0; inset <= ScaleForDpi(ui::style::CORNER_RADIUS) + 1; ++inset)
+		for (int y : { inset, popup_height - 1 - inset })
 		{
-			int left = 0, right = popupWidth - 1;
-			while (left < popupWidth && !PtInRegion(popupShape, left, y))
+			int left = 0, right = popup_width - 1;
+			while (left < popup_width && !PtInRegion(popup_shape, left, y))
 				++left;
-			while (right >= 0 && !PtInRegion(popupShape, right, y))
+			while (right >= 0 && !PtInRegion(popup_shape, right, y))
 				--right;
-			if (left > right || GetPixel(cornerDC, left, y) != ui::FocusBorder ||
-			    GetPixel(cornerDC, right, y) != ui::FocusBorder)
-				sameCornerInk = false;
+			if (left > right || GetPixel(corner_dc, left, y) != ui::THEME_FOCUS_BORDER ||
+			    GetPixel(corner_dc, right, y) != ui::THEME_FOCUS_BORDER)
+				same_corner_ink = false;
 		}
-	SelectObject(cornerDC, cornerOld);
-	DeleteObject(cornerBitmap);
-	DeleteDC(cornerDC);
-	DeleteObject(popupShape);
-	if (!sameCornerInk)
+	SelectObject(corner_dc, corner_old);
+	DeleteObject(corner_bitmap);
+	DeleteDC(corner_dc);
+	DeleteObject(popup_shape);
+	if (!same_corner_ink)
 		return 224;
-	if (!roundedPopup)
+	if (!rounded_popup)
 		return 210;
 	// Rendering power state must not alter the stored enabled flag.
-	const bool checked = SendMessageW(selectedEffectToggle, BM_GETCHECK, 0, 0) == BST_CHECKED;
-	const bool powered = GetPropW(selectedEffectToggle, L"LutToggleUnpowered") == nullptr;
-	ui::ToggleButton(selectedEffectToggle, true, false);
-	SendMessageW(selectedEffectToggle, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
-	const bool grayOn = GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(14)) == ui::Border &&
-	                    SendMessageW(selectedEffectToggle, BM_GETCHECK, 0, 0) == BST_CHECKED;
-	ui::ToggleButton(selectedEffectToggle, true, true);
-	SendMessageW(selectedEffectToggle, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
-	const bool blueOn = GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(14)) == ui::Accent;
-	ui::ToggleButton(selectedEffectToggle, checked, powered);
-	if (!grayOn || !blueOn)
+	const bool checked = SendMessageW(selected_effect_toggle, BM_GETCHECK, 0, 0) == BST_CHECKED;
+	const bool powered = GetPropW(selected_effect_toggle, L"LutToggleUnpowered") == nullptr;
+	ui::ToggleButton(selected_effect_toggle, true, false);
+	SendMessageW(selected_effect_toggle, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
+	const bool gray_on = GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(14)) == ui::THEME_BORDER &&
+	                     SendMessageW(selected_effect_toggle, BM_GETCHECK, 0, 0) == BST_CHECKED;
+	ui::ToggleButton(selected_effect_toggle, true, true);
+	SendMessageW(selected_effect_toggle, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
+	const bool blue_on = GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(14)) == ui::THEME_ACCENT;
+	ui::ToggleButton(selected_effect_toggle, checked, powered);
+	if (!gray_on || !blue_on)
 		return 211;
-	SendMessageW(shortcutButton, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
-	const auto normalFill = GetPixel(buffer, ScaleForDpi(10), ScaleForDpi(5));
-	SendMessageW(shortcutButton, WM_MOUSEMOVE, 0, MAKELPARAM(ScaleForDpi(10), ScaleForDpi(5)));
-	SendMessageW(shortcutButton, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
-	const bool sameHoverFill = GetPixel(buffer, ScaleForDpi(10), ScaleForDpi(5)) == normalFill;
-	SendMessageW(shortcutButton, WM_MOUSELEAVE, 0, 0);
-	if (!sameHoverFill)
+	SendMessageW(shortcut_button, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
+	const auto normal_fill = GetPixel(buffer, ScaleForDpi(10), ScaleForDpi(5));
+	SendMessageW(shortcut_button, WM_MOUSEMOVE, 0, MAKELPARAM(ScaleForDpi(10), ScaleForDpi(5)));
+	SendMessageW(shortcut_button, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(buffer), PRF_CLIENT);
+	const bool same_hover_fill = GetPixel(buffer, ScaleForDpi(10), ScaleForDpi(5)) == normal_fill;
+	SendMessageW(shortcut_button, WM_MOUSELEAVE, 0, 0);
+	if (!same_hover_fill)
 		return 212;
-	HRGN inputShape = CreateRectRgn(0, 0, 0, 0);
-	const bool roundedShortcut =
-		GetWindowRgn(shortcutControl, inputShape) == COMPLEXREGION && !PtInRegion(inputShape, 0, 0);
-	DeleteObject(inputShape);
-	if (!roundedShortcut)
+	HRGN input_shape = CreateRectRgn(0, 0, 0, 0);
+	const bool rounded_shortcut =
+		GetWindowRgn(shortcut_control, input_shape) == COMPLEXREGION && !PtInRegion(input_shape, 0, 0);
+	DeleteObject(input_shape);
+	if (!rounded_shortcut)
 		return 213;
-	bool rgbOk = true;
+	bool rgb_ok = true;
 	for (int mask = 1; mask < 8; ++mask)
 	{
 		RECT area { 0, 0, ScaleForDpi(125), ScaleForDpi(30) };
@@ -6176,81 +6297,82 @@ int RunSurfaceUiTest()
 		const COLORREF expected = RGB(mask & 1 ? 255 : 0, mask & 2 ? 255 : 0, mask & 4 ? 255 : 0);
 		if (!plot::DrawRgbCurves(buffer, ScaleForDpi(125), ScaleForDpi(30), paths, ScaleForDpi(2)) ||
 		    GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(8)) != expected ||
-		    GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(20)) != ui::Background)
-			rgbOk = false;
+		    GetPixel(buffer, ScaleForDpi(12), ScaleForDpi(20)) != ui::THEME_BACKGROUND)
+			rgb_ok = false;
 	}
 	RECT area { 0, 0, ScaleForDpi(125), ScaleForDpi(30) };
 	FillRect(buffer, &area, ui::BackgroundBrush());
 	plot::Paths diagonal;
 	diagonal[0] = { { ScaleForDpi(4), ScaleForDpi(4) }, { ScaleForDpi(24), ScaleForDpi(15) } };
 	if (!plot::DrawRgbCurves(buffer, ScaleForDpi(125), ScaleForDpi(30), diagonal, ScaleForDpi(2)))
-		rgbOk = false;
+		rgb_ok = false;
 	bool partial = false;
 	for (int y = ScaleForDpi(4); y < ScaleForDpi(20); ++y)
 		for (int x = ScaleForDpi(4); x < ScaleForDpi(24); ++x)
 		{
 			const auto value = GetPixel(buffer, x, y);
-			if (GetRValue(value) > GetRValue(ui::Background) + 20 && GetRValue(value) < 240)
+			if (GetRValue(value) > GetRValue(ui::THEME_BACKGROUND) + 20 && GetRValue(value) < 240)
 				partial = true;
 		}
-	rgbOk = rgbOk && partial;
-	if (!plot::DrawRgbCurves(buffer, ScaleForDpi(125), ScaleForDpi(30), diagonal, ScaleForDpi(2), &curveScratch) ||
-	    !curveScratch.ByteCount() || curveScratch.ByteCount() > 1048576)
+	rgb_ok = rgb_ok && partial;
+	if (!plot::DrawRgbCurves(buffer, ScaleForDpi(125), ScaleForDpi(30), diagonal, ScaleForDpi(2), &curve_scratch) ||
+	    !curve_scratch.ByteCount() || curve_scratch.ByteCount() > 1048576)
 		return 256;
-	SendMessageW(window, WM_SHOWWINDOW, FALSE, 0);
-	if (curveScratch.ByteCount())
+	SendMessageW(main_window, WM_SHOWWINDOW, FALSE, 0);
+	if (curve_scratch.ByteCount())
 		return 257;
-	if (!plot::DrawRgbCurves(buffer, ScaleForDpi(125), ScaleForDpi(30), diagonal, ScaleForDpi(2), &curveScratch))
+	if (!plot::DrawRgbCurves(buffer, ScaleForDpi(125), ScaleForDpi(30), diagonal, ScaleForDpi(2), &curve_scratch))
 		return 258;
-	SendMessageW(window, WM_SIZE, SIZE_MINIMIZED, 0);
-	if (curveScratch.ByteCount())
+	SendMessageW(main_window, WM_SIZE, SIZE_MINIMIZED, 0);
+	if (curve_scratch.ByteCount())
 		return 259;
 	SelectObject(buffer, old);
 	DeleteObject(bitmap);
 	DeleteDC(buffer);
-	ReleaseDC(window, screen);
-	if (!handled || result != CDRF_SKIPDEFAULT || pixel != ui::Surface)
+	ReleaseDC(main_window, screen);
+	if (!handled || result != CDRF_SKIPDEFAULT || pixel != ui::THEME_SURFACE)
 		return 99;
-	if (!rgbOk)
+	if (!rgb_ok)
 		return 162;
-	const int popup = ui::PopupSelfTest(window);
+	const int popup = ui::PopupSelfTest(main_window);
 	if (popup)
 		return 100 + popup;
-	const bool captionMenuOkay = ui::PreviewCaptionMenu(window,
-	                                                    [&](HWND menu)
-	                                                    {
-															const HWND list = GetDlgItem(menu, 10);
-															const auto count = SendMessageW(list, LB_GETCOUNT, 0, 0);
-															bool close = false, power = false, maximize = false;
-															for (int i = 0; i < count; ++i)
-															{
-																const auto id =
-																	SendMessageW(list, LB_GETITEMDATA, i, 0);
-																close |= id == SC_CLOSE;
-																power |= id == 0x1F30;
-																if (id == SC_MAXIMIZE)
-																{
-																	maximize = true;
-																	SendMessageW(list, LB_SETCURSEL, i, 0);
-																	SendMessageW(list, WM_KEYDOWN, VK_RETURN, 0);
-																	if (!IsWindow(menu))
-																		return false;
-																}
-															}
-															return close && power && maximize;
-														});
-	if (!captionMenuOkay)
+	const bool caption_menu_okay = ui::PreviewCaptionMenu(main_window,
+	                                                      [&](HWND menu)
+	                                                      {
+															  const HWND list = GetDlgItem(menu, 10);
+															  const auto count = SendMessageW(list, LB_GETCOUNT, 0, 0);
+															  bool close = false, power = false, maximize = false;
+															  for (int i = 0; i < count; ++i)
+															  {
+																  const auto id =
+																	  SendMessageW(list, LB_GETITEMDATA, i, 0);
+																  close |= id == SC_CLOSE;
+																  power |= id == 0x1F30;
+																  if (id == SC_MAXIMIZE)
+																  {
+																	  maximize = true;
+																	  SendMessageW(list, LB_SETCURSEL, i, 0);
+																	  SendMessageW(list, WM_KEYDOWN, VK_RETURN, 0);
+																	  if (!IsWindow(menu))
+																		  return false;
+																  }
+															  }
+															  return close && power && maximize;
+														  });
+	if (!caption_menu_okay)
 		return 219;
-	const int unsavedResult = unsaved::SelfTest(window);
-	if (unsavedResult)
-		return unsavedResult;
-	SendMessageW(canvas, WM_COMMAND, MAKEWPARAM(MonitorProfile, STN_CLICKED), reinterpret_cast<LPARAM>(monitorProfile));
+	const int unsaved_result = unsaved::SelfTest(main_window);
+	if (unsaved_result)
+		return unsaved_result;
+	SendMessageW(curve_canvas, WM_COMMAND, MAKEWPARAM(ID_MONITOR_PROFILE, STN_CLICKED),
+	             reinterpret_cast<LPARAM>(monitor_profile));
 	HWND editor = profile_editor::ProfileEditorHandle();
 	if (!editor)
 		return 92;
 	if (!SendMessageW(editor, WM_GETICON, ICON_SMALL, 0))
 		return 227;
-	const auto pathBefore = []
+	const auto path_before = []
 	{
 		wchar_t text[32768] {};
 		GetWindowTextW(GetDlgItem(profile_editor::ProfileEditorHandle(), 204), text, 32768);
@@ -6261,32 +6383,32 @@ int RunSurfaceUiTest()
 	if (!(GetWindowLongPtrW(GetDlgItem(editor, 215), GWL_STYLE) & WS_VISIBLE))
 		return 228;
 	SendMessageW(editor, WM_COMMAND, 220, 0);
-	wchar_t currentPath[32768] {};
-	GetWindowTextW(GetDlgItem(editor, 204), currentPath, 32768);
-	if (pathBefore != currentPath)
+	wchar_t current_path[32768] {};
+	GetWindowTextW(GetDlgItem(editor, 204), current_path, 32768);
+	if (path_before != current_path)
 		return 229;
 	profile_editor::PreviewPrograms({ { L"C:\\Games\\Game.exe", L"Example game", 1024 * 1024 * 800, true, true } });
 	SendMessageW(editor, WM_COMMAND, 219, 0);
-	GetWindowTextW(GetDlgItem(editor, 204), currentPath, 32768);
-	if (wcscmp(currentPath, L"C:\\Games\\Game.exe") != 0)
+	GetWindowTextW(GetDlgItem(editor, 204), current_path, 32768);
+	if (wcscmp(current_path, L"C:\\Games\\Game.exe") != 0)
 		return 230;
-	HRGN editShape = CreateRectRgn(0, 0, 0, 0);
-	const bool roundedEdit =
-		GetWindowRgn(GetDlgItem(editor, 204), editShape) == COMPLEXREGION && !PtInRegion(editShape, 0, 0);
-	DeleteObject(editShape);
-	if (!roundedEdit)
+	HRGN edit_shape = CreateRectRgn(0, 0, 0, 0);
+	const bool rounded_edit =
+		GetWindowRgn(GetDlgItem(editor, 204), edit_shape) == COMPLEXREGION && !PtInRegion(edit_shape, 0, 0);
+	DeleteObject(edit_shape);
+	if (!rounded_edit)
 		return 214;
 	GetClientRect(editor, &client);
 	GetWindowRect(editor, &outer);
 	if (client.right != ScaleForDpi(420) || client.bottom != ScaleForDpi(526))
 		return 93;
-	const auto profileBounds = outer;
+	const auto profile_bounds = outer;
 	SetWindowPos(editor, nullptr, 0, 0, ScaleForDpi(300), ScaleForDpi(260), SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 	ui::RevealControl(editor, GetDlgItem(editor, 213));
 	if (ui::ViewportOffset(editor).y <= 0)
 		return 286;
-	SetWindowPos(editor, nullptr, 0, 0, profileBounds.right - profileBounds.left,
-	             profileBounds.bottom - profileBounds.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	SetWindowPos(editor, nullptr, 0, 0, profile_bounds.right - profile_bounds.left,
+	             profile_bounds.bottom - profile_bounds.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 	if (ui::ViewportOffset(editor).x || ui::ViewportOffset(editor).y)
 		return 287;
 	if (SendMessageW(editor, WM_NCHITTEST, 0, MAKELPARAM(outer.right - ScaleForDpi(65), outer.top + ScaleForDpi(18))) !=
@@ -6301,19 +6423,19 @@ int RunSurfaceUiTest()
 		DispatchMessageW(&message);
 	if (profile_editor::ProfileEditorHandle())
 		return 95;
-	const std::wstring previousFamily = ui::FontFamily();
-	SendMessageW(fontChoice, CB_SETCURSEL, 1, 0);
-	SendMessageW(window, WM_COMMAND, MAKEWPARAM(FontChoice, CBN_SELCHANGE), 0);
-	for (HWND control : { monitorMode, monitorProfile })
+	const std::wstring previous_family = ui::FontFamily();
+	SendMessageW(font_choice, CB_SETCURSEL, 1, 0);
+	SendMessageW(main_window, WM_COMMAND, MAKEWPARAM(ID_FONT_CHOICE, CBN_SELCHANGE), 0);
+	for (HWND control : { monitor_mode, monitor_profile })
 	{
 		LOGFONTW style {};
 		auto handle = reinterpret_cast<HFONT>(SendMessageW(control, WM_GETFONT, 0, 0));
-		if (handle != font || !GetObjectW(handle, sizeof(style), &style) || wcscmp(style.lfFaceName, L"Segoe UI"))
+		if (handle != ui_font || !GetObjectW(handle, sizeof(style), &style) || wcscmp(style.lfFaceName, L"Segoe UI"))
 			return 218;
 	}
-	ui::SetFontFamily(previousFamily.c_str());
+	ui::SetFontFamily(previous_family.c_str());
 	LayoutEditorControls();
-	return liveSession.IsActive() || correctionsRequested ? 96 : 0;
+	return live_session.IsActive() || corrections_requested ? 96 : 0;
 }
 
 void CleanPresetUiTest()
@@ -6322,15 +6444,19 @@ void CleanPresetUiTest()
 	try
 	{
 		for (const auto& path :
-		     { PresetFolder(0) / L"A.lutpreset", PresetFolder(0) / L"B.lutpreset", PresetFolder(0) / L"Copy.lutpreset",
-		       PresetFolder(0) / L"Farver-\u00e6\u00f8\u00e5.lutpreset", PresetFolder(0) / L"Off.lutpreset",
-		       PresetFolder(1) / L"Off.lutpreset", PresetFolder(1) / L"C.lutpreset",
-		       PresetFolder(1) / L"Added from folder.lutpreset", std::filesystem::path(testSettingsPath) })
+		     { PresetFolder(preset_role::Look) / L"A.lutpreset", PresetFolder(preset_role::Look) / L"B.lutpreset",
+		       PresetFolder(preset_role::Look) / L"Copy.lutpreset",
+		       PresetFolder(preset_role::Look) / L"Farver-\u00e6\u00f8\u00e5.lutpreset",
+		       PresetFolder(preset_role::Look) / L"Off.lutpreset",
+		       PresetFolder(preset_role::Correction) / L"Off.lutpreset",
+		       PresetFolder(preset_role::Correction) / L"C.lutpreset",
+		       PresetFolder(preset_role::Correction) / L"Added from folder.lutpreset",
+		       std::filesystem::path(test_settings_path) })
 			std::filesystem::remove(path);
-		std::filesystem::remove(PresetFolder(0));
-		std::filesystem::remove(PresetFolder(1));
-		std::filesystem::remove(PresetFolder(0).parent_path());
-		std::filesystem::remove(std::filesystem::path(testSettingsPath).parent_path());
+		std::filesystem::remove(PresetFolder(preset_role::Look));
+		std::filesystem::remove(PresetFolder(preset_role::Correction));
+		std::filesystem::remove(PresetFolder(preset_role::Look).parent_path());
+		std::filesystem::remove(std::filesystem::path(test_settings_path).parent_path());
 	}
 	catch (...)
 	{
@@ -6340,22 +6466,22 @@ void CleanPresetUiTest()
 
 int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 {
-	instance = app;
+	app_instance = app;
 	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-	int argumentCount = 0;
-	LPWSTR* arguments = CommandLineToArgvW(GetCommandLineW(), &argumentCount);
-	if (arguments && argumentCount == 3 && std::wstring(arguments[1]) == L"--benchmark-matrix")
+	int argument_count = 0;
+	LPWSTR* arguments = CommandLineToArgvW(GetCommandLineW(), &argument_count);
+	if (arguments && argument_count == 3 && std::wstring(arguments[1]) == L"--benchmark-matrix")
 	{
 		const int result = matrix_effect::Benchmark(arguments[2]);
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-matrix-effect")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-matrix-effect")
 	{
 		LocalFree(arguments);
 		return matrix_effect::SelfTest();
 	}
-	if (arguments && argumentCount == 4 &&
+	if (arguments && argument_count == 4 &&
 	    (std::wstring(arguments[1]) == L"--matrix-effect-worker" ||
 	     std::wstring(arguments[1]) == L"--matrix-effect-probe"))
 	{
@@ -6368,24 +6494,24 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--matrix-preview")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--matrix-preview")
 	{
 		LocalFree(arguments);
 		return matrix_preview::RunStandalone(app);
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-matrix-preview")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-matrix-preview")
 	{
 		const int result = matrix_preview::SelfTest(arguments[0]);
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--matrix-preview-owner")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--matrix-preview-owner")
 	{
 		LocalFree(arguments);
 		Sleep(INFINITE);
 		return 0;
 	}
-	if (arguments && argumentCount == 4 &&
+	if (arguments && argument_count == 4 &&
 	    (std::wstring(arguments[1]) == L"--matrix-worker" || std::wstring(arguments[1]) == L"--matrix-worker-probe"))
 	{
 		wchar_t* end = nullptr;
@@ -6397,7 +6523,7 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-icons")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-icons")
 	{
 		LocalFree(arguments);
 		if (app_icons::ChooseState(false, false, true) != app_icons::State::Disabled ||
@@ -6414,10 +6540,10 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		{
 			for (int size : { 16, 20, 24, 32, 40, 48, 64, 96, 128, 256 })
 			{
-				HICON icon = iconCache.GetIcon(instance, state, size);
+				HICON icon = icon_cache.GetIcon(app_instance, state, size);
 				if (!icon)
 					return 2;
-				if (iconCache.GetIcon(instance, state, size) != icon)
+				if (icon_cache.GetIcon(app_instance, state, size) != icon)
 					return 3;
 				ICONINFO info {};
 				if (!GetIconInfo(icon, &info))
@@ -6435,18 +6561,18 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		}
 		return 0;
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-hotkeys")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-hotkeys")
 	{
 		LocalFree(arguments);
 		return RunHotkeySelfTest();
 	}
-	if (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--live-probe-owner")
+	if (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--live-probe-owner")
 	{
 		LocalFree(arguments);
 		Sleep(INFINITE);
 		return 0;
 	}
-	if (arguments && argumentCount == 7 &&
+	if (arguments && argument_count == 7 &&
 	    (std::wstring(arguments[1]) == L"--live-guard" || std::wstring(arguments[1]) == L"--live-guard-probe"))
 	{
 		wchar_t* end = nullptr;
@@ -6459,7 +6585,7 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argumentCount == 2 &&
+	if (arguments && argument_count == 2 &&
 	    (std::wstring(arguments[1]) == L"--self-test-live" || std::wstring(arguments[1]) == L"--self-test-live-crash"))
 	{
 		const int result =
@@ -6467,17 +6593,17 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		LocalFree(arguments);
 		return result;
 	}
-	if (arguments && argumentCount == 3 && std::wstring(arguments[1]) == L"--recover-live")
+	if (arguments && argument_count == 3 && std::wstring(arguments[1]) == L"--recover-live")
 	{
 		const int result = live::RecoverFromSnapshotFile(arguments[2]);
 		LocalFree(arguments);
 		return result;
 	}
 	const bool render =
-		(arguments && argumentCount == 3 &&
+		(arguments && argument_count == 3 &&
 	     (std::wstring(arguments[1]) == L"--render-small" || std::wstring(arguments[1]) == L"--render-small-profiles" ||
 	      std::wstring(arguments[1]) == L"--render-mixer")) ||
-		arguments && argumentCount == 3 &&
+		arguments && argument_count == 3 &&
 			(std::wstring(arguments[1]) == L"--render-saturation" ||
 	         std::wstring(arguments[1]) == L"--render-matrix-preview" ||
 	         std::wstring(arguments[1]) == L"--render-preview" || std::wstring(arguments[1]) == L"--render-hdr" ||
@@ -6492,59 +6618,62 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 	         std::wstring(arguments[1]) == L"--render-unsaved" || std::wstring(arguments[1]) == L"--render-error" ||
 	         std::wstring(arguments[1]) == L"--render-carryover" || std::wstring(arguments[1]) == L"--render-ready" ||
 	         std::wstring(arguments[1]) == L"--render-title-menu");
-	const std::wstring renderFile = render ? arguments[2] : L"";
-	const std::wstring renderMode = render ? arguments[1] : L"";
-	const bool renderTray = render && std::wstring(arguments[1]) == L"--render-tray";
-	const bool renderHdr = render && std::wstring(arguments[1]) == L"--render-hdr";
-	const bool renderProfiles = render && (std::wstring(arguments[1]) == L"--render-profiles" ||
-	                                       std::wstring(arguments[1]) == L"--render-small-profiles");
-	const bool renderApplication = render && std::wstring(arguments[1]) == L"--render-application";
-	const bool trayExitTest = arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-tray-exit";
-	const bool trayStartupTest =
-		trayExitTest || arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-tray-startup";
-	const bool trayBenchmark =
-		arguments && argumentCount == 3 && std::wstring(arguments[1]) == L"--benchmark-tray-startup";
-	const std::filesystem::path trayBenchmarkReport = trayBenchmark ? arguments[2] : L"";
-	if (trayBenchmark && std::filesystem::exists(trayBenchmarkReport))
+	const std::wstring render_file = render ? arguments[2] : L"";
+	const std::wstring render_mode = render ? arguments[1] : L"";
+	const bool render_tray = render && std::wstring(arguments[1]) == L"--render-tray";
+	const bool render_hdr = render && std::wstring(arguments[1]) == L"--render-hdr";
+	const bool render_profiles = render && (std::wstring(arguments[1]) == L"--render-profiles" ||
+	                                        std::wstring(arguments[1]) == L"--render-small-profiles");
+	const bool render_application = render && std::wstring(arguments[1]) == L"--render-application";
+	const bool tray_exit_test =
+		arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-tray-exit";
+	const bool tray_startup_test =
+		tray_exit_test || arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-tray-startup";
+	const bool tray_benchmark =
+		arguments && argument_count == 3 && std::wstring(arguments[1]) == L"--benchmark-tray-startup";
+	const std::filesystem::path tray_benchmark_report = tray_benchmark ? arguments[2] : L"";
+	if (tray_benchmark && std::filesystem::exists(tray_benchmark_report))
 	{
 		LocalFree(arguments);
 		return 1;
 	}
-	const bool benchmark = arguments && argumentCount == 3 && std::wstring(arguments[1]) == L"--benchmark-ui";
-	const std::filesystem::path benchmarkReport = benchmark ? arguments[2] : L"";
-	if (benchmark && std::filesystem::exists(benchmarkReport))
+	const bool benchmark = arguments && argument_count == 3 && std::wstring(arguments[1]) == L"--benchmark-ui";
+	const std::filesystem::path benchmark_report = benchmark ? arguments[2] : L"";
+	if (benchmark && std::filesystem::exists(benchmark_report))
 	{
 		LocalFree(arguments);
 		return 1;
 	}
-	profileUiTest = arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-profile-ui";
-	effectUiTest = arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-effect-ui";
-	const bool surfaces96 = arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-surfaces-96";
+	profile_ui_test = arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-profile-ui";
+	effect_ui_test = arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-effect-ui";
+	const bool surfaces96 =
+		arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-surfaces-96";
 	if (surfaces96 && !SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_UNAWARE))
 	{
 		LocalFree(arguments);
 		return 1;
 	}
-	surfaceUiTest =
-		surfaces96 || (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-surfaces");
-	presetUiTest = trayStartupTest || trayBenchmark || benchmark || surfaceUiTest || effectUiTest || profileUiTest ||
-	               (arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--self-test-preset-ui");
-	if (arguments && argumentCount == 3 && std::wstring(arguments[1]) == L"--idle-probe")
-		idleReport = arguments[2];
-	if (!idleReport.empty() && GetFileAttributesW(idleReport.c_str()) != INVALID_FILE_ATTRIBUTES)
+	surface_ui_test =
+		surfaces96 || (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-surfaces");
+	preset_ui_test = tray_startup_test || tray_benchmark || benchmark || surface_ui_test || effect_ui_test ||
+	                 profile_ui_test ||
+	                 (arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--self-test-preset-ui");
+	if (arguments && argument_count == 3 && std::wstring(arguments[1]) == L"--idle-probe")
+		idle_report = arguments[2];
+	if (!idle_report.empty() && GetFileAttributesW(idle_report.c_str()) != INVALID_FILE_ATTRIBUTES)
 	{
 		LocalFree(arguments);
 		return 1;
 	}
-	const bool previewOnly = arguments && argumentCount == 2 && std::wstring(arguments[1]) == L"--preview-ui";
-	renderOnly = previewOnly || render || !idleReport.empty() || presetUiTest;
+	const bool preview_only = arguments && argument_count == 2 && std::wstring(arguments[1]) == L"--preview-ui";
+	render_only = preview_only || render || !idle_report.empty() || preset_ui_test;
 	if (arguments)
 		LocalFree(arguments);
-	if (presetUiTest && !PreparePresetUiTest())
+	if (preset_ui_test && !PreparePresetUiTest())
 		return 1;
-	const auto mutexName = renderOnly ? L"Local\\LutWorkbenchRender-" + std::to_wstring(GetCurrentProcessId())
-	                                  : std::wstring(L"Local\\LutWorkbenchPreview");
-	HANDLE mutex = CreateMutexW(nullptr, FALSE, mutexName.c_str());
+	const auto mutex_name = render_only ? L"Local\\LutWorkbenchRender-" + std::to_wstring(GetCurrentProcessId())
+	                                    : std::wstring(L"Local\\LutWorkbenchPreview");
+	HANDLE mutex = CreateMutexW(nullptr, FALSE, mutex_name.c_str());
 	if (!mutex)
 		return 1;
 	if (GetLastError() == ERROR_ALREADY_EXISTS)
@@ -6558,23 +6687,23 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		CloseHandle(mutex);
 		return 0;
 	}
-	deferEditor = trayStartupTest || trayBenchmark ||
-	              !renderOnly && GetPrivateProfileIntW(L"Startup", L"Minimized", 0, SettingsFilePath().c_str()) == 1;
-	const DWORD setupFaultStart = benchmark ? ProcessPageFaults() : 0;
-	const auto setupStart = std::chrono::steady_clock::now();
-	explorerRestart = RegisterWindowMessageW(L"TaskbarCreated");
+	defer_editor = tray_startup_test || tray_benchmark ||
+	               !render_only && GetPrivateProfileIntW(L"Startup", L"Minimized", 0, SettingsFilePath().c_str()) == 1;
+	const DWORD setup_fault_start = benchmark ? ProcessPageFaults() : 0;
+	const auto setup_start = std::chrono::steady_clock::now();
+	taskbar_created_message = RegisterWindowMessageW(L"TaskbarCreated");
 	WNDCLASSW preview {};
-	preview.hInstance = instance;
+	preview.hInstance = app_instance;
 	preview.lpfnWndProc = CurveWindowProc;
 	preview.style = CS_DBLCLKS;
 	preview.lpszClassName = L"LutCurvePreview";
 	preview.hCursor = LoadCursorW(nullptr, IDC_ARROW);
 	WNDCLASSW main {};
-	main.hInstance = instance;
+	main.hInstance = app_instance;
 	main.lpfnWndProc = MainWindowProc;
 	main.lpszClassName = L"LutWorkbenchPreview";
 	main.hCursor = preview.hCursor;
-	main.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_LUT_ACTIVE));
+	main.hIcon = LoadIconW(app_instance, MAKEINTRESOURCEW(IDI_LUT_ACTIVE));
 	main.hbrBackground = ui::BackgroundBrush();
 	if (!RegisterClassW(&preview) || !RegisterClassW(&main))
 	{
@@ -6584,126 +6713,126 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 	POINT cursor {};
 	GetCursorPos(&cursor);
 	HMONITOR monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST);
-	MONITORINFO monitorInfo {};
-	monitorInfo.cbSize = sizeof(monitorInfo);
-	GetMonitorInfoW(monitor, &monitorInfo);
+	MONITORINFO monitor_info {};
+	monitor_info.cbSize = sizeof(monitor_info);
+	GetMonitorInfoW(monitor, &monitor_info);
 	HWND probe =
-		CreateWindowExW(0, L"STATIC", L"", WS_POPUP, cursor.x, cursor.y, 1, 1, nullptr, nullptr, instance, nullptr);
+		CreateWindowExW(0, L"STATIC", L"", WS_POPUP, cursor.x, cursor.y, 1, 1, nullptr, nullptr, app_instance, nullptr);
 	if (probe)
 	{
 		dpi = static_cast<int>(GetDpiForWindow(probe));
 		DestroyWindow(probe);
 	}
-	RECT rect { 0, 0, ScaleForDpi(ClientWidth), ScaleForDpi(ClientHeight) };
-	constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
+	RECT rect { 0, 0, ScaleForDpi(CLIENT_WIDTH), ScaleForDpi(CLIENT_HEIGHT) };
+	constexpr DWORD WINDOW_STYLE = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
 	ui::AdjustThemedWindowRect(rect, static_cast<UINT>(dpi));
 	const int width = rect.right - rect.left, height = rect.bottom - rect.top;
 	const int x =
-		monitorInfo.rcWork.left + std::max(0L, (monitorInfo.rcWork.right - monitorInfo.rcWork.left - width) / 2);
+		monitor_info.rcWork.left + std::max(0L, (monitor_info.rcWork.right - monitor_info.rcWork.left - width) / 2);
 	const int y =
-		monitorInfo.rcWork.top + std::max(0L, (monitorInfo.rcWork.bottom - monitorInfo.rcWork.top - height) / 2);
-	window = CreateWindowExW(0, main.lpszClassName, L"MonitorMage - live contrast and HDR correction", style, x, y,
-	                         width, height, nullptr, nullptr, instance, nullptr);
-	if (!window)
+		monitor_info.rcWork.top + std::max(0L, (monitor_info.rcWork.bottom - monitor_info.rcWork.top - height) / 2);
+	main_window = CreateWindowExW(0, main.lpszClassName, L"MonitorMage - live contrast and HDR correction",
+	                              WINDOW_STYLE, x, y, width, height, nullptr, nullptr, app_instance, nullptr);
+	if (!main_window)
 	{
 		CloseHandle(mutex);
 		return 1;
 	}
-	if (!renderOnly || !idleReport.empty())
+	if (!render_only || !idle_report.empty())
 	{
-		foregroundHook =
+		foreground_hook =
 			SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, nullptr, ForegroundChangedCallback, 0, 0,
 		                    WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
-		if (!foregroundHook)
+		if (!foreground_hook)
 		{
-			appConfig.enabled = false;
-			profileMessage = L"Foreground notifications unavailable. Application profiles are disabled.";
+			profile_configuration.Enabled = false;
+			profile_message = L"Foreground notifications unavailable. Application profiles are disabled.";
 		}
 		CheckForegroundProgram();
-		if (appFocus.FocusedProgram().empty())
+		if (foreground_program.FocusedProgram().empty())
 			ApplyApplicationProfile(true);
 		RefreshInterface();
 	}
-	if (!renderOnly)
+	if (!render_only)
 		TurnOnCorrections();
-	if (trayStartupTest || trayBenchmark)
+	if (tray_startup_test || tray_benchmark)
 	{
 		const auto milliseconds = [](auto a, auto b)
 		{
 			return std::chrono::duration<double, std::milli>(b - a).count();
 		};
-		const double setupMs = milliseconds(setupStart, std::chrono::steady_clock::now());
+		const double setup_ms = milliseconds(setup_start, std::chrono::steady_clock::now());
 		PROCESS_MEMORY_COUNTERS_EX usage {};
 		usage.cb = sizeof(usage);
 		GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&usage), sizeof(usage));
 		int result = 0;
 		RECT client {};
-		GetClientRect(window, &client);
-		if (client.right != ScaleForDpi(ClientWidth) || client.bottom != ScaleForDpi(ClientHeight))
+		GetClientRect(main_window, &client);
+		if (client.right != ScaleForDpi(CLIENT_WIDTH) || client.bottom != ScaleForDpi(CLIENT_HEIGHT))
 			result = 11;
-		if (editorReady || GetWindow(window, GW_CHILD) || font || hintFont || curveScratch.ByteCount() ||
-		    presetLibrary[0].size() != 2)
+		if (editor_ready || GetWindow(main_window, GW_CHILD) || ui_font || hint_font || curve_scratch.ByteCount() ||
+		    preset_library[preset_role::Look].size() != 2)
 			result = 1;
-		const auto original = CurrentPreset(0).current;
-		const auto originalIndex = presetIndex[0];
+		const auto original = CurrentPreset(preset_role::Look).current;
+		const auto original_index = preset_index[preset_role::Look];
 		// A profile change must load its look and update processing state with
 		// no controls. All hardware/session operations are disabled here.
-		appConfig.enabled = true;
-		appConfig.rules = { { L"C:\\Tests\\TrayGame.exe", PresetFolder(0) / L"B.lutpreset",
-			                  applications::Action::Look } };
-		correctionsRequested = true;
+		profile_configuration.Enabled = true;
+		profile_configuration.Rules = { { L"C:\\Tests\\TrayGame.exe", PresetFolder(preset_role::Look) / L"B.lutpreset",
+			                              applications::Action::Look } };
+		corrections_requested = true;
 		OnForegroundProgramChanged(L"C:\\Tests\\TrayGame.exe");
-		if (!applicationContextActive || contrastPosition != -10 || editorReady || GetWindow(window, GW_CHILD))
+		if (!application_context_active || contrast_position != -10 || editor_ready || GetWindow(main_window, GW_CHILD))
 			result = 2;
 		ToggleBypass();
-		if (!IsLookBypassed() || editorReady)
+		if (!IsLookBypassed() || editor_ready)
 			result = 3;
 		ToggleBypass();
 		OnForegroundProgramChanged(L"C:\\Tests\\Desktop.exe");
-		if (applicationContextActive || presetIndex[0] != originalIndex || CurrentPreset(0).current != original ||
-		    contrastPosition != original.contrast)
+		if (application_context_active || preset_index[preset_role::Look] != original_index ||
+		    CurrentPreset(preset_role::Look).current != original || contrast_position != original.Contrast)
 			result = 4;
 		ToggleCorrections();
-		if (correctionsRequested || editorReady)
+		if (corrections_requested || editor_ready)
 			result = 8;
 		ToggleCorrections();
-		if (!correctionsRequested || editorReady)
+		if (!corrections_requested || editor_ready)
 			result = 9;
-		if (trayExitTest)
+		if (tray_exit_test)
 		{
-			DestroyWindow(window);
+			DestroyWindow(main_window);
 			CloseHandle(mutex);
 			CleanPresetUiTest();
 			return result;
 		}
 		ShowProfiles(true);
-		if (!profile_editor::ProfileEditorHandle() || editorReady || GetWindow(window, GW_CHILD))
+		if (!profile_editor::ProfileEditorHandle() || editor_ready || GetWindow(main_window, GW_CHILD))
 			result = 10;
 		if (profile_editor::ProfileEditorHandle())
 			DestroyWindow(profile_editor::ProfileEditorHandle());
-		const auto openStart = std::chrono::steady_clock::now();
+		const auto open_start = std::chrono::steady_clock::now();
 		CreateEditorIfNeeded();
-		const double openMs = milliseconds(openStart, std::chrono::steady_clock::now());
-		const HWND firstCanvas = canvas;
+		const double open_ms = milliseconds(open_start, std::chrono::steady_clock::now());
+		const HWND first_canvas = curve_canvas;
 		CreateEditorIfNeeded();
-		if (!editorReady || !canvas || canvas != firstCanvas || !IsWindow(contrastSlider) ||
-		    CurrentPreset(0).current != original || GetWindowTextLengthW(monitorProfile) == 0)
+		if (!editor_ready || !curve_canvas || curve_canvas != first_canvas || !IsWindow(contrast_slider) ||
+		    CurrentPreset(preset_role::Look).current != original || GetWindowTextLengthW(monitor_profile) == 0)
 			result = 5;
-		if (SendMessageW(contrastSlider, TBM_GETPOS, 0, 0) != original.contrast ||
-		    SelectedSourceIndex() != selectedSource)
+		if (SendMessageW(contrast_slider, TBM_GETPOS, 0, 0) != original.Contrast ||
+		    SelectedSourceIndex() != selected_source)
 			result = 6;
-		if (trayBenchmark)
+		if (tray_benchmark)
 		{
-			std::ofstream out(trayBenchmarkReport);
+			std::ofstream out(tray_benchmark_report);
 			out.imbue(std::locale::classic());
-			out << "{\"tray_setup_ms\":" << setupMs << ",\"first_editor_setup_ms\":" << openMs
+			out << "{\"tray_setup_ms\":" << setup_ms << ",\"first_editor_setup_ms\":" << open_ms
 				<< ",\"tray_private_mib\":" << usage.PrivateUsage / 1048576.0
 				<< ",\"tray_working_set_mib\":" << usage.WorkingSetSize / 1048576.0 << ",\"result\":" << result
 				<< ",\"mode\":\"hidden fixture; no tray registration, hotkey registration or display changes; excludes OS loader and live helper startup\"}\n";
 			if (!out)
 				result = 7;
 		}
-		DestroyWindow(window);
+		DestroyWindow(main_window);
 		CloseHandle(mutex);
 		CleanPresetUiTest();
 		return result;
@@ -6714,14 +6843,14 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		{
 			return std::chrono::steady_clock::now();
 		};
-		const auto ms = [](auto a, auto b)
+		const auto elapsed_ms = [](auto a, auto b)
 		{
 			return std::chrono::duration<double, std::milli>(b - a).count();
 		};
-		const double setupMs = ms(setupStart, now());
-		const DWORD setupFaults = ProcessPageFaults() - setupFaultStart;
+		const double setup_ms = elapsed_ms(setup_start, now());
+		const DWORD setup_faults = ProcessPageFaults() - setup_fault_start;
 		RECT bounds {};
-		GetWindowRect(window, &bounds);
+		GetWindowRect(main_window, &bounds);
 		HDC screen = GetDC(nullptr), memory = CreateCompatibleDC(screen);
 		HBITMAP image = CreateCompatibleBitmap(screen, bounds.right - bounds.left, bounds.bottom - bounds.top);
 		ReleaseDC(nullptr, screen);
@@ -6731,7 +6860,7 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 				DeleteObject(image);
 			if (memory)
 				DeleteDC(memory);
-			DestroyWindow(window);
+			DestroyWindow(main_window);
 			CloseHandle(mutex);
 			CleanPresetUiTest();
 			return 1;
@@ -6739,294 +6868,295 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 		const auto old = SelectObject(memory, image);
 		const auto paint = [&]()
 		{
-			SendMessageW(window, WM_PRINT, reinterpret_cast<WPARAM>(memory),
+			SendMessageW(main_window, WM_PRINT, reinterpret_cast<WPARAM>(memory),
 			             PRF_NONCLIENT | PRF_CLIENT | PRF_CHILDREN | PRF_ERASEBKGND);
 			GdiFlush();
 		};
-		const DWORD firstFaultStart = ProcessPageFaults();
+		const DWORD first_fault_start = ProcessPageFaults();
 		auto start = now();
 		paint();
-		const double firstMs = ms(start, now());
-		const DWORD firstFaults = ProcessPageFaults() - firstFaultStart;
-		const DWORD repaintFaultStart = ProcessPageFaults();
+		const double first_ms = elapsed_ms(start, now());
+		const DWORD first_faults = ProcessPageFaults() - first_fault_start;
+		const DWORD repaint_fault_start = ProcessPageFaults();
 		start = now();
 		for (int i = 0; i < 10; ++i)
 			paint();
-		const double repaintMs = ms(start, now()) / 10;
-		const DWORD repaintFaults = ProcessPageFaults() - repaintFaultStart;
-		const auto fullBufferBytes = lastGraphPaintBytes;
-		const auto dirty = GraphUpdateBounds(canvas);
-		const int dirtySaved = SaveDC(memory);
+		const double repaint_ms = elapsed_ms(start, now()) / 10;
+		const DWORD repaint_faults = ProcessPageFaults() - repaint_fault_start;
+		const auto full_buffer_bytes = last_graph_paint_bytes;
+		const auto dirty = GraphUpdateBounds(curve_canvas);
+		const int dirty_saved = SaveDC(memory);
 		IntersectClipRect(memory, dirty.left, dirty.top, dirty.right, dirty.bottom);
-		const DWORD dirtyFaultStart = ProcessPageFaults();
+		const DWORD dirty_fault_start = ProcessPageFaults();
 		start = now();
 		for (int i = 0; i < 10; ++i)
 		{
-			SendMessageW(canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(memory), PRF_CLIENT);
+			SendMessageW(curve_canvas, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(memory), PRF_CLIENT);
 			GdiFlush();
 		}
-		const double dirtyMs = ms(start, now()) / 10;
-		const DWORD dirtyFaults = ProcessPageFaults() - dirtyFaultStart;
-		const auto dirtyBufferBytes = lastGraphPaintBytes;
-		RestoreDC(memory, dirtySaved);
+		const double dirty_ms = elapsed_ms(start, now()) / 10;
+		const DWORD dirty_faults = ProcessPageFaults() - dirty_fault_start;
+		const auto dirty_buffer_bytes = last_graph_paint_bytes;
+		RestoreDC(memory, dirty_saved);
 		PROCESS_MEMORY_COUNTERS_EX usage {};
 		usage.cb = sizeof(usage);
 		GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&usage), sizeof(usage));
 		SelectObject(memory, old);
 		DeleteObject(image);
 		DeleteDC(memory);
-		const auto tileBytes = curveScratch.ByteCount();
-		SendMessageW(window, WM_SHOWWINDOW, FALSE, 0);
+		const auto tile_bytes = curve_scratch.ByteCount();
+		SendMessageW(main_window, WM_SHOWWINDOW, FALSE, 0);
 		PROCESS_MEMORY_COUNTERS_EX hidden {};
 		hidden.cb = sizeof(hidden);
 		GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&hidden), sizeof(hidden));
 		start = now();
-		DestroyWindow(window);
-		const double shutdownMs = ms(start, now());
+		DestroyWindow(main_window);
+		const double shutdown_ms = elapsed_ms(start, now());
 		start = now();
 		const int helper = live::RecoverySelfTest(app_settings::ExecutablePath().c_str());
-		const double helperMs = ms(start, now());
+		const double helper_ms = elapsed_ms(start, now());
 		CloseHandle(mutex);
 		CleanPresetUiTest();
-		std::ofstream report(benchmarkReport);
+		std::ofstream report(benchmark_report);
 		report.imbue(std::locale::classic());
 		report
-			<< "{\"editor_setup_ms\":" << setupMs << ",\"first_paint_ms\":" << firstMs
-			<< ",\"mean_repaint_ms\":" << repaintMs << ",\"setup_page_faults\":" << setupFaults
-			<< ",\"first_paint_page_faults\":" << firstFaults << ",\"repeated_paint_page_faults\":" << repaintFaults
+			<< "{\"editor_setup_ms\":" << setup_ms << ",\"first_paint_ms\":" << first_ms
+			<< ",\"mean_repaint_ms\":" << repaint_ms << ",\"setup_page_faults\":" << setup_faults
+			<< ",\"first_paint_page_faults\":" << first_faults << ",\"repeated_paint_page_faults\":" << repaint_faults
 			<< ",\"paint_count\":10,\"fault_counter\":\"process total; does not distinguish hard from soft faults\""
-			<< ",\"full_graph_buffer_mib\":" << fullBufferBytes / 1048576.0
-			<< ",\"plot_update_buffer_mib\":" << dirtyBufferBytes / 1048576.0 << ",\"plot_update_mean_ms\":" << dirtyMs
-			<< ",\"plot_update_page_faults\":" << dirtyFaults << ",\"graph_surface_bits\":32"
-			<< ",\"editor_shutdown_ms\":" << shutdownMs << ",\"probe_helper_roundtrip_ms\":" << helperMs
+			<< ",\"full_graph_buffer_mib\":" << full_buffer_bytes / 1048576.0
+			<< ",\"plot_update_buffer_mib\":" << dirty_buffer_bytes / 1048576.0
+			<< ",\"plot_update_mean_ms\":" << dirty_ms << ",\"plot_update_page_faults\":" << dirty_faults
+			<< ",\"graph_surface_bits\":32"
+			<< ",\"editor_shutdown_ms\":" << shutdown_ms << ",\"probe_helper_roundtrip_ms\":" << helper_ms
 			<< ",\"helper_ok\":" << (helper == 0 ? "true" : "false")
 			<< ",\"peak_working_set_mib\":" << usage.PeakWorkingSetSize / 1048576.0
 			<< ",\"private_commit_mib\":" << usage.PrivateUsage / 1048576.0
-			<< ",\"curve_tile_mib\":" << tileBytes / 1048576.0
+			<< ",\"curve_tile_mib\":" << tile_bytes / 1048576.0
 			<< ",\"after_hide_private_commit_mib\":" << hidden.PrivateUsage / 1048576.0 << ",\"dpi\":" << dpi
 			<< ",\"mode\":\"hidden fixture editor; helper probe never reads or writes a display LUT; excludes OS loader, real user library and actual LUT restoration\"}\n";
 		return report && helper == 0 ? 0 : 1;
 	}
-	if (presetUiTest)
+	if (preset_ui_test)
 	{
-		const int result = surfaceUiTest   ? RunSurfaceUiTest()
-		                   : effectUiTest  ? RunEffectUiTest()
-		                   : profileUiTest ? RunProfileUiTest()
-		                                   : RunPresetUiTest();
-		DestroyWindow(window);
+		const int result = surface_ui_test   ? RunSurfaceUiTest()
+		                   : effect_ui_test  ? RunEffectUiTest()
+		                   : profile_ui_test ? RunProfileUiTest()
+		                                     : RunPresetUiTest();
+		DestroyWindow(main_window);
 		CloseHandle(mutex);
 		CleanPresetUiTest();
 		return result;
 	}
 	if (render)
 	{
-		if (renderMode == L"--render-title-menu")
+		if (render_mode == L"--render-title-menu")
 		{
-			const bool rendered = ui::PreviewCaptionMenu(window, [&](HWND target)
-			                                             { return RenderWindowToFile(renderFile.c_str(), target); });
-			DestroyWindow(window);
+			const bool rendered = ui::PreviewCaptionMenu(main_window, [&](HWND target)
+			                                             { return RenderWindowToFile(render_file.c_str(), target); });
+			DestroyWindow(main_window);
 			CloseHandle(mutex);
 			return rendered ? 0 : 1;
 		}
-		if (renderTray)
+		if (render_tray)
 		{
 			const bool rendered =
-				ui::PreviewPopup(window, IconForState(SM_CXICON), TrayMenuItems(),
-			                     [&](HWND target) { return RenderWindowToFile(renderFile.c_str(), target); });
-			DestroyWindow(window);
+				ui::PreviewPopup(main_window, IconForState(SM_CXICON), TrayMenuItems(),
+			                     [&](HWND target) { return RenderWindowToFile(render_file.c_str(), target); });
+			DestroyWindow(main_window);
 			CloseHandle(mutex);
 			return rendered ? 0 : 1;
 		}
-		HWND target = window;
-		if (renderMode == L"--render-saturation")
+		HWND target = main_window;
+		if (render_mode == L"--render-saturation")
 		{
-			selected = 10;
-			CurrentPreset(0).current.saturationEnabled = true;
-			CurrentPreset(0).current.saturation = 50;
-			correctionsRequested = true;
+			selected_effect = effect::Saturation;
+			CurrentPreset(preset_role::Look).current.SaturationEnabled = true;
+			CurrentPreset(preset_role::Look).current.Saturation = 50;
+			corrections_requested = true;
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-mixer")
+		if (render_mode == L"--render-mixer")
 		{
-			selected = 11;
-			CurrentPreset(0).current.monochromeEnabled = true;
-			CurrentPreset(0).current.monochrome = { 100, 20, 0 };
-			correctionsRequested = true;
+			selected_effect = effect::ChannelMixer;
+			CurrentPreset(preset_role::Look).current.MonochromeEnabled = true;
+			CurrentPreset(preset_role::Look).current.Monochrome = { 100, 20, 0 };
+			corrections_requested = true;
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-matrix-preview")
+		if (render_mode == L"--render-matrix-preview")
 		{
-			matrix_preview::ShowPreviewWindow(window, true);
+			matrix_preview::ShowPreviewWindow(main_window, true);
 			target = matrix_preview::PreviewWindowHandle();
 			if (!target)
 			{
-				DestroyWindow(window);
+				DestroyWindow(main_window);
 				CloseHandle(mutex);
 				return 1;
 			}
 		}
-		if (renderApplication)
+		if (render_application)
 		{
 			presets::Data data;
-			data.contrast = 15;
-			presetLibrary[0].push_back({ L"C:\\Examples\\Gentle contrast.lutpreset", data, data });
-			presetIndex[0] = 1;
-			applicationContextActive = true;
-			appConfig.enabled = true;
-			appFocus.UpdateFocusedProgram(L"C:\\Games\\Example game.exe");
-			profileAction = applications::Action::PauseHdr;
+			data.Contrast = 15;
+			preset_library[preset_role::Look].push_back({ L"C:\\Examples\\Gentle contrast.lutpreset", data, data });
+			preset_index[preset_role::Look] = 1;
+			application_context_active = true;
+			profile_configuration.Enabled = true;
+			foreground_program.UpdateFocusedProgram(L"C:\\Games\\Example game.exe");
+			profile_action = applications::Action::PauseHdr;
 			LoadPresetControls();
 		}
-		if (renderProfiles || renderMode == L"--render-running-programs")
+		if (render_profiles || render_mode == L"--render-running-programs")
 		{
-			const auto data = presetLibrary[0][0].current;
-			presetLibrary[0].push_back({ L"C:\\Examples\\Neutral.lutpreset", data, data });
-			presetLibrary[0].push_back({ L"C:\\Examples\\Gentle contrast.lutpreset", data, data });
-			appConfig.rules = { { L"C:\\Games\\Example game.exe", presetLibrary[0][2].path,
-				                  applications::Action::Look },
-				                { L"C:\\Video\\HDR player.exe", {}, applications::Action::PauseHdr } };
+			const auto data = preset_library[preset_role::Look][0].current;
+			preset_library[preset_role::Look].push_back({ L"C:\\Examples\\Neutral.lutpreset", data, data });
+			preset_library[preset_role::Look].push_back({ L"C:\\Examples\\Gentle contrast.lutpreset", data, data });
+			profile_configuration.Rules = { { L"C:\\Games\\Example game.exe", preset_library[preset_role::Look][2].path,
+				                              applications::Action::Look },
+				                            { L"C:\\Video\\HDR player.exe", {}, applications::Action::PauseHdr } };
 			ShowProfiles(true);
 			target = profile_editor::ProfileEditorHandle();
 			if (!target)
 			{
-				DestroyWindow(window);
+				DestroyWindow(main_window);
 				CloseHandle(mutex);
 				return 1;
 			}
 			SendMessageW(GetDlgItem(target, 203), LB_SETCURSEL, 1, 0);
 			SendMessageW(target, WM_COMMAND, MAKEWPARAM(203, LBN_SELCHANGE), 0);
 		}
-		if (renderMode == L"--render-running-programs")
+		if (render_mode == L"--render-running-programs")
 			profile_editor::PreviewPrograms(
 				{ { L"C:\\Games\\Example game.exe", L"Example game", SIZE_T { 2400 } * 1048576, true, true },
 			      { L"C:\\Video\\vlc.exe", L"VLC media player", SIZE_T { 420 } * 1048576, true, true },
 			      { L"C:\\Browser\\browser.exe", L"Web browser", SIZE_T { 1300 } * 1048576, true, true } });
-		if (renderHdr || renderApplication)
+		if (render_hdr || render_application)
 		{
-			selected = 1;
+			selected_effect = effect::HdrGamma;
 			RefreshPresetChoice();
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-balance")
+		if (render_mode == L"--render-balance")
 		{
-			selected = 2;
-			CurrentPreset(0).current.adjustments.balance = { 100, 100, 100, 20, 0 };
+			selected_effect = effect::ColorBalance;
+			CurrentPreset(preset_role::Look).current.Adjustments.Balance = { 100, 100, 100, 20, 0 };
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-curves")
+		if (render_mode == L"--render-curves")
 		{
-			selected = 6;
-			auto& curves = CurrentPreset(0).current.adjustments.curves;
+			selected_effect = effect::CustomCurves;
+			auto& curves = CurrentPreset(preset_role::Look).current.Adjustments.Curves;
 			curves[0] = { 0, .09, .2, .33, .5, .67, .8, .91, 1 };
 			curves[3] = { 0, .06, .15, .26, .4, .56, .72, .87, 1 };
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-error")
+		if (render_mode == L"--render-error")
 		{
-			liveMessage = ui::messages::FriendlyError("Driver rejected the correction");
-			liveError = true;
+			live_message = ui::messages::FriendlyError("Driver rejected the correction");
+			live_error = true;
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-carryover")
+		if (render_mode == L"--render-carryover")
 		{
-			liveMessage =
+			live_message =
 				L"The previous correction carried into this display mode. Restore Windows calibration before re-enabling";
-			liveError = true;
+			live_error = true;
 			RefreshInterface();
 		}
-		if (renderMode == L"--render-ready")
+		if (render_mode == L"--render-ready")
 		{
 			TurnOnCorrections();
 		}
-		if (renderMode == L"--render-settings")
+		if (render_mode == L"--render-settings")
 		{
-			settingsPage = true;
+			settings_page = true;
 			LayoutEditorControls();
 		}
-		if (renderMode == L"--render-color-filters")
+		if (render_mode == L"--render-color-filters")
 		{
-			settingsPage = false;
-			selected = 8;
+			settings_page = false;
+			selected_effect = effect::ColorFilters;
 			LayoutEditorControls();
 		}
-		if (renderMode == L"--render-night-light")
+		if (render_mode == L"--render-night-light")
 		{
-			settingsPage = false;
-			selected = 9;
-			nightConfig.enabled = true;
+			settings_page = false;
+			selected_effect = effect::NightLight;
+			night_config.Enabled = true;
 			UpdateNightLightSchedule();
 			LayoutEditorControls();
 		}
-		if (renderMode == L"--render-font-segoe")
+		if (render_mode == L"--render-font-segoe")
 		{
 			ui::SetFontFamily(L"Segoe UI");
 			LayoutEditorControls();
 		}
-		if (renderMode == L"--render-unsaved")
+		if (render_mode == L"--render-unsaved")
 		{
-			target = unsaved::PreviewDialog(window);
+			target = unsaved::PreviewDialog(main_window);
 			if (!target)
 			{
-				DestroyWindow(window);
+				DestroyWindow(main_window);
 				CloseHandle(mutex);
 				return 1;
 			}
 		}
-		if (renderMode == L"--render-small")
+		if (render_mode == L"--render-small")
 		{
-			selected = 2;
+			selected_effect = effect::ColorBalance;
 			RefreshInterface();
-			SetWindowPos(window, nullptr, 0, 0, ScaleForDpi(480), ScaleForDpi(360),
+			SetWindowPos(main_window, nullptr, 0, 0, ScaleForDpi(480), ScaleForDpi(360),
 			             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-			ui::RevealControl(window, adjustmentSliders[4]);
+			ui::RevealControl(main_window, adjustment_sliders[4]);
 		}
-		if (renderMode == L"--render-small-profiles")
+		if (render_mode == L"--render-small-profiles")
 		{
 			SetWindowPos(target, nullptr, 0, 0, ScaleForDpi(300), ScaleForDpi(340),
 			             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 			ui::RevealControl(target, GetDlgItem(target, 213));
 		}
-		if (target == window)
+		if (target == main_window)
 		{
-			ui::SetCaptionSettingsButton(window, SettingsPage, settingsPage);
-			ui::SetIconButton(powerButton, ui::Glyph::Power, correctionsRequested, true);
+			ui::SetCaptionSettingsButton(main_window, ID_SETTINGS_PAGE, settings_page);
+			ui::SetIconButton(power_button, ui::Glyph::Power, corrections_requested, true);
 		}
-		const bool rendered = RenderWindowToFile(renderFile.c_str(), target);
-		DestroyWindow(window);
+		const bool rendered = RenderWindowToFile(render_file.c_str(), target);
+		DestroyWindow(main_window);
 		CloseHandle(mutex);
 		return rendered ? 0 : 1;
 	}
-	if (!idleReport.empty())
+	if (!idle_report.empty())
 	{
-		idleCpuStart = ProcessCpuTime();
-		idleStart = GetTickCount64();
-		idleFaultStart = ProcessPageFaults();
-		if (!SetTimer(window, IdleTimer, 3000, nullptr))
+		idle_cpu_start = ProcessCpuTime();
+		idle_start = GetTickCount64();
+		idle_fault_start = ProcessPageFaults();
+		if (!SetTimer(main_window, TIMER_IDLE, 3000, nullptr))
 		{
-			DestroyWindow(window);
+			DestroyWindow(main_window);
 			CloseHandle(mutex);
 			return 1;
 		}
 	}
-	else if (renderOnly || !startMinimized || !trayInstalled)
+	else if (render_only || !start_minimized || !tray_installed)
 	{
-		ShowWindow(window, show);
-		UpdateWindow(window);
+		ShowWindow(main_window, show);
+		UpdateWindow(main_window);
 	}
 	MSG message {};
 	int result = 0;
-	while ((result = matrixSession.WaitForMessageOrWorkerExit(message)) > 0)
+	while ((result = matrix_session.WaitForMessageOrWorkerExit(message)) > 0)
 	{
 		if (matrix_preview::HandleDialogMessage(message))
 			continue;
 		if (NavigateTab(message))
 			continue;
-		if (GetFocus() != shortcutControl && message.message == WM_SYSKEYDOWN &&
+		if (GetFocus() != shortcut_control && message.message == WM_SYSKEYDOWN &&
 		    (message.wParam == L'P' || message.wParam == L'S') && (message.lParam & (1L << 29)) &&
-		    GetAncestor(message.hwnd, GA_ROOT) == window)
+		    GetAncestor(message.hwnd, GA_ROOT) == main_window)
 		{
 			if (!(message.lParam & (1L << 30)))
-				SendMessageW(window, WM_COMMAND, message.wParam == L'P' ? TestContrast : SettingsPage, 0);
+				SendMessageW(main_window, WM_COMMAND, message.wParam == L'P' ? ID_TEST_CONTRAST : ID_SETTINGS_PAGE, 0);
 			continue;
 		}
 		if (profile_editor::ProfileEditorHandle() && IsDialogMessageW(profile_editor::ProfileEditorHandle(), &message))
@@ -7034,7 +7164,7 @@ int WINAPI wWinMain(HINSTANCE app, HINSTANCE, PWSTR, int show)
 			ui::RevealControl(profile_editor::ProfileEditorHandle(), GetFocus());
 			continue;
 		}
-		if (!IsDialogMessageW(window, &message))
+		if (!IsDialogMessageW(main_window, &message))
 		{
 			TranslateMessage(&message);
 			DispatchMessageW(&message);

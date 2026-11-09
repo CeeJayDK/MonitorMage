@@ -102,7 +102,7 @@ int wmain(int argc, wchar_t** argv)
 		presets::Data data;
 		for (int c = 0; c < 3; ++c)
 			for (int i = 0; i < 4096; ++i)
-				data.adjustments.imported[c].push_back(std::pow(i / 4095.0, 1 + c * .1));
+				data.Adjustments.Imported[c].push_back(std::pow(i / 4095.0, 1 + c * .1));
 		const auto encoded = presets::Encode(data);
 		Check(encoded.find("Version=4") != std::string::npos, "Dense embedded LUTs need version 4");
 		Check(presets::Decode(encoded) == data, "4096-sample preset must round-trip exactly");

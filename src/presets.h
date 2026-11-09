@@ -4,6 +4,17 @@
 #include "adjustments.h"
 #include "color_limits.h"
 
+// Which preset slot is meant: the creative look or the display correction.
+namespace preset_role
+{
+enum Id : int
+{
+	Look,
+	Correction,
+	Count,
+};
+}
+
 namespace presets
 {
 enum class Kind
@@ -15,16 +26,16 @@ enum class Kind
 struct Data
 {
 	Kind kind = Kind::Look;
-	int contrast = 0, pivot = 50; // Slider units, one hundredth of signal range.
-	int gamma = 22;
-	bool hdrFix = true;
-	bool applyInSdr = false;
-	bool contrastEnabled = true;
-	int saturation = 100;           // Percent; 0 grayscale, 100 unchanged, up to 300 boosted.
-	bool saturationEnabled = false; // Old presets never enable a global matrix.
-	bool monochromeEnabled = false;
-	std::array<int, 3> monochrome { 21, 72, 7 }; // Relative RGB contributions; normalized when applied.
-	color::Adjustments adjustments;
+	int Contrast = 0, Pivot = 50; // Slider units, one hundredth of signal range.
+	int Gamma = 22;
+	bool HdrFix = true;
+	bool ApplyInSdr = false;
+	bool ContrastEnabled = true;
+	int Saturation = 100;           // Percent; 0 grayscale, 100 unchanged, up to 300 boosted.
+	bool SaturationEnabled = false; // Old presets never enable a global matrix.
+	bool MonochromeEnabled = false;
+	std::array<int, 3> Monochrome { 21, 72, 7 }; // Relative RGB contributions; normalized when applied.
+	color::Adjustments Adjustments;
 };
 
 // First-run defaults are separate from the historical file-format defaults.
@@ -33,10 +44,11 @@ inline Data InactivePreset(Kind kind)
 {
 	Data data;
 	data.kind = kind;
-	data.contrastEnabled = false;
-	data.hdrFix = false;
-	auto& a = data.adjustments;
-	a.balanceEnabled = a.gammaEnabled = a.levelsEnabled = a.toneEnabled = a.curvesEnabled = a.importEnabled = false;
+	data.ContrastEnabled = false;
+	data.HdrFix = false;
+	auto& adjustments = data.Adjustments;
+	adjustments.BalanceEnabled = adjustments.GammaEnabled = adjustments.LevelsEnabled = adjustments.ToneEnabled =
+		adjustments.CurvesEnabled = adjustments.ImportEnabled = false;
 	return data;
 }
 

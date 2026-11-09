@@ -41,91 +41,91 @@ int main(int argc, char** argv)
 	try
 	{
 		presets::Data look;
-		look.contrast = 18;
-		look.pivot = 42;
+		look.Contrast = 18;
+		look.Pivot = 42;
 		presets::Data correction;
 		correction.kind = presets::Kind::Correction;
-		correction.gamma = 24;
-		correction.hdrFix = false;
-		const auto lookText = presets::Encode(look), correctionText = presets::Encode(correction);
-		Check(presets::Decode(lookText) == look, "Look must round-trip exactly");
-		Check(!presets::Decode(lookText).saturationEnabled && presets::Decode(lookText).saturation == 100,
+		correction.Gamma = 24;
+		correction.HdrFix = false;
+		const auto look_text = presets::Encode(look), correction_text = presets::Encode(correction);
+		Check(presets::Decode(look_text) == look, "Look must round-trip exactly");
+		Check(!presets::Decode(look_text).SaturationEnabled && presets::Decode(look_text).Saturation == 100,
 		      "Older looks must not change desktop saturation");
-		Check(!presets::Decode(lookText).monochromeEnabled, "Old looks must keep Channel mixer off");
-		auto mixerLook = look;
-		mixerLook.monochromeEnabled = true;
-		mixerLook.monochrome = { 95, 35, 0 };
-		const auto mixerText = presets::Encode(mixerLook);
-		Check(mixerText.find("Version=7") != std::string::npos && presets::Decode(mixerText) == mixerLook,
+		Check(!presets::Decode(look_text).MonochromeEnabled, "Old looks must keep Channel mixer off");
+		auto mixer_look = look;
+		mixer_look.MonochromeEnabled = true;
+		mixer_look.Monochrome = { 95, 35, 0 };
+		const auto mixer_text = presets::Encode(mixer_look);
+		Check(mixer_text.find("Version=7") != std::string::npos && presets::Decode(mixer_text) == mixer_look,
 		      "Channel mixer must round-trip in a new format version");
-		mixerLook.monochromeEnabled = false;
-		Check(presets::Decode(presets::Encode(mixerLook)) == mixerLook, "Disabled channel mix must be retained");
-		Rejects([&] { presets::Decode(Changed(mixerText, "MixRed=0.95", "MixRed=2.01")); },
+		mixer_look.MonochromeEnabled = false;
+		Check(presets::Decode(presets::Encode(mixer_look)) == mixer_look, "Disabled channel mix must be retained");
+		Rejects([&] { presets::Decode(Changed(mixer_text, "MixRed=0.95", "MixRed=2.01")); },
 		        "Invalid channel weight must be refused");
-		Rejects([&] { presets::Decode(Changed(mixerText, "MonochromeEnabled=true", "MonochromeEnabled=maybe")); },
+		Rejects([&] { presets::Decode(Changed(mixer_text, "MonochromeEnabled=true", "MonochromeEnabled=maybe")); },
 		        "Invalid mixer flag must be refused");
 		for (int amount : { 0, 50, 100, 120, 200, 300 })
 		{
-			auto matrixLook = look;
-			matrixLook.saturationEnabled = true;
-			matrixLook.saturation = amount;
-			Check(presets::Decode(presets::Encode(matrixLook)) == matrixLook,
+			auto matrix_look = look;
+			matrix_look.SaturationEnabled = true;
+			matrix_look.Saturation = amount;
+			Check(presets::Decode(presets::Encode(matrix_look)) == matrix_look,
 			      "Saturation including grayscale must round-trip");
-			matrixLook.saturationEnabled = false;
-			Check(presets::Decode(presets::Encode(matrixLook)) == matrixLook,
+			matrix_look.SaturationEnabled = false;
+			Check(presets::Decode(presets::Encode(matrix_look)) == matrix_look,
 			      "Disabled saturation must retain its setting");
 		}
-		auto matrixLook = look;
-		matrixLook.saturationEnabled = true;
-		matrixLook.saturation = 120;
-		const auto matrixText = presets::Encode(matrixLook);
-		Rejects([&] { presets::Decode(Changed(matrixText, "Saturation=1.20", "Saturation=1.21")); },
+		auto matrix_look = look;
+		matrix_look.SaturationEnabled = true;
+		matrix_look.Saturation = 120;
+		const auto matrix_text = presets::Encode(matrix_look);
+		Rejects([&] { presets::Decode(Changed(matrix_text, "Saturation=1.20", "Saturation=1.21")); },
 		        "Out-of-range saturation must be refused");
-		Rejects([&] { presets::Decode(Changed(matrixText, "[Matrix]\r\nEnabled=true", "[Matrix]\r\nEnabled=maybe")); },
+		Rejects([&] { presets::Decode(Changed(matrix_text, "[Matrix]\r\nEnabled=true", "[Matrix]\r\nEnabled=maybe")); },
 		        "Invalid saturation enabled flag must be refused");
-		Rejects([&] { presets::Decode(Changed(matrixText, "Saturation=1.20", "Saturation=nan")); },
+		Rejects([&] { presets::Decode(Changed(matrix_text, "Saturation=1.20", "Saturation=nan")); },
 		        "Non-finite saturation must be refused");
-		matrixLook.saturation = 300;
-		const auto strongText = presets::Encode(matrixLook);
-		Check(strongText.find("Version=6") != std::string::npos,
+		matrix_look.Saturation = 300;
+		const auto strong_text = presets::Encode(matrix_look);
+		Check(strong_text.find("Version=6") != std::string::npos,
 		      "Extended saturation needs a version older builds reject explicitly");
-		Rejects([&] { presets::Decode(Changed(strongText, "Saturation=3.00", "Saturation=3.01")); },
+		Rejects([&] { presets::Decode(Changed(strong_text, "Saturation=3.00", "Saturation=3.01")); },
 		        "Saturation beyond the new range must be refused");
-		auto disabledLook = look;
-		disabledLook.contrastEnabled = false;
-		Check(presets::Decode(presets::Encode(disabledLook)) == disabledLook,
+		auto disabled_look = look;
+		disabled_look.ContrastEnabled = false;
+		Check(presets::Decode(presets::Encode(disabled_look)) == disabled_look,
 		      "Disabled effect must round-trip with its parameters intact");
-		const auto legacy = Changed(Changed(lookText, "Version=2", "Version=1"), "Enabled=true\r\n", "");
+		const auto legacy = Changed(Changed(look_text, "Version=2", "Version=1"), "Enabled=true\r\n", "");
 		Check(presets::Decode(legacy) == look, "Old look files must default to enabled contrast");
-		Rejects([&] { presets::Decode(Changed(lookText, "Enabled=true", "Enabled=maybe")); },
+		Rejects([&] { presets::Decode(Changed(look_text, "Enabled=true", "Enabled=maybe")); },
 		        "Invalid effect enabled flag must be refused");
-		Check(presets::Decode(correctionText) == correction, "Correction must round-trip exactly");
-		auto sdrCorrection = correction;
-		sdrCorrection.applyInSdr = true;
-		Check(presets::Decode(presets::Encode(sdrCorrection)) == sdrCorrection,
+		Check(presets::Decode(correction_text) == correction, "Correction must round-trip exactly");
+		auto sdr_correction = correction;
+		sdr_correction.ApplyInSdr = true;
+		Check(presets::Decode(presets::Encode(sdr_correction)) == sdr_correction,
 		      "SDR applicability must round-trip in correction presets");
-		Check(!presets::Decode(correctionText).applyInSdr, "Existing correction presets must remain HDR-only");
-		Check(presets::Decode("\xef\xbb\xbf" + lookText) == look, "UTF-8 BOM must be accepted");
-		Check(lookText.find("Gamma=") == std::string::npos && correctionText.find("Contrast=") == std::string::npos,
+		Check(!presets::Decode(correction_text).ApplyInSdr, "Existing correction presets must remain HDR-only");
+		Check(presets::Decode("\xef\xbb\xbf" + look_text) == look, "UTF-8 BOM must be accepted");
+		Check(look_text.find("Gamma=") == std::string::npos && correction_text.find("Contrast=") == std::string::npos,
 		      "Files must isolate creative settings and correction settings");
-		Rejects([&] { presets::Decode(Changed(lookText, "Version=2", "Version=99")); },
+		Rejects([&] { presets::Decode(Changed(look_text, "Version=2", "Version=99")); },
 		        "Unknown versions must be refused");
-		Rejects([&] { presets::Decode(Changed(lookText, "Contrast=0.18", "Contrast=nan")); },
+		Rejects([&] { presets::Decode(Changed(look_text, "Contrast=0.18", "Contrast=nan")); },
 		        "Non-finite numbers must be refused");
-		Rejects([&] { presets::Decode(Changed(lookText, "Contrast=0.18", "Contrast=0.26")); },
+		Rejects([&] { presets::Decode(Changed(look_text, "Contrast=0.18", "Contrast=0.26")); },
 		        "Out-of-range values must be refused");
-		Rejects([&] { presets::Decode(Changed(lookText, "Contrast=0.18", "Contrast=0.123")); },
+		Rejects([&] { presets::Decode(Changed(look_text, "Contrast=0.18", "Contrast=0.123")); },
 		        "Unsupported precision must not be silently rounded");
-		Rejects([&] { presets::Decode(Changed(lookText, "Contrast=0.18", "Contrast=0,18")); },
+		Rejects([&] { presets::Decode(Changed(look_text, "Contrast=0.18", "Contrast=0,18")); },
 		        "File numbers must be independent of system locale");
-		Rejects([&] { presets::Decode(lookText + "Pivot=0.60\n"); }, "Duplicate fields must be refused");
-		Rejects([&] { presets::Decode(lookText + "[Correction]\nGamma=2.4\n"); }, "Mixed-role fields must be refused");
-		Rejects([&] { presets::Decode(Changed(correctionText, "Gamma=2.4", "Gamma=3.0")); },
+		Rejects([&] { presets::Decode(look_text + "Pivot=0.60\n"); }, "Duplicate fields must be refused");
+		Rejects([&] { presets::Decode(look_text + "[Correction]\nGamma=2.4\n"); }, "Mixed-role fields must be refused");
+		Rejects([&] { presets::Decode(Changed(correction_text, "Gamma=2.4", "Gamma=3.0")); },
 		        "Unsupported gamma must be refused");
-		Rejects([&] { presets::Decode(Changed(correctionText, "Enabled=false", "Enabled=maybe")); },
+		Rejects([&] { presets::Decode(Changed(correction_text, "Enabled=false", "Enabled=maybe")); },
 		        "Invalid booleans must be refused");
 		Rejects([&] { presets::Decode(std::string(1048577, 'a')); }, "Oversized files must be refused");
-		Rejects([&] { presets::Decode(lookText + std::string(1, '\0')); }, "Embedded NUL must be refused");
+		Rejects([&] { presets::Decode(look_text + std::string(1, '\0')); }, "Embedded NUL must be refused");
 		wchar_t temp[32768] {};
 		Check(GetTempPathW(static_cast<DWORD>(std::size(temp)), temp) != 0, "No temporary directory");
 		folder = std::filesystem::path(temp) / (L"LutPresetTests-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
@@ -135,7 +135,7 @@ int main(int argc, char** argv)
 		presets::Write(path, look, false);
 		Check(presets::Read(path) == look, "Unicode paths must round-trip");
 		presets::Draft draft { path, look, look };
-		draft.current.contrast = -12;
+		draft.current.Contrast = -12;
 		Check(draft.IsDirty() && !draft.CanAutosave(false),
 		      "Manual mode must retain unsaved edits without scheduling a write");
 		Check(presets::Read(path) == look, "Draft edits must leave the saved file unchanged");

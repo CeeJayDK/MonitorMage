@@ -72,10 +72,10 @@ int main()
 				      "Spline must preserve the existing HDR extension above reference white");
 			}
 			color::Adjustments curves;
-			curves.curves[0] = { 0, .05, .15, .3, .5, .7, .85, .95, 1 };
-			curves.curves[1] = { 0, .1, .2, .3, .4, .6, .8, .9, 1 };
+			curves.Curves[0] = { 0, .05, .15, .3, .5, .7, .85, .95, 1 };
+			curves.Curves[1] = { 0, .1, .2, .3, .4, .6, .8, .9, 1 };
 			const double x = .31,
-						 expected = color::SampleSpline(curves.curves[1], color::SampleSpline(curves.curves[0], x));
+						 expected = color::SampleSpline(curves.Curves[1], color::SampleSpline(curves.Curves[0], x));
 			Check(color::ApplyStageToSignal(x, 0, 6, curves) == expected,
 			      "Master and RGB curves must both use the displayed cubic interpolation");
 		}
@@ -89,19 +89,19 @@ int main()
 		live::Output sdr, hdr;
 		hdr.hdr = true;
 		hdr.white = 280;
-		live::Settings s;
-		s.hdrFix = false;
-		s.order = { 0, 2, 3, 4, 5, 6, 7, 1 };
-		Check(live::BuildGammaRamp(baseline, sdr, s) == baseline,
+		live::Settings settings;
+		settings.HdrFix = false;
+		settings.Order = { 0, 2, 3, 4, 5, 6, 7, 1 };
+		Check(live::BuildGammaRamp(baseline, sdr, settings) == baseline,
 		      "Neutral adjustments must preserve calibration exactly");
-		Check(live::BuildGammaRamp(baseline, hdr, s) == baseline,
+		Check(live::BuildGammaRamp(baseline, hdr, settings) == baseline,
 		      "Neutral HDR adjustments must preserve calibration exactly");
 		{
-			auto ordered = s;
-			ordered.hdrFix = true;
-			ordered.contrast = .2;
+			auto ordered = settings;
+			ordered.HdrFix = true;
+			ordered.Contrast = .2;
 			auto legacy = ordered;
-			legacy.order.clear();
+			legacy.Order.clear();
 			const auto now = live::BuildGammaRamp(baseline, hdr, ordered),
 					   old = live::BuildGammaRamp(baseline, hdr, legacy);
 			for (size_t c = 0; c < 3; ++c)
@@ -111,54 +111,55 @@ int main()
 		}
 		for (int stage = 2; stage <= 7; ++stage)
 		{
-			s.adjustments = {};
-			auto& a = s.adjustments;
+			settings.Adjustments = {};
+			auto& adjustments = settings.Adjustments;
 			if (stage == 2)
-				a.balance = { 130, 90, 80, 15, -20 };
+				adjustments.Balance = { 130, 90, 80, 15, -20 };
 			if (stage == 3)
-				a.midtone = 150;
+				adjustments.Midtone = 150;
 			if (stage == 4)
-				a.levels = { 5, 95, 8, 88 };
+				adjustments.Levels = { 5, 95, 8, 88 };
 			if (stage == 5)
 			{
-				a.shadows = 40;
-				a.highlights = -35;
+				adjustments.Shadows = 40;
+				adjustments.Highlights = -35;
 			}
 			if (stage == 6)
-				a.curves[1] = { 0, .07, .17, .30, .46, .62, .76, .90, 1 };
+				adjustments.Curves[1] = { 0, .07, .17, .30, .46, .62, .76, .90, 1 };
 			if (stage == 7)
-				a.imported = lut1d::DecodeCube("LUT_1D_SIZE 3\n0 0 0\n.3 .4 .5\n.9 .95 1\n");
+				adjustments.Imported = lut1d::DecodeCube("LUT_1D_SIZE 3\n0 0 0\n.3 .4 .5\n.9 .95 1\n");
 			for (const auto& output : { sdr, hdr })
 			{
-				const auto ramp = live::BuildGammaRamp(baseline, output, s);
+				const auto ramp = live::BuildGammaRamp(baseline, output, settings);
 				Check(ramp != baseline, "Every nonneutral enabled stage must affect the ramp");
 				for (size_t c = 0; c < 3; ++c)
 					for (size_t i = 1; i < 256; ++i)
 						Check(ramp[c][i] >= ramp[c][i - 1], "Compiled ramp must remain monotone");
-				s.bypass = true;
-				Check(live::BuildGammaRamp(baseline, output, s) == baseline, "Bypass must remove every creative stage");
-				s.bypass = false;
+				settings.Bypass = true;
+				Check(live::BuildGammaRamp(baseline, output, settings) == baseline,
+				      "Bypass must remove every creative stage");
+				settings.Bypass = false;
 			}
 			const double white = color::NitsToPq(hdr.white), epsilon = 1e-9;
 			for (int c = 0; c < 3; ++c)
-				Check(std::abs(live::EvaluateOutputCode(white - epsilon, c, hdr, s) -
-				               live::EvaluateOutputCode(white + epsilon, c, hdr, s)) < 1e-6,
+				Check(std::abs(live::EvaluateOutputCode(white - epsilon, c, hdr, settings) -
+				               live::EvaluateOutputCode(white + epsilon, c, hdr, settings)) < 1e-6,
 				      "HDR boundary must be continuous");
 			presets::Data data;
-			data.adjustments = a;
+			data.Adjustments = adjustments;
 			const auto encoded = presets::Encode(data);
 			Check(presets::Decode(encoded) == data, "Every adjustment must roundtrip exactly");
 			Check(encoded.find("Version=3") != std::string::npos, "Extended looks must use version 3");
 			presets::Draft draft { {}, data, data };
-			draft.current.adjustments.balanceEnabled = !data.adjustments.balanceEnabled;
+			draft.current.Adjustments.BalanceEnabled = !data.Adjustments.BalanceEnabled;
 			Check(draft.IsDirty(), "Switches must participate in preset dirtiness");
 		}
 		for (int shadows : { -50, 0, 50 })
 			for (int highlights : { -50, 0, 50 })
 			{
 				color::Adjustments a;
-				a.shadows = shadows;
-				a.highlights = highlights;
+				a.Shadows = shadows;
+				a.Highlights = highlights;
 				double last = 0;
 				for (int i = 0; i <= 10000; ++i)
 				{
@@ -167,25 +168,25 @@ int main()
 					last = y;
 				}
 			}
-		s.adjustments = {};
-		s.adjustments.balance[3] = 40;
-		const auto gains = color::BalanceGains(s.adjustments);
+		settings.Adjustments = {};
+		settings.Adjustments.Balance[color::BALANCE_WARMTH] = 40;
+		const auto gains = color::BalanceGains(settings.Adjustments);
 		Check(gains[0] > gains[2] && *std::max_element(gains.begin(), gains.end()) <= 1,
 		      "Warmth must favour red without gain clipping");
-		s.adjustments.balanceEnabled = false;
-		Check(live::BuildGammaRamp(baseline, sdr, s) == baseline,
+		settings.Adjustments.BalanceEnabled = false;
+		Check(live::BuildGammaRamp(baseline, sdr, settings) == baseline,
 		      "Disabled balance must keep parameters without affecting output");
-		s.adjustments = {};
-		s.adjustments.levels = { 10, 90, 4, 95 };
-		s.contrast = .2;
-		const auto first = live::BuildGammaRamp(identity, sdr, s);
-		std::swap(s.order[0], s.order[3]);
-		Check(first != live::BuildGammaRamp(identity, sdr, s), "Effect reordering must change compiled values");
-		auto bad = s;
-		bad.order = { 0, 0, 2, 3, 4, 5, 6, 7 };
+		settings.Adjustments = {};
+		settings.Adjustments.Levels = { 10, 90, 4, 95 };
+		settings.Contrast = .2;
+		const auto first = live::BuildGammaRamp(identity, sdr, settings);
+		std::swap(settings.Order[0], settings.Order[3]);
+		Check(first != live::BuildGammaRamp(identity, sdr, settings), "Effect reordering must change compiled values");
+		auto bad = settings;
+		bad.Order = { 0, 0, 2, 3, 4, 5, 6, 7 };
 		Rejects([&] { live::BuildGammaRamp(identity, sdr, bad); });
 		color::Adjustments a;
-		a.levels = { 50, 50, 0, 100 };
+		a.Levels = { 50, 50, 0, 100 };
 		Rejects([&] { color::Validate(a); });
 		for (const auto& text :
 		     { "LUT_3D_SIZE 2\n", "LUT_1D_SIZE 2\n0 0 0\n", "LUT_1D_SIZE 2\n0 0 0\n1 1 nan\n",
@@ -195,7 +196,7 @@ int main()
 		presets::Data dense;
 		for (int c = 0; c < 3; ++c)
 			for (int i = 0; i < 1024; ++i)
-				dense.adjustments.imported[c].push_back(std::pow(i / 1023.0, 1 + c * .1));
+				dense.Adjustments.Imported[c].push_back(std::pow(i / 1023.0, 1 + c * .1));
 		Check(presets::Decode(presets::Encode(dense)) == dense,
 		      "1024-sample imported curves must roundtrip without precision loss");
 		std::cout

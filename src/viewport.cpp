@@ -8,7 +8,7 @@ namespace ui
 {
 namespace
 {
-constexpr wchar_t Property[] = L"MonitorMageViewport";
+constexpr wchar_t VIEWPORT_PROPERTY[] = L"MonitorMageViewport";
 struct View
 {
 	SIZE content {};
@@ -20,7 +20,7 @@ struct View
 
 View* GetViewState(HWND window)
 {
-	return reinterpret_cast<View*>(GetPropW(window, Property));
+	return reinterpret_cast<View*>(GetPropW(window, VIEWPORT_PROPERTY));
 }
 
 void ScrollTo(HWND window, View& view, int x, int y)
@@ -59,19 +59,19 @@ void UpdateScrollbars(HWND window, View& view)
 	const auto preferred = reinterpret_cast<SIZE*>(GetPropW(window, L"MonitorMagePreferredSize"));
 	if (preferred)
 		view.content = { MulDiv(preferred->cx, dpi, 96), MulDiv(preferred->cy, dpi, 96) };
-	bool h = client.right < view.content.cx, v = client.bottom < view.content.cy;
+	bool needs_horizontal = client.right < view.content.cx, needs_vertical = client.bottom < view.content.cy;
 	// One scrollbar can make the other necessary.
 	for (int i = 0; i < 2; ++i)
 	{
-		h = client.right - (v ? thickness : 0) < view.content.cx;
-		v = client.bottom - (h ? thickness : 0) < view.content.cy;
+		needs_horizontal = client.right - (needs_vertical ? thickness : 0) < view.content.cx;
+		needs_vertical = client.bottom - (needs_horizontal ? thickness : 0) < view.content.cy;
 	}
-	view.width = std::max(1, static_cast<int>(client.right) - (v ? thickness : 0));
-	view.height = std::max(1, static_cast<int>(client.bottom) - (h ? thickness : 0));
+	view.width = std::max(1, static_cast<int>(client.right) - (needs_vertical ? thickness : 0));
+	view.height = std::max(1, static_cast<int>(client.bottom) - (needs_horizontal ? thickness : 0));
 	SetWindowPos(view.horizontal, HWND_TOP, 0, view.height, view.width, thickness,
-	             SWP_NOACTIVATE | (h ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
+	             SWP_NOACTIVATE | (needs_horizontal ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
 	SetWindowPos(view.vertical, HWND_TOP, view.width, 0, thickness, view.height,
-	             SWP_NOACTIVATE | (v ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
+	             SWP_NOACTIVATE | (needs_vertical ? SWP_SHOWWINDOW : SWP_HIDEWINDOW));
 	SCROLLINFO info { sizeof(info),
 		              SIF_RANGE | SIF_PAGE | SIF_POS,
 		              0,
@@ -88,25 +88,25 @@ void UpdateScrollbars(HWND window, View& view)
 	view.busy = false;
 }
 
-LRESULT CALLBACK ViewportProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK ViewportProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
 	auto* view = GetViewState(window);
 	if (!view)
-		return DefSubclassProc(window, msg, wp, lp);
-	if (msg == WM_NCDESTROY)
+		return DefSubclassProc(window, message, w_param, l_param);
+	if (message == WM_NCDESTROY)
 	{
-		RemovePropW(window, Property);
+		RemovePropW(window, VIEWPORT_PROPERTY);
 		RemoveWindowSubclass(window, ViewportProc, 83);
 		delete view;
-		return DefSubclassProc(window, msg, wp, lp);
+		return DefSubclassProc(window, message, w_param, l_param);
 	}
-	if ((msg == WM_VSCROLL || msg == WM_HSCROLL) &&
-	    reinterpret_cast<HWND>(lp) == (msg == WM_VSCROLL ? view->vertical : view->horizontal))
+	if ((message == WM_VSCROLL || message == WM_HSCROLL) &&
+	    reinterpret_cast<HWND>(l_param) == (message == WM_VSCROLL ? view->vertical : view->horizontal))
 	{
-		const bool vertical = msg == WM_VSCROLL;
+		const bool vertical = message == WM_VSCROLL;
 		int value = vertical ? view->offset.y : view->offset.x;
 		const int page = vertical ? view->height : view->width, line = MulDiv(32, GetDpiForWindow(window), 96);
-		switch (LOWORD(wp))
+		switch (LOWORD(w_param))
 		{
 			case SB_LINEUP:
 				value -= line;
@@ -130,7 +130,7 @@ LRESULT CALLBACK ViewportProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_
 			case SB_THUMBTRACK:
 			{
 				SCROLLINFO info { sizeof(info), SIF_TRACKPOS };
-				GetScrollInfo(reinterpret_cast<HWND>(lp), SB_CTL, &info);
+				GetScrollInfo(reinterpret_cast<HWND>(l_param), SB_CTL, &info);
 				value = info.nTrackPos;
 				break;
 			}
@@ -140,21 +140,22 @@ LRESULT CALLBACK ViewportProc(HWND window, UINT msg, WPARAM wp, LPARAM lp, UINT_
 		ScrollTo(window, *view, vertical ? view->offset.x : value, vertical ? value : view->offset.y);
 		return 0;
 	}
-	if (msg == WM_MOUSEWHEEL || msg == WM_MOUSEHWHEEL)
+	if (message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL)
 	{
 		const bool horizontal =
-			msg == WM_MOUSEHWHEEL || (GET_KEYSTATE_WPARAM(wp) & MK_SHIFT) || view->content.cy <= view->height;
+			message == WM_MOUSEHWHEEL || (GET_KEYSTATE_WPARAM(w_param) & MK_SHIFT) || view->content.cy <= view->height;
 		if ((horizontal ? view->content.cx > view->width : view->content.cy > view->height))
 		{
-			const int delta = MulDiv(GET_WHEEL_DELTA_WPARAM(wp), MulDiv(48, GetDpiForWindow(window), 96), WHEEL_DELTA) *
-			                  (msg == WM_MOUSEHWHEEL ? 1 : -1);
+			const int delta =
+				MulDiv(GET_WHEEL_DELTA_WPARAM(w_param), MulDiv(48, GetDpiForWindow(window), 96), WHEEL_DELTA) *
+				(message == WM_MOUSEHWHEEL ? 1 : -1);
 			ScrollTo(window, *view, view->offset.x + (horizontal ? delta : 0),
 			         view->offset.y + (horizontal ? 0 : delta));
 			return 0;
 		}
 	}
-	const auto result = DefSubclassProc(window, msg, wp, lp);
-	if (msg == WM_SIZE || msg == WM_DPICHANGED || msg == WM_SHOWWINDOW)
+	const auto result = DefSubclassProc(window, message, w_param, l_param);
+	if (message == WM_SIZE || message == WM_DPICHANGED || message == WM_SHOWWINDOW)
 		UpdateScrollbars(window, *view);
 	return result;
 }
@@ -172,7 +173,7 @@ void EnableViewport(HWND window, int width, int height)
 		return;
 	auto* view = new View;
 	view->content = { width, height };
-	if (!SetPropW(window, Property, view))
+	if (!SetPropW(window, VIEWPORT_PROPERTY, view))
 	{
 		delete view;
 		return;

@@ -51,7 +51,7 @@ class Cache
 		int size;
 		HICON icon;
 	};
-	std::vector<Entry> entries_;
+	std::vector<Entry> _entries;
 
 public:
 	Cache() = default;
@@ -59,18 +59,18 @@ public:
 	Cache& operator=(const Cache&) = delete;
 	~Cache()
 	{
-		for (const auto& entry : entries_)
+		for (const auto& entry : _entries)
 			DestroyIcon(entry.icon);
 	}
 	HICON GetIcon(HINSTANCE instance, State state, int size)
 	{
-		for (const auto& entry : entries_)
+		for (const auto& entry : _entries)
 			if (entry.state == state && entry.size == size)
 				return entry.icon;
 		HICON icon =
 			static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(ResourceId(state)), IMAGE_ICON, size, size, 0));
 		if (icon)
-			entries_.push_back({ state, size, icon });
+			_entries.push_back({ state, size, icon });
 		return icon;
 	}
 };

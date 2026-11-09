@@ -15,7 +15,7 @@ inline std::wstring ExecutablePath()
 	return std::wstring(path, length);
 }
 
-inline constexpr const wchar_t* RunKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+inline constexpr const wchar_t* RUN_REGISTRY_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 inline void RegistryError(LSTATUS status)
 {
 	if (status != ERROR_SUCCESS)
@@ -37,10 +37,10 @@ inline std::wstring StartupCommand(const std::wstring& exe)
 	return L"\"" + exe + L"\"";
 }
 
-inline bool StartsWithWindows(const std::wstring& exe, const wchar_t* keyPath = RunKey)
+inline bool StartsWithWindows(const std::wstring& exe, const wchar_t* key_path = RUN_REGISTRY_KEY)
 {
 	Key key;
-	auto status = RegOpenKeyExW(HKEY_CURRENT_USER, keyPath, 0, KEY_QUERY_VALUE, &key.value);
+	auto status = RegOpenKeyExW(HKEY_CURRENT_USER, key_path, 0, KEY_QUERY_VALUE, &key.value);
 	if (status == ERROR_FILE_NOT_FOUND)
 		return false;
 	RegistryError(status);
@@ -57,13 +57,13 @@ inline bool StartsWithWindows(const std::wstring& exe, const wchar_t* keyPath = 
 	return type == REG_SZ && _wcsicmp(text.data(), StartupCommand(exe).c_str()) == 0;
 }
 
-inline void StartWithWindows(const std::wstring& exe, bool enabled, const wchar_t* keyPath = RunKey)
+inline void StartWithWindows(const std::wstring& exe, bool enabled, const wchar_t* key_path = RUN_REGISTRY_KEY)
 {
 	Key key;
 	if (enabled)
 	{
 		RegistryError(
-			RegCreateKeyExW(HKEY_CURRENT_USER, keyPath, 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key.value, nullptr));
+			RegCreateKeyExW(HKEY_CURRENT_USER, key_path, 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key.value, nullptr));
 		const auto command = StartupCommand(exe);
 		RegistryError(RegSetValueExW(key.value, L"MonitorMage", 0, REG_SZ,
 		                             reinterpret_cast<const BYTE*>(command.c_str()),
@@ -71,7 +71,7 @@ inline void StartWithWindows(const std::wstring& exe, bool enabled, const wchar_
 	}
 	else
 	{
-		auto status = RegOpenKeyExW(HKEY_CURRENT_USER, keyPath, 0, KEY_SET_VALUE, &key.value);
+		auto status = RegOpenKeyExW(HKEY_CURRENT_USER, key_path, 0, KEY_SET_VALUE, &key.value);
 		if (status == ERROR_FILE_NOT_FOUND)
 			return;
 		RegistryError(status);

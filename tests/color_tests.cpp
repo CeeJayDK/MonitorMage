@@ -41,7 +41,7 @@ void Tests()
 	Check(color::NitsToPq(0) == 0 && color::PqToNits(0) == 0, "Exact black");
 	for (double nits : { 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0 })
 		Near(color::PqToNits(color::NitsToPq(nits)), nits, std::max(1e-8, nits * 1e-10), "PQ roundtrip");
-	for (double code : { 0.0, 0.01, color::srgbCodeKnee, 0.1, 0.5, 1.0 })
+	for (double code : { 0.0, 0.01, color::SRGB_CODE_KNEE, 0.1, 0.5, 1.0 })
 		Near(color::SrgbEncode(color::SrgbDecode(code)), code, 1e-12, "sRGB roundtrip");
 
 	// Work from source SDR values to expected luminance rather than only checking

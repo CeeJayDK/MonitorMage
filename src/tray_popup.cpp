@@ -12,7 +12,7 @@ namespace ui
 {
 namespace
 {
-constexpr UINT Choose = WM_APP + 40;
+constexpr UINT MESSAGE_ITEM_CHOSEN = WM_APP + 40;
 struct Popup
 {
 	HWND window {}, list {};
@@ -20,7 +20,7 @@ struct Popup
 	HICON icon {};
 	UINT dpi = 96, command = 0;
 	const std::vector<MenuItem>* items {};
-	bool below = false, compact = false, ignoreOpeningRelease = false, paintingList = false;
+	bool below = false, compact = false, ignore_opening_release = false, painting_list = false;
 };
 
 int ScaleForDpi(const Popup& state, int n)
@@ -45,18 +45,18 @@ void PaintList(Popup& state, HDC dc)
 	if (frame && frame.IsBuffered())
 	{
 		FillRect(frame.DeviceContext(), &bounds, BackgroundBrush());
-		state.paintingList = true;
+		state.painting_list = true;
 		SendMessageW(state.list, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(frame.DeviceContext()), PRF_CLIENT);
-		state.paintingList = false;
+		state.painting_list = false;
 	}
 }
 
-LRESULT CALLBACK PopupListProc(HWND list, UINT msg, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR ref)
+LRESULT CALLBACK PopupListProc(HWND list, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR ref)
 {
 	auto& state = *reinterpret_cast<Popup*>(ref);
-	if (msg == WM_ERASEBKGND)
+	if (message == WM_ERASEBKGND)
 		return 1; // The buffered paint supplies the background.
-	if (msg == WM_PAINT)
+	if (message == WM_PAINT)
 	{
 		PAINTSTRUCT p {};
 		HDC dc = BeginPaint(list, &p);
@@ -64,22 +64,22 @@ LRESULT CALLBACK PopupListProc(HWND list, UINT msg, WPARAM wp, LPARAM lp, UINT_P
 		EndPaint(list, &p);
 		return 0;
 	}
-	if (msg == WM_KEYDOWN && (wp == VK_RETURN || wp == VK_ESCAPE))
+	if (message == WM_KEYDOWN && (w_param == VK_RETURN || w_param == VK_ESCAPE))
 	{
-		if (wp == VK_RETURN)
+		if (w_param == VK_RETURN)
 			ChooseSelectedRow(state);
 		else
 			DestroyWindow(state.window);
 		return 0;
 	}
-	if (msg == WM_KEYDOWN && (wp == VK_UP || wp == VK_DOWN || wp == VK_HOME || wp == VK_END))
+	if (message == WM_KEYDOWN && (w_param == VK_UP || w_param == VK_DOWN || w_param == VK_HOME || w_param == VK_END))
 	{
 		const int count = static_cast<int>(state.items->size());
 		int row = static_cast<int>(SendMessageW(list, LB_GETCURSEL, 0, 0));
-		const int direction = (wp == VK_UP || wp == VK_END) ? -1 : 1;
-		if (wp == VK_HOME)
+		const int direction = (w_param == VK_UP || w_param == VK_END) ? -1 : 1;
+		if (w_param == VK_HOME)
 			row = -1;
-		else if (wp == VK_END)
+		else if (w_param == VK_END)
 			row = count;
 		for (int i = 0; i < count; ++i)
 		{
@@ -92,7 +92,7 @@ LRESULT CALLBACK PopupListProc(HWND list, UINT msg, WPARAM wp, LPARAM lp, UINT_P
 		}
 		return 0;
 	}
-	return DefSubclassProc(list, msg, wp, lp);
+	return DefSubclassProc(list, message, w_param, l_param);
 }
 
 int PointerRow(Popup& state, LPARAM point)
@@ -110,38 +110,38 @@ void PaintPopup(Popup& state, HDC dc)
 	GetClientRect(state.window, &rect);
 	FillRect(dc, &rect, BackgroundBrush());
 	HPEN pen = CreatePen(PS_SOLID, 1, RGB(60, 64, 71));
-	auto oldPen = SelectObject(dc, pen);
-	auto oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH));
+	auto old_pen = SelectObject(dc, pen);
+	auto old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH));
 	RoundRect(dc, 0, 0, rect.right, rect.bottom, ScaleForDpi(state, 16), ScaleForDpi(state, 16));
-	SelectObject(dc, oldBrush);
-	SelectObject(dc, oldPen);
+	SelectObject(dc, old_brush);
+	SelectObject(dc, old_pen);
 	DeleteObject(pen);
 	if (state.compact)
 		return;
 	if (state.icon)
 		DrawIconEx(dc, ScaleForDpi(state, 18), ScaleForDpi(state, 17), state.icon, ScaleForDpi(state, 20),
 		           ScaleForDpi(state, 20), 0, nullptr, DI_NORMAL);
-	auto oldFont = SelectObject(dc, state.font);
+	auto old_font = SelectObject(dc, state.font);
 	SetBkMode(dc, TRANSPARENT);
-	SetTextColor(dc, Muted);
+	SetTextColor(dc, THEME_MUTED);
 	RECT label { ScaleForDpi(state, 50), ScaleForDpi(state, 8), rect.right - ScaleForDpi(state, 12),
 		         ScaleForDpi(state, 47) };
 	DrawTextW(dc, L"MonitorMage " MONITORMAGE_VERSION_W, -1, &label, DT_SINGLELINE | DT_VCENTER);
-	SelectObject(dc, oldFont);
+	SelectObject(dc, old_font);
 }
 
-LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
+LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param)
 {
 	auto state = reinterpret_cast<Popup*>(GetWindowLongPtrW(window, GWLP_USERDATA));
-	if (msg == WM_NCCREATE)
+	if (message == WM_NCCREATE)
 	{
-		state = static_cast<Popup*>(reinterpret_cast<LPCREATESTRUCTW>(lp)->lpCreateParams);
+		state = static_cast<Popup*>(reinterpret_cast<LPCREATESTRUCTW>(l_param)->lpCreateParams);
 		state->window = window;
 		SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
 	}
 	if (!state)
-		return DefWindowProcW(window, msg, wp, lp);
-	switch (msg)
+		return DefWindowProcW(window, message, w_param, l_param);
+	switch (message)
 	{
 		case WM_CREATE:
 		{
@@ -151,7 +151,7 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 			{
 				LOGFONTW font {};
 				GetObjectW(state->font, sizeof(font), &font);
-				font.lfHeight = -ScaleForDpi(*state, style::SecondaryTextSize);
+				font.lfHeight = -ScaleForDpi(*state, style::SECONDARY_TEXT_SIZE);
 				auto smaller = CreateFontIndirectW(&font);
 				if (smaller)
 				{
@@ -178,13 +178,13 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 				                  (item.enabled ? L"" : L" (unavailable)");
 				const auto row = SendMessageW(state->list, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(text.c_str()));
 				SendMessageW(state->list, LB_SETITEMDATA, row, item.id);
-				const int rowHeight = ScaleForDpi(*state, state->compact ? (item.separatorBefore ? 30 : 24)
-				                                                         : (item.separatorBefore ? 44 : 36));
-				SendMessageW(state->list, LB_SETITEMHEIGHT, row, rowHeight);
-				height += rowHeight;
+				const int row_height = ScaleForDpi(*state, state->compact ? (item.separator_before ? 30 : 24)
+				                                                          : (item.separator_before ? 44 : 36));
+				SendMessageW(state->list, LB_SETITEMHEIGHT, row, row_height);
+				height += row_height;
 			}
 			HDC measure = GetDC(window);
-			const auto oldFont = SelectObject(measure, state->font);
+			const auto old_font = SelectObject(measure, state->font);
 			int width = ScaleForDpi(*state, state->compact ? 160 : 200);
 			for (const auto& item : *state->items)
 			{
@@ -196,7 +196,7 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 				                                                                : (item.shortcut.empty() ? 40 : 56)) +
 				                                                    (item.glyph != Glyph::None ? 24 : 0)));
 			}
-			SelectObject(measure, oldFont);
+			SelectObject(measure, old_font);
 			ReleaseDC(window, measure);
 			const int margin = state->compact ? 4 : 6, top = state->compact ? 4 : 51, extra = state->compact ? 8 : 61;
 			MoveWindow(state->list, ScaleForDpi(*state, margin), ScaleForDpi(*state, top),
@@ -216,47 +216,47 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 			return 0;
 		}
 		case WM_CTLCOLORLISTBOX:
-			SetBkColor(reinterpret_cast<HDC>(wp), Background);
+			SetBkColor(reinterpret_cast<HDC>(w_param), THEME_BACKGROUND);
 			return reinterpret_cast<LRESULT>(BackgroundBrush());
 		case WM_MEASUREITEM:
-			reinterpret_cast<MEASUREITEMSTRUCT*>(lp)->itemHeight = ScaleForDpi(*state, 36);
+			reinterpret_cast<MEASUREITEMSTRUCT*>(l_param)->itemHeight = ScaleForDpi(*state, 36);
 			return TRUE;
 		case WM_DRAWITEM:
 		{
-			const auto item = reinterpret_cast<DRAWITEMSTRUCT*>(lp);
+			const auto item = reinterpret_cast<DRAWITEMSTRUCT*>(l_param);
 			if (item->itemID >= state->items->size())
 				return TRUE;
 			// Selection changes can send WM_DRAWITEM outside WM_PAINT. Buffer those
 			// rows too, so their erase and content reach the screen together.
 			const auto& entry = (*state->items)[item->itemID];
 			RECT rect = item->rcItem;
-			paint::Buffer row(state->paintingList ? nullptr : item->hDC, rect);
-			if (!state->paintingList && (!row || !row.IsBuffered()))
+			paint::Buffer row(state->painting_list ? nullptr : item->hDC, rect);
+			if (!state->painting_list && (!row || !row.IsBuffered()))
 				return TRUE;
-			auto dc = state->paintingList ? item->hDC : row.DeviceContext();
+			auto dc = state->painting_list ? item->hDC : row.DeviceContext();
 			FillRect(dc, &rect, BackgroundBrush());
-			if (entry.separatorBefore)
+			if (entry.separator_before)
 			{
 				RECT line { rect.left + ScaleForDpi(*state, 6), rect.top + ScaleForDpi(*state, 3),
 					        rect.right - ScaleForDpi(*state, 6), rect.top + ScaleForDpi(*state, 3) + 1 };
-				HBRUSH brush = CreateSolidBrush(Border);
+				HBRUSH brush = CreateSolidBrush(THEME_BORDER);
 				FillRect(dc, &line, brush);
 				DeleteObject(brush);
 				rect.top += ScaleForDpi(*state, state->compact ? 6 : 8);
 			}
 			if ((item->itemState & ODS_SELECTED) && entry.enabled)
 			{
-				HPEN pen = CreatePen(PS_SOLID, 1, FocusBorder);
-				auto oldBrush = SelectObject(dc, GetStockObject(NULL_BRUSH)), oldPen = SelectObject(dc, pen);
+				HPEN pen = CreatePen(PS_SOLID, 1, THEME_FOCUS_BORDER);
+				auto old_brush = SelectObject(dc, GetStockObject(NULL_BRUSH)), old_pen = SelectObject(dc, pen);
 				RoundRect(dc, rect.left, rect.top, rect.right, rect.bottom, ScaleForDpi(*state, 8),
 				          ScaleForDpi(*state, 8));
-				SelectObject(dc, oldBrush);
-				SelectObject(dc, oldPen);
+				SelectObject(dc, old_brush);
+				SelectObject(dc, old_pen);
 				DeleteObject(pen);
 			}
 			SetBkMode(dc, TRANSPARENT);
-			SetTextColor(dc, entry.enabled ? Text : Muted);
-			auto oldFont = SelectObject(dc, state->font);
+			SetTextColor(dc, entry.enabled ? THEME_TEXT : THEME_MUTED);
+			auto old_font = SelectObject(dc, state->font);
 			RECT label = rect;
 			label.left += ScaleForDpi(*state, state->compact ? 6 : 10);
 			label.right -= ScaleForDpi(*state, state->compact ? 6 : 10);
@@ -277,16 +277,16 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 			DrawTextW(dc, entry.text.c_str(), -1, &label, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
 			if (!entry.shortcut.empty())
 			{
-				SetTextColor(dc, Muted);
+				SetTextColor(dc, THEME_MUTED);
 				DrawTextW(dc, entry.shortcut.c_str(), -1, &hint, DT_SINGLELINE | DT_VCENTER | DT_RIGHT | DT_NOPREFIX);
 			}
-			SelectObject(dc, oldFont);
+			SelectObject(dc, old_font);
 			return TRUE;
 		}
 		case WM_ERASEBKGND:
 			return 1;
 		case WM_PRINTCLIENT:
-			PaintPopup(*state, reinterpret_cast<HDC>(wp));
+			PaintPopup(*state, reinterpret_cast<HDC>(w_param));
 			return 0;
 		case WM_PAINT:
 		{
@@ -304,20 +304,20 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 		}
 		case WM_MOUSEMOVE:
 		{
-			const int row = PointerRow(*state, lp);
+			const int row = PointerRow(*state, l_param);
 			if (row != SendMessageW(state->list, LB_GETCURSEL, 0, 0))
 				SendMessageW(state->list, LB_SETCURSEL, row, 0);
 			return 0;
 		}
 		case WM_LBUTTONDOWN:
-			if (PointerRow(*state, lp) < 0)
+			if (PointerRow(*state, l_param) < 0)
 				DestroyWindow(window);
 			return 0;
 		case WM_LBUTTONUP:
 		{
-			const int row = PointerRow(*state, lp);
-			const bool opening = state->ignoreOpeningRelease;
-			state->ignoreOpeningRelease = false;
+			const int row = PointerRow(*state, l_param);
+			const bool opening = state->ignore_opening_release;
+			state->ignore_opening_release = false;
 			if (row >= 0)
 			{
 				SendMessageW(state->list, LB_SETCURSEL, row, 0);
@@ -332,16 +332,16 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 			DestroyWindow(window);
 			return 0;
 		case WM_ACTIVATE:
-			if (LOWORD(wp) == WA_INACTIVE)
+			if (LOWORD(w_param) == WA_INACTIVE)
 				DestroyWindow(window);
 			return 0;
 		case WM_COMMAND:
-			if (LOWORD(wp) == IDOK)
+			if (LOWORD(w_param) == IDOK)
 				ChooseSelectedRow(*state);
-			else if (LOWORD(wp) == IDCANCEL)
+			else if (LOWORD(w_param) == IDCANCEL)
 				DestroyWindow(window);
 			return 0;
-		case Choose:
+		case MESSAGE_ITEM_CHOSEN:
 			ChooseSelectedRow(*state);
 			return 0;
 		case WM_CLOSE:
@@ -357,22 +357,22 @@ LRESULT CALLBACK TrayPopupWindowProc(HWND window, UINT msg, WPARAM wp, LPARAM lp
 			}
 			return 0;
 	}
-	return DefWindowProcW(window, msg, wp, lp);
+	return DefWindowProcW(window, message, w_param, l_param);
 }
 
 HWND CreatePopupWindow(HWND owner, Popup& state, POINT point)
 {
-	WNDCLASSW cls {};
-	cls.hInstance = GetModuleHandleW(nullptr);
-	cls.lpfnWndProc = TrayPopupWindowProc;
-	cls.lpszClassName = L"MonitorMageTrayPopup";
-	cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-	cls.hbrBackground = BackgroundBrush();
-	if (!RegisterClassW(&cls) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
+	WNDCLASSW window_class {};
+	window_class.hInstance = GetModuleHandleW(nullptr);
+	window_class.lpfnWndProc = TrayPopupWindowProc;
+	window_class.lpszClassName = L"MonitorMageTrayPopup";
+	window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+	window_class.hbrBackground = BackgroundBrush();
+	if (!RegisterClassW(&window_class) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
 		return nullptr;
-	HWND popup =
-		CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, cls.lpszClassName, L"MonitorMage tray menu",
-	                    WS_POPUP | WS_CLIPCHILDREN, point.x, point.y, 1, 1, owner, nullptr, cls.hInstance, &state);
+	HWND popup = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, window_class.lpszClassName, L"MonitorMage tray menu",
+	                             WS_POPUP | WS_CLIPCHILDREN, point.x, point.y, 1, 1, owner, nullptr,
+	                             window_class.hInstance, &state);
 	if (!popup)
 		return nullptr;
 	RECT rect {};
@@ -395,7 +395,7 @@ UINT ShowTrayPopup(HWND owner, HICON icon, const std::vector<MenuItem>& items, P
 	state.items = &items;
 	state.below = below;
 	state.compact = below;
-	state.ignoreOpeningRelease = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+	state.ignore_opening_release = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
 	HWND window = CreatePopupWindow(owner, state, anchor);
 	if (!window)
 		return 0;
@@ -461,7 +461,7 @@ bool PopupPaintTest(Popup& state)
 	HBITMAP first = CreateDIBSection(screen, &info, DIB_RGB_COLORS, &a, nullptr, 0),
 			second = CreateDIBSection(screen, &info, DIB_RGB_COLORS, &b, nullptr, 0);
 	ReleaseDC(state.list, screen);
-	auto oldA = SelectObject(partial, first), oldB = SelectObject(full, second);
+	auto old_a = SelectObject(partial, first), old_b = SelectObject(full, second);
 	bool ok = partial && full && first && second;
 	if (ok)
 	{
@@ -470,18 +470,18 @@ bool PopupPaintTest(Popup& state)
 		const size_t bytes = static_cast<size_t>(bounds.right) * bounds.bottom * 4;
 		for (int selected : { 3, 1, 0, 2, 1 })
 		{
-			RECT oldRow {}, newRow {}, damage {};
-			SendMessageW(state.list, LB_GETITEMRECT, previous, reinterpret_cast<LPARAM>(&oldRow));
+			RECT old_row {}, new_row {}, damage {};
+			SendMessageW(state.list, LB_GETITEMRECT, previous, reinterpret_cast<LPARAM>(&old_row));
 			SendMessageW(state.list, LB_SETCURSEL, selected, 0);
-			SendMessageW(state.list, LB_GETITEMRECT, selected, reinterpret_cast<LPARAM>(&newRow));
-			UnionRect(&damage, &oldRow, &newRow);
+			SendMessageW(state.list, LB_GETITEMRECT, selected, reinterpret_cast<LPARAM>(&new_row));
+			UnionRect(&damage, &old_row, &new_row);
 			const int saved = SaveDC(partial);
 			IntersectClipRect(partial, damage.left, damage.top, damage.right, damage.bottom);
 			PaintList(state, partial);
 			RestoreDC(partial, saved);
-			state.paintingList = true;
+			state.painting_list = true;
 			SendMessageW(state.list, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(full), PRF_CLIENT);
-			state.paintingList = false;
+			state.painting_list = false;
 			GdiFlush();
 			if (std::memcmp(a, b, bytes) != 0)
 			{
@@ -499,8 +499,8 @@ bool PopupPaintTest(Popup& state)
 			previous = selected;
 		}
 	}
-	SelectObject(partial, oldA);
-	SelectObject(full, oldB);
+	SelectObject(partial, old_a);
+	SelectObject(full, old_b);
 	DeleteObject(first);
 	DeleteObject(second);
 	DeleteDC(partial);
@@ -558,7 +558,7 @@ int PopupSelfTest(HWND owner)
 	window = CreatePopupWindow(owner, state, point);
 	if (!window)
 		return 5;
-	state.ignoreOpeningRelease = true;
+	state.ignore_opening_release = true;
 	SendMessageW(window, WM_LBUTTONUP, 0, MAKELPARAM(-1, -1));
 	if (!IsWindow(window) || state.command)
 		return 10;

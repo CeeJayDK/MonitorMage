@@ -24,13 +24,13 @@ std::vector<WORD> DialogTemplate()
 	return words;
 }
 
-LRESULT CALLBACK ThemeSubclassProc(HWND window, UINT message, WPARAM wp, LPARAM lp, UINT_PTR, DWORD_PTR)
+LRESULT CALLBACK ThemeSubclassProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param, UINT_PTR, DWORD_PTR)
 {
 	LRESULT result = 0;
-	const bool handled = ui::HandleThemeMessage(window, message, wp, lp, result);
+	const bool handled = ui::HandleThemeMessage(window, message, w_param, l_param, result);
 	if (message == WM_NCDESTROY)
 		RemoveWindowSubclass(window, ThemeSubclassProc, 1);
-	return handled ? result : DefSubclassProc(window, message, wp, lp);
+	return handled ? result : DefSubclassProc(window, message, w_param, l_param);
 }
 
 void LayoutDialog(HWND window)
@@ -53,7 +53,7 @@ void LayoutDialog(HWND window)
 	ui::ApplyWindowFrameTheme(window);
 }
 
-INT_PTR CALLBACK DialogProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
+INT_PTR CALLBACK DialogProc(HWND window, UINT message, WPARAM w_param, LPARAM l_param)
 {
 	switch (message)
 	{
@@ -93,9 +93,9 @@ INT_PTR CALLBACK DialogProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
 			LayoutDialog(window);
 			SendMessageW(window, DM_SETDEFID, IDNO, 0);
 			SetFocus(keep);
-			if (auto check = reinterpret_cast<Check*>(lp))
+			if (auto check = reinterpret_cast<Check*>(l_param))
 			{
-				SetWindowLongPtrW(window, DWLP_USER, lp);
+				SetWindowLongPtrW(window, DWLP_USER, l_param);
 				SetTimer(window, 1, 1500, nullptr);
 				check->valid = GetPropW(window, L"LutCaptionFont") && GetPropW(window, L"UnsavedFont") &&
 				               LOWORD(SendMessageW(window, DM_GETDEFID, 0, 0)) == IDNO && GetFocus() == keep;
@@ -109,9 +109,9 @@ INT_PTR CALLBACK DialogProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
 			return FALSE;
 		}
 		case WM_COMMAND:
-			if (LOWORD(wp) == IDYES || LOWORD(wp) == IDNO || LOWORD(wp) == IDCANCEL)
+			if (LOWORD(w_param) == IDYES || LOWORD(w_param) == IDNO || LOWORD(w_param) == IDCANCEL)
 			{
-				EndDialog(window, LOWORD(wp) == IDYES ? IDYES : IDNO);
+				EndDialog(window, LOWORD(w_param) == IDYES ? IDYES : IDNO);
 				return TRUE;
 			}
 			break;
@@ -119,7 +119,7 @@ INT_PTR CALLBACK DialogProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
 			EndDialog(window, IDNO);
 			return TRUE;
 		case WM_TIMER:
-			if (wp == 1)
+			if (w_param == 1)
 			{
 				if (auto check = reinterpret_cast<Check*>(GetWindowLongPtrW(window, DWLP_USER)))
 					check->valid = false;
@@ -129,7 +129,7 @@ INT_PTR CALLBACK DialogProc(HWND window, UINT message, WPARAM wp, LPARAM lp)
 			break;
 		case WM_DPICHANGED:
 		{
-			const auto rect = reinterpret_cast<RECT*>(lp);
+			const auto rect = reinterpret_cast<RECT*>(l_param);
 			SetWindowPos(window, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top,
 			             SWP_NOZORDER | SWP_NOACTIVATE);
 			LayoutDialog(window);

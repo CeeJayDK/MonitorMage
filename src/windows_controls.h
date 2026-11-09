@@ -10,12 +10,12 @@ struct State
 	std::wstring reason;
 };
 
-inline constexpr const wchar_t* FilterNames[] { L"Grayscale",
-	                                            L"Inverted",
-	                                            L"Grayscale inverted",
-	                                            L"Red-green (deuteranopia)",
-	                                            L"Red-green (protanopia)",
-	                                            L"Blue-yellow (tritanopia)" };
+inline constexpr const wchar_t* FILTER_NAMES[] { L"Grayscale",
+	                                             L"Inverted",
+	                                             L"Grayscale inverted",
+	                                             L"Red-green (deuteranopia)",
+	                                             L"Red-green (protanopia)",
+	                                             L"Blue-yellow (tritanopia)" };
 State ReadColorFilterState();
 enum class Completion
 {
@@ -27,25 +27,26 @@ enum class Completion
 
 // Saved values and helper completion are separate observations. Neither is
 // a measurement of the displayed picture.
-Completion CheckCompletion(const State&, bool requestedOn, DWORD requestedFilter, bool helperExited, DWORD helperCode);
+Completion CheckCompletion(const State&, bool requested_on, DWORD requested_filter, bool helper_exited,
+                           DWORD helper_code);
 const wchar_t* CompletionNotice(Completion);
 class Controller
 {
-	HANDLE process_ = nullptr;
-	unsigned attempts_ = 0;
-	bool expectedOn_ = false;
-	DWORD expectedFilter_ = 0;
-	ULONGLONG deadline_ = 0;
-	std::wstring notice_;
+	HANDLE _process = nullptr;
+	unsigned _attempts = 0;
+	bool _expected_on = false;
+	DWORD _expected_filter = 0;
+	ULONGLONG _deadline = 0;
+	std::wstring _notice;
 
 public:
 	~Controller();
-	bool IsBusy() const { return process_ != nullptr; }
-	void Set(const State& expected, bool on, DWORD filter, bool selectingFilter = false);
+	bool IsBusy() const { return _process != nullptr; }
+	void Set(const State& expected, bool on, DWORD filter, bool selecting_filter = false);
 	// Nonblocking; false while Windows is processing the request.
 	bool Poll();
 	void StopWaiting();
-	const std::wstring& Notice() const { return notice_; }
+	const std::wstring& Notice() const { return _notice; }
 };
 
 void OpenColorFilterSettings(HWND owner);

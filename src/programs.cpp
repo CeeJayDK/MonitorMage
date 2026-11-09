@@ -102,14 +102,14 @@ bool IsUnderFolder(const std::filesystem::path& path, const std::filesystem::pat
 	return CompareIgnoringCase(value.substr(0, base.size()), base) == CSTR_EQUAL;
 }
 
-void SortPrograms(std::vector<Program>& list, bool byMemory)
+void SortPrograms(std::vector<Program>& list, bool by_memory)
 {
 	std::sort(list.begin(), list.end(),
 	          [&](const Program& a, const Program& b)
 	          {
-				  if (byMemory && a.memoryKnown != b.memoryKnown)
-					  return a.memoryKnown;
-				  if (byMemory && a.memory != b.memory)
+				  if (by_memory && a.memory_known != b.memory_known)
+					  return a.memory_known;
+				  if (by_memory && a.memory != b.memory)
 					  return a.memory > b.memory;
 				  const auto order = CompareIgnoringCase(a.name, b.name);
 				  if (order != CSTR_EQUAL)
@@ -118,7 +118,7 @@ void SortPrograms(std::vector<Program>& list, bool byMemory)
 			  });
 }
 
-std::vector<Program> RunningPrograms(bool includeBackground, bool byMemory)
+std::vector<Program> RunningPrograms(bool include_background, bool by_memory)
 {
 	std::set<DWORD> visible;
 	EnumWindows(CollectVisibleWindow, reinterpret_cast<LPARAM>(&visible));
@@ -173,16 +173,16 @@ std::vector<Program> RunningPrograms(bool includeBackground, bool byMemory)
 		if (GetProcessMemoryInfo(process, &counters, sizeof(counters)))
 		{
 			at->memory += counters.WorkingSetSize;
-			at->memoryKnown = true;
+			at->memory_known = true;
 		}
 		CloseHandle(process);
 	}
 	list.erase(std::remove_if(list.begin(), list.end(),
-	                          [&](const Program& item) { return !includeBackground && !item.visible; }),
+	                          [&](const Program& item) { return !include_background && !item.visible; }),
 	           list.end());
 	for (auto& item : list)
 		item.name = DisplayName(item.path);
-	SortPrograms(list, byMemory);
+	SortPrograms(list, by_memory);
 	return list;
 }
 }

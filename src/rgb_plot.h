@@ -12,10 +12,10 @@ using Paths = std::array<std::vector<POINT>, 3>;
 // graph bitmap is never retained. The owner releases this on hide/minimize.
 class Scratch
 {
-	HDC dc_ = nullptr;
-	HBITMAP bitmap_ = nullptr;
-	int width_ = 0, height_ = 0;
-	void* pixels_ = nullptr;
+	HDC _dc = nullptr;
+	HBITMAP _bitmap = nullptr;
+	int _width = 0, _height = 0;
+	void* _pixels = nullptr;
 
 public:
 	Paths points;
@@ -24,25 +24,25 @@ public:
 	Scratch& operator=(const Scratch&) = delete;
 	void Reset()
 	{
-		if (bitmap_)
-			DeleteObject(bitmap_);
-		if (dc_)
-			DeleteDC(dc_);
-		bitmap_ = nullptr;
-		dc_ = nullptr;
-		pixels_ = nullptr;
-		width_ = height_ = 0;
+		if (_bitmap)
+			DeleteObject(_bitmap);
+		if (_dc)
+			DeleteDC(_dc);
+		_bitmap = nullptr;
+		_dc = nullptr;
+		_pixels = nullptr;
+		_width = _height = 0;
 		for (auto& p : points)
 			std::vector<POINT>().swap(p);
 	}
 	~Scratch() { Reset(); }
 	bool EnsureSize(HDC target, int width, int height)
 	{
-		if (bitmap_ && width_ == width && height_ == height)
+		if (_bitmap && _width == width && _height == height)
 			return true;
 		Reset();
-		dc_ = CreateCompatibleDC(target);
-		if (!dc_)
+		_dc = CreateCompatibleDC(target);
+		if (!_dc)
 			return false;
 		BITMAPINFO info {};
 		info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -51,21 +51,21 @@ public:
 		info.bmiHeader.biPlanes = 1;
 		info.bmiHeader.biBitCount = 32;
 		info.bmiHeader.biCompression = BI_RGB;
-		bitmap_ = CreateDIBSection(target, &info, DIB_RGB_COLORS, &pixels_, nullptr, 0);
-		if (!bitmap_)
+		_bitmap = CreateDIBSection(target, &info, DIB_RGB_COLORS, &_pixels, nullptr, 0);
+		if (!_bitmap)
 		{
 			Reset();
 			return false;
 		}
-		width_ = width;
-		height_ = height;
-		SetROP2(dc_, R2_MERGEPEN);
+		_width = width;
+		_height = height;
+		SetROP2(_dc, R2_MERGEPEN);
 		return true;
 	}
-	HDC DeviceContext() const { return dc_; }
-	HBITMAP BitmapHandle() const { return bitmap_; }
-	uint32_t* Pixels() const { return static_cast<uint32_t*>(pixels_); }
-	size_t ByteCount() const { return static_cast<size_t>(width_) * height_ * 4; }
+	HDC DeviceContext() const { return _dc; }
+	HBITMAP BitmapHandle() const { return _bitmap; }
+	uint32_t* Pixels() const { return static_cast<uint32_t*>(_pixels); }
+	size_t ByteCount() const { return static_cast<size_t>(_width) * _height * 4; }
 };
 
 // Additive RGB coverage with unchanged 2x supersampling and no glow. Each
@@ -124,10 +124,10 @@ inline bool DrawRgbCurves(HDC target, int width, int height, const Paths& paths,
 		for (const auto& p : paths[c])
 			scaled[c].push_back({ (p.x - bounds.left) * 2, (p.y - bounds.top) * 2 });
 	}
-	constexpr COLORREF colours[] { RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255) };
+	constexpr COLORREF CHANNEL_COLORS[] { RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255) };
 	HPEN pens[3] {};
 	for (int c = 0; c < 3; ++c)
-		if (!(pens[c] = CreatePen(PS_SOLID, stroke * 2, colours[c])))
+		if (!(pens[c] = CreatePen(PS_SOLID, stroke * 2, CHANNEL_COLORS[c])))
 		{
 			for (auto p : pens)
 				if (p)
